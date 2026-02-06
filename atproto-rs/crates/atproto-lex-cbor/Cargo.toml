@@ -1,0 +1,17 @@
+[package]
+name = "atproto-lex-cbor"
+description = "AT Protocol DAG-CBOR encoding/decoding with CID tag 42 support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+atproto-lex-data = { workspace = true }
+ciborium = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

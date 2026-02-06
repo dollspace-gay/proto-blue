@@ -1,0 +1,23 @@
+[package]
+name = "atproto-common"
+description = "AT Protocol shared utilities: TID generation, DID documents, retry, IPLD helpers"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+atproto-syntax = { workspace = true }
+atproto-lex-data = { workspace = true }
+atproto-lex-json = { workspace = true }
+atproto-lex-cbor = { workspace = true }
+unicode-segmentation = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }

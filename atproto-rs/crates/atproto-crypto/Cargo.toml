@@ -1,0 +1,21 @@
+[package]
+name = "atproto-crypto"
+description = "AT Protocol cryptographic operations: P-256, K-256 signing, did:key, SHA-256"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+p256 = { workspace = true }
+k256 = { workspace = true }
+sha2 = { workspace = true }
+bs58 = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+proptest = { workspace = true }

@@ -1,0 +1,6 @@
+/atproto-ts/
+/atproto-rs/target/
+.chainlink/
+.mcp.json
+.claude/settings.json
+.claude/

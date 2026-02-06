@@ -1,0 +1,18 @@
+[package]
+name = "atproto-identity"
+description = "AT Protocol identity resolution: DID and handle resolution"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+atproto-common = { workspace = true }
+atproto-crypto = { workspace = true }
+reqwest = { workspace = true }
+hickory-resolver = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

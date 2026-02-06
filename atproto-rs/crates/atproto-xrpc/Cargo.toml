@@ -1,0 +1,17 @@
+[package]
+name = "atproto-xrpc"
+description = "AT Protocol XRPC HTTP client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+atproto-lexicon = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+url = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }

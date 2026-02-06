@@ -1,0 +1,25 @@
+[package]
+name = "atproto-repo"
+description = "AT Protocol repository: MST, CAR files, commits, block storage"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+atproto-common = { workspace = true }
+atproto-crypto = { workspace = true }
+atproto-lexicon = { workspace = true }
+atproto-lex-data = { workspace = true }
+atproto-lex-cbor = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+unsigned-varint = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
