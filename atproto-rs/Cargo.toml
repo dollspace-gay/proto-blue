@@ -69,5 +69,5 @@ quote = "1"
 proc-macro2 = "1"
 syn = "2"
 clap = { version = "4", features = ["derive"] }
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 proptest = "1"
