@@ -1,5 +1,7 @@
 # atproto-rs
 
+> **Note:** This project was generated entirely by [Claude Opus 4.6](https://www.anthropic.com/claude) as a capability test and demonstration of its coding skills. The full SDK — 14 crates, ~390 tests, code generation, and OAuth implementation — was produced by the model with no human-written code.
+
 A comprehensive Rust SDK for the [AT Protocol](https://atproto.com/) (Authenticated Transfer Protocol), the decentralized social networking protocol powering [Bluesky](https://bsky.app).
 
 This is a faithful 1:1 translation of the official [TypeScript SDK](https://github.com/bluesky-social/atproto), organized as a Cargo workspace of 14 crates covering the full protocol stack — from low-level cryptography and CBOR encoding to high-level agent sessions and OAuth.
