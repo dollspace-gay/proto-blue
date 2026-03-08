@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use atproto_lex_data::{Cid, LexValue};
+use proto_blue_lex_data::{Cid, LexValue};
 
 use crate::error::{ValidationError, ValidationResult};
 use crate::lexicons::Lexicons;
@@ -118,7 +118,7 @@ fn validate_string(path: &str, def: &LexString, value: &LexValue) -> ValidationR
 
     // Grapheme length checks
     if def.min_graphemes.is_some() || def.max_graphemes.is_some() {
-        let grapheme_count = atproto_common::grapheme_len(s);
+        let grapheme_count = proto_blue_common::grapheme_len(s);
         if let Some(min) = def.min_graphemes {
             if grapheme_count < min {
                 return Err(ValidationError::new(
@@ -167,19 +167,19 @@ fn validate_string(path: &str, def: &LexString, value: &LexValue) -> ValidationR
 
 fn validate_string_format(path: &str, format: &str, value: &str) -> ValidationResult {
     let valid = match format {
-        "datetime" => atproto_syntax::Datetime::new(value).is_ok(),
+        "datetime" => proto_blue_syntax::Datetime::new(value).is_ok(),
         "uri" => value.contains(':'), // Basic URI check
-        "at-uri" => atproto_syntax::AtUri::new(value).is_ok(),
-        "did" => atproto_syntax::Did::new(value).is_ok(),
-        "handle" => atproto_syntax::Handle::new(value).is_ok(),
+        "at-uri" => proto_blue_syntax::AtUri::new(value).is_ok(),
+        "did" => proto_blue_syntax::Did::new(value).is_ok(),
+        "handle" => proto_blue_syntax::Handle::new(value).is_ok(),
         "at-identifier" => {
-            atproto_syntax::Did::new(value).is_ok() || atproto_syntax::Handle::new(value).is_ok()
+            proto_blue_syntax::Did::new(value).is_ok() || proto_blue_syntax::Handle::new(value).is_ok()
         }
-        "nsid" => atproto_syntax::Nsid::new(value).is_ok(),
+        "nsid" => proto_blue_syntax::Nsid::new(value).is_ok(),
         "cid" => value.parse::<Cid>().is_ok(),
-        "language" => atproto_syntax::is_valid_language(value),
-        "tid" => atproto_syntax::Tid::new(value).is_ok(),
-        "record-key" => atproto_syntax::RecordKey::new(value).is_ok(),
+        "language" => proto_blue_syntax::is_valid_language(value),
+        "tid" => proto_blue_syntax::Tid::new(value).is_ok(),
+        "record-key" => proto_blue_syntax::RecordKey::new(value).is_ok(),
         _ => true, // Unknown formats pass
     };
 

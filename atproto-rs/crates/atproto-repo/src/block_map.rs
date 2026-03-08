@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use atproto_lex_data::{Cid, LexValue};
+use proto_blue_lex_data::{Cid, LexValue};
 
 use crate::error::RepoError;
 
@@ -22,8 +22,8 @@ impl BlockMap {
 
     /// Add a LexValue, encoding it as CBOR and computing its CID.
     pub fn add_value(&mut self, value: &LexValue) -> Result<Cid, RepoError> {
-        let bytes = atproto_lex_cbor::encode(value)?;
-        let cid = atproto_lex_cbor::cid_for_lex(value)?;
+        let bytes = proto_blue_lex_cbor::encode(value)?;
+        let cid = proto_blue_lex_cbor::cid_for_lex(value)?;
         self.set(cid.clone(), bytes);
         Ok(cid)
     }
@@ -154,7 +154,7 @@ mod tests {
         let mut map = BlockMap::new();
         let cid1 = map.add_value(&LexValue::String("a".into())).unwrap();
         let cid2 = map.add_value(&LexValue::String("b".into())).unwrap();
-        let cid3 = atproto_lex_cbor::cid_for_lex(&LexValue::String("missing".into())).unwrap();
+        let cid3 = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("missing".into())).unwrap();
 
         let (found, missing) = map.get_many(&[cid1.clone(), cid2.clone(), cid3.clone()]);
         assert_eq!(found.len(), 2);

@@ -1,5 +1,5 @@
 [package]
-name = "atproto-xrpc"
+name = "proto-blue-xrpc"
 description = "AT Protocol XRPC HTTP client"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-lexicon = { workspace = true }
+proto-blue-lexicon = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

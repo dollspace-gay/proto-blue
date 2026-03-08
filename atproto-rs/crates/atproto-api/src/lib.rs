@@ -3,7 +3,7 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_api::rich_text::{RichText, FacetFeature};
+//! use proto_blue_api::rich_text::{RichText, FacetFeature};
 //!
 //! // Create rich text with automatic facet detection
 //! let mut rt = RichText::new(

@@ -1,5 +1,5 @@
 [package]
-name = "atproto-codegen"
+name = "proto-blue-codegen"
 description = "AT Protocol code generator: Lexicon JSON -> Rust source"
 version.workspace = true
 edition.workspace = true
@@ -8,11 +8,11 @@ repository.workspace = true
 rust-version.workspace = true
 
 [[bin]]
-name = "atproto-codegen"
+name = "proto-blue-codegen"
 path = "src/main.rs"
 
 [dependencies]
-atproto-lexicon = { workspace = true }
+proto-blue-lexicon = { workspace = true }
 serde_json = { workspace = true }
 quote = { workspace = true }
 proc-macro2 = { workspace = true }

@@ -3,8 +3,8 @@
 use proptest::prelude::*;
 use std::collections::BTreeMap;
 
-use atproto_lex_data::LexValue;
-use atproto_repo::mst::MstNode;
+use proto_blue_lex_data::LexValue;
+use proto_blue_repo::mst::MstNode;
 
 // --- MST property tests ---
 
@@ -33,7 +33,7 @@ proptest! {
         let mut mst1 = MstNode::empty();
         for (k, v) in &entries {
             let val = LexValue::String(v.clone());
-            let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
+            let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
             mst1 = mst1.add(k, cid).unwrap();
         }
 
@@ -41,7 +41,7 @@ proptest! {
         let mut mst2 = MstNode::empty();
         for (k, v) in entries.iter().rev() {
             let val = LexValue::String(v.clone());
-            let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
+            let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
             mst2 = mst2.add(k, cid).unwrap();
         }
 
@@ -67,7 +67,7 @@ proptest! {
         let unique_keys: Vec<String> = keys.into_iter().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
 
         let val = LexValue::String("value".into());
-        let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
+        let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
 
         let mut mst = MstNode::empty();
         for k in &unique_keys {
@@ -92,7 +92,7 @@ proptest! {
         let mut mst = MstNode::empty();
         for (k, v) in &entries {
             let val = LexValue::Integer(*v as i64);
-            let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
+            let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
             // Ignore duplicate key errors
             if let Ok(new_mst) = mst.add(k, cid) {
                 mst = new_mst;
@@ -117,20 +117,20 @@ proptest! {
             1..10
         )
     ) {
-        let mut block_map = atproto_repo::BlockMap::new();
+        let mut block_map = proto_blue_repo::BlockMap::new();
         for data in &blocks {
             let val = LexValue::Bytes(data.clone());
-            let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
-            let encoded = atproto_lex_cbor::encode(&val).unwrap();
+            let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
+            let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
             block_map.set(cid, encoded);
         }
 
         // Use the first CID as root
         let all_cids = block_map.cids();
         let first_cid = &all_cids[0];
-        let car_bytes = atproto_repo::blocks_to_car(Some(first_cid), &block_map).unwrap();
+        let car_bytes = proto_blue_repo::blocks_to_car(Some(first_cid), &block_map).unwrap();
 
-        let (roots, restored) = atproto_repo::read_car(&car_bytes).unwrap();
+        let (roots, restored) = proto_blue_repo::read_car(&car_bytes).unwrap();
         prop_assert_eq!(roots.len(), 1);
         prop_assert_eq!(roots[0].to_string_base32(), first_cid.to_string_base32());
         prop_assert_eq!(restored.len(), block_map.len());
@@ -147,12 +147,12 @@ proptest! {
             1..20
         )
     ) {
-        let mut bm = atproto_repo::BlockMap::new();
+        let mut bm = proto_blue_repo::BlockMap::new();
         let mut cids = Vec::new();
         for data in &entries {
             let val = LexValue::Bytes(data.clone());
-            let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
-            let encoded = atproto_lex_cbor::encode(&val).unwrap();
+            let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
+            let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
             bm.set(cid.clone(), encoded.clone());
             cids.push((cid, encoded));
         }
@@ -170,11 +170,11 @@ proptest! {
             1..20
         )
     ) {
-        let mut set = atproto_repo::CidSet::new();
+        let mut set = proto_blue_repo::CidSet::new();
         let mut cids = Vec::new();
         for data in &data_items {
             let val = LexValue::Bytes(data.clone());
-            let cid = atproto_lex_cbor::cid_for_lex(&val).unwrap();
+            let cid = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
             set.add(cid.clone());
             cids.push(cid);
         }

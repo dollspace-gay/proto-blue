@@ -3,9 +3,9 @@
 //! Demonstrates the moderation engine: label-based decisions,
 //! mute words, blocking, and UI context filtering.
 //!
-//! Run with: cargo run -p atproto-examples --bin moderation
+//! Run with: cargo run -p proto-blue-examples --bin moderation
 
-use atproto_api::moderation::{
+use proto_blue_api::moderation::{
     decision::ModerationDecision, labels::known_labels, mutewords::check_muted_words, types::*,
 };
 

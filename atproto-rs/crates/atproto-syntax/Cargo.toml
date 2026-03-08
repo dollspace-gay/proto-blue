@@ -1,5 +1,5 @@
 [package]
-name = "atproto-syntax"
+name = "proto-blue-syntax"
 description = "AT Protocol identifier types: DID, Handle, NSID, AT-URI, TID, RecordKey, Datetime"
 version.workspace = true
 edition.workspace = true

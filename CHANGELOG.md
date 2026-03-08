@@ -29,6 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fix all clippy warnings across workspace (#17)
 
 ### Changed
+- Rename all crates from atproto-* to proto-blue-* for crates.io publishing (#7)
 - Update 68 dependencies to latest compatible versions (#2)
 - Update jsonwebtoken from 9 to 10 for latest security fixes and features (#24)
 - Update README authentication example to recommend OAuth (#22)

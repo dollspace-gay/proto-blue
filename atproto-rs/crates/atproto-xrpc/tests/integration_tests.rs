@@ -1,13 +1,13 @@
 //! Integration tests against live AT Protocol XRPC endpoints.
 //!
-//! Run with: cargo test -p atproto-xrpc --test integration_tests -- --ignored
+//! Run with: cargo test -p proto-blue-xrpc --test integration_tests -- --ignored
 
-use atproto_xrpc::{QueryParams, QueryValue};
+use proto_blue_xrpc::{QueryParams, QueryValue};
 
 #[tokio::test]
 #[ignore = "requires network access"]
 async fn describe_server() {
-    let client = atproto_xrpc::XrpcClient::new("https://bsky.social").unwrap();
+    let client = proto_blue_xrpc::XrpcClient::new("https://bsky.social").unwrap();
     let resp = client
         .query("com.atproto.server.describeServer", None, None)
         .await
@@ -24,7 +24,7 @@ async fn describe_server() {
 #[tokio::test]
 #[ignore = "requires network access"]
 async fn resolve_handle() {
-    let client = atproto_xrpc::XrpcClient::new("https://bsky.social").unwrap();
+    let client = proto_blue_xrpc::XrpcClient::new("https://bsky.social").unwrap();
     let mut params = QueryParams::new();
     params.insert(
         "handle".to_string(),
@@ -45,7 +45,7 @@ async fn resolve_handle() {
 #[tokio::test]
 #[ignore = "requires network access"]
 async fn get_profile_unauthenticated() {
-    let client = atproto_xrpc::XrpcClient::new("https://public.api.bsky.app").unwrap();
+    let client = proto_blue_xrpc::XrpcClient::new("https://public.api.bsky.app").unwrap();
     let mut params = QueryParams::new();
     params.insert(
         "actor".to_string(),
@@ -70,7 +70,7 @@ async fn get_profile_unauthenticated() {
 #[tokio::test]
 #[ignore = "requires network access"]
 async fn invalid_nsid_returns_error() {
-    let client = atproto_xrpc::XrpcClient::new("https://bsky.social").unwrap();
+    let client = proto_blue_xrpc::XrpcClient::new("https://bsky.social").unwrap();
     let resp = client
         .query("com.atproto.nonexistent.method", None, None)
         .await;

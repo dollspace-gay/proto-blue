@@ -1,5 +1,5 @@
 [package]
-name = "atproto-crypto"
+name = "proto-blue-crypto"
 description = "AT Protocol cryptographic operations: P-256, K-256 signing, did:key, SHA-256"
 version.workspace = true
 edition.workspace = true

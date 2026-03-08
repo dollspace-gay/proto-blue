@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use sha2::{Digest, Sha256};
 
-use atproto_lex_data::{Cid, LexValue};
+use proto_blue_lex_data::{Cid, LexValue};
 
 use crate::error::RepoError;
 
@@ -205,7 +205,7 @@ pub fn entries_to_keys(data: &NodeData) -> Vec<String> {
 /// Compute the CID for a serialized node.
 pub fn cid_for_entries(data: &NodeData) -> Result<Cid, RepoError> {
     let value = serialize_node_data(data);
-    Ok(atproto_lex_cbor::cid_for_lex(&value)?)
+    Ok(proto_blue_lex_cbor::cid_for_lex(&value)?)
 }
 
 #[cfg(test)]
@@ -271,8 +271,8 @@ mod tests {
 
     #[test]
     fn node_data_roundtrip() {
-        let cid1 = atproto_lex_cbor::cid_for_lex(&LexValue::String("val1".into())).unwrap();
-        let cid2 = atproto_lex_cbor::cid_for_lex(&LexValue::String("val2".into())).unwrap();
+        let cid1 = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("val1".into())).unwrap();
+        let cid2 = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("val2".into())).unwrap();
 
         let data = NodeData {
             left: None,
@@ -306,8 +306,8 @@ mod tests {
 
     #[test]
     fn node_data_with_left_subtree() {
-        let cid = atproto_lex_cbor::cid_for_lex(&LexValue::String("val".into())).unwrap();
-        let left_cid = atproto_lex_cbor::cid_for_lex(&LexValue::String("left".into())).unwrap();
+        let cid = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("val".into())).unwrap();
+        let left_cid = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("left".into())).unwrap();
 
         let data = NodeData {
             left: Some(left_cid.clone()),
@@ -329,7 +329,7 @@ mod tests {
 
     #[test]
     fn cid_for_entries_deterministic() {
-        let cid_val = atproto_lex_cbor::cid_for_lex(&LexValue::String("val".into())).unwrap();
+        let cid_val = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("val".into())).unwrap();
         let data = NodeData {
             left: None,
             entries: vec![TreeEntry {

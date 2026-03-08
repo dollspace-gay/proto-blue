@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_crypto::{P256Keypair, Keypair, Signer, Verifier, sha256, format_did_key, parse_did_key};
+//! use proto_blue_crypto::{P256Keypair, Keypair, Signer, Verifier, sha256, format_did_key, parse_did_key};
 //!
 //! // Generate a P-256 keypair and sign data
 //! let kp = P256Keypair::generate();

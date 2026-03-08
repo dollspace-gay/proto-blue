@@ -6,9 +6,9 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_repo::{MstNode, BlockMap, CidSet, blocks_to_car, read_car};
-//! use atproto_lex_data::LexValue;
-//! use atproto_lex_cbor::cid_for_lex;
+//! use proto_blue_repo::{MstNode, BlockMap, CidSet, blocks_to_car, read_car};
+//! use proto_blue_lex_data::LexValue;
+//! use proto_blue_lex_cbor::cid_for_lex;
 //! use std::collections::BTreeMap;
 //!
 //! // Create a value and compute its CID

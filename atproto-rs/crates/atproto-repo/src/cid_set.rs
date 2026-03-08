@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use atproto_lex_data::Cid;
+use proto_blue_lex_data::Cid;
 
 /// A set of CIDs, internally using string representation for efficient lookup.
 #[derive(Debug, Clone, Default)]
@@ -85,11 +85,11 @@ mod tests {
 
     fn test_cid() -> Cid {
         // Create a CID from some test data
-        atproto_lex_cbor::cid_for_lex(&atproto_lex_data::LexValue::String("test".into())).unwrap()
+        proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String("test".into())).unwrap()
     }
 
     fn test_cid2() -> Cid {
-        atproto_lex_cbor::cid_for_lex(&atproto_lex_data::LexValue::String("test2".into())).unwrap()
+        proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String("test2".into())).unwrap()
     }
 
     #[test]

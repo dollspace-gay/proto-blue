@@ -27,19 +27,19 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 # Internal crates
-atproto-syntax = { path = "crates/atproto-syntax" }
-atproto-crypto = { path = "crates/atproto-crypto" }
-atproto-lex-data = { path = "crates/atproto-lex-data" }
-atproto-lex-cbor = { path = "crates/atproto-lex-cbor" }
-atproto-lex-json = { path = "crates/atproto-lex-json" }
-atproto-common = { path = "crates/atproto-common" }
-atproto-lexicon = { path = "crates/atproto-lexicon" }
-atproto-repo = { path = "crates/atproto-repo" }
-atproto-xrpc = { path = "crates/atproto-xrpc" }
-atproto-ws = { path = "crates/atproto-ws" }
-atproto-identity = { path = "crates/atproto-identity" }
-atproto-api = { path = "crates/atproto-api" }
-atproto-oauth = { path = "crates/atproto-oauth" }
+proto-blue-syntax = { path = "crates/atproto-syntax" }
+proto-blue-crypto = { path = "crates/atproto-crypto" }
+proto-blue-lex-data = { path = "crates/atproto-lex-data" }
+proto-blue-lex-cbor = { path = "crates/atproto-lex-cbor" }
+proto-blue-lex-json = { path = "crates/atproto-lex-json" }
+proto-blue-common = { path = "crates/atproto-common" }
+proto-blue-lexicon = { path = "crates/atproto-lexicon" }
+proto-blue-repo = { path = "crates/atproto-repo" }
+proto-blue-xrpc = { path = "crates/atproto-xrpc" }
+proto-blue-ws = { path = "crates/atproto-ws" }
+proto-blue-identity = { path = "crates/atproto-identity" }
+proto-blue-api = { path = "crates/atproto-api" }
+proto-blue-oauth = { path = "crates/atproto-oauth" }
 
 # External dependencies
 serde = { version = "1", features = ["derive"] }

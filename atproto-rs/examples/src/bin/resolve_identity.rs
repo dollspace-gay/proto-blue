@@ -3,9 +3,9 @@
 //! Demonstrates resolving DIDs and handles using the identity crate.
 //! Requires network access to reach bsky.social and PLC directory.
 //!
-//! Run with: cargo run -p atproto-examples --bin resolve_identity
+//! Run with: cargo run -p proto-blue-examples --bin resolve_identity
 
-use atproto_identity::{DidResolver, HandleResolver, IdResolver};
+use proto_blue_identity::{DidResolver, HandleResolver, IdResolver};
 
 #[tokio::main]
 async fn main() {
@@ -28,11 +28,11 @@ async fn main() {
             println!("  Services: {}", doc.service.len());
 
             // Extract PDS endpoint
-            let pds = atproto_common::did_doc::get_pds_endpoint(&doc);
+            let pds = proto_blue_common::did_doc::get_pds_endpoint(&doc);
             println!("  PDS endpoint: {:?}", pds);
 
             // Extract signing key
-            let signing_key = atproto_common::did_doc::get_signing_key(&doc);
+            let signing_key = proto_blue_common::did_doc::get_signing_key(&doc);
             if let Some(key) = signing_key {
                 println!("  Signing key type: {}", key.key_type);
             }
@@ -66,7 +66,7 @@ async fn main() {
                 // Now resolve the DID document
                 match resolver.did.resolve(&did, false).await {
                     Ok(Some(doc)) => {
-                        let pds = atproto_common::did_doc::get_pds_endpoint(&doc);
+                        let pds = proto_blue_common::did_doc::get_pds_endpoint(&doc);
                         println!("    PDS: {:?}", pds);
                     }
                     Ok(None) => println!("    (DID document not found)"),

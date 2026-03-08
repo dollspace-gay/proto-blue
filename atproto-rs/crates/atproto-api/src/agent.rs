@@ -6,7 +6,7 @@
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use atproto_xrpc::{CallOptions, HeadersMap, QueryParams, QueryValue, XrpcBody, XrpcClient};
+use proto_blue_xrpc::{CallOptions, HeadersMap, QueryParams, QueryValue, XrpcBody, XrpcClient};
 
 use crate::rich_text::RichText;
 
@@ -28,7 +28,7 @@ pub struct Session {
 #[derive(Debug, thiserror::Error)]
 pub enum AgentError {
     #[error("XRPC error: {0}")]
-    Xrpc(#[from] atproto_xrpc::Error),
+    Xrpc(#[from] proto_blue_xrpc::Error),
     #[error("Not authenticated")]
     NotAuthenticated,
     #[error("JSON error: {0}")]

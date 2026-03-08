@@ -1,5 +1,5 @@
 [package]
-name = "atproto-lexicon"
+name = "proto-blue-lexicon"
 description = "AT Protocol Lexicon schema system: types, registry, and validation"
 version.workspace = true
 edition.workspace = true
@@ -8,9 +8,9 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-common = { workspace = true }
-atproto-syntax = { workspace = true }
-atproto-lex-data = { workspace = true }
+proto-blue-common = { workspace = true }
+proto-blue-syntax = { workspace = true }
+proto-blue-lex-data = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

@@ -3,7 +3,7 @@
 use proptest::prelude::*;
 use std::collections::BTreeMap;
 
-use atproto_lex_data::LexValue;
+use proto_blue_lex_data::LexValue;
 
 // --- CBOR roundtrip property tests ---
 
@@ -11,40 +11,40 @@ proptest! {
     #[test]
     fn cbor_roundtrip_integers(n in proptest::num::i64::ANY) {
         let val = LexValue::Integer(n);
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, val);
     }
 
     #[test]
     fn cbor_roundtrip_strings(s in "[\\x00-\\x7F]{0,500}") {
         let val = LexValue::String(s.clone());
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, LexValue::String(s));
     }
 
     #[test]
     fn cbor_roundtrip_bytes(data in proptest::collection::vec(any::<u8>(), 0..256)) {
         let val = LexValue::Bytes(data.clone());
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, LexValue::Bytes(data));
     }
 
     #[test]
     fn cbor_roundtrip_booleans(b in any::<bool>()) {
         let val = LexValue::Bool(b);
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, LexValue::Bool(b));
     }
 
     #[test]
     fn cbor_roundtrip_null(_dummy in Just(())) {
         let val = LexValue::Null;
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, LexValue::Null);
     }
 
@@ -61,8 +61,8 @@ proptest! {
         )
     ) {
         let val = LexValue::Array(values.clone());
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, LexValue::Array(values));
     }
 
@@ -78,8 +78,8 @@ proptest! {
             map.insert(k, LexValue::Integer(v));
         }
         let val = LexValue::Map(map.clone());
-        let encoded = atproto_lex_cbor::encode(&val).unwrap();
-        let decoded = atproto_lex_cbor::decode(&encoded).unwrap();
+        let encoded = proto_blue_lex_cbor::encode(&val).unwrap();
+        let decoded = proto_blue_lex_cbor::decode(&encoded).unwrap();
         prop_assert_eq!(decoded, LexValue::Map(map));
     }
 
@@ -95,15 +95,15 @@ proptest! {
             map.insert(k, LexValue::Integer(v));
         }
         let val = LexValue::Map(map);
-        let encoded1 = atproto_lex_cbor::encode(&val).unwrap();
-        let encoded2 = atproto_lex_cbor::encode(&val).unwrap();
+        let encoded1 = proto_blue_lex_cbor::encode(&val).unwrap();
+        let encoded2 = proto_blue_lex_cbor::encode(&val).unwrap();
         prop_assert_eq!(encoded1, encoded2, "DAG-CBOR encoding must be deterministic");
     }
 
     #[test]
     fn cbor_decode_never_panics(data in proptest::collection::vec(any::<u8>(), 0..256)) {
         // Should never panic, just return Ok or Err
-        let _ = atproto_lex_cbor::decode(&data);
+        let _ = proto_blue_lex_cbor::decode(&data);
     }
 }
 
@@ -113,8 +113,8 @@ proptest! {
     #[test]
     fn cid_for_lex_is_deterministic(s in "[a-z]{0,100}") {
         let val = LexValue::String(s);
-        let cid1 = atproto_lex_cbor::cid_for_lex(&val).unwrap();
-        let cid2 = atproto_lex_cbor::cid_for_lex(&val).unwrap();
+        let cid1 = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
+        let cid2 = proto_blue_lex_cbor::cid_for_lex(&val).unwrap();
         prop_assert_eq!(cid1.to_string(), cid2.to_string());
     }
 
@@ -124,8 +124,8 @@ proptest! {
         b in "[a-z]{1,50}"
     ) {
         prop_assume!(a != b);
-        let cid_a = atproto_lex_cbor::cid_for_lex(&LexValue::String(a)).unwrap();
-        let cid_b = atproto_lex_cbor::cid_for_lex(&LexValue::String(b)).unwrap();
+        let cid_a = proto_blue_lex_cbor::cid_for_lex(&LexValue::String(a)).unwrap();
+        let cid_b = proto_blue_lex_cbor::cid_for_lex(&LexValue::String(b)).unwrap();
         prop_assert_ne!(cid_a.to_string(), cid_b.to_string());
     }
 }

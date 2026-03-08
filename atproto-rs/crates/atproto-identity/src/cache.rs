@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use atproto_common::{DAY, DidDocument, HOUR};
+use proto_blue_common::{DAY, DidDocument, HOUR};
 
 use crate::types::CacheResult;
 
@@ -124,7 +124,7 @@ impl DidCache for MemoryCache {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atproto_common::parse_did_document;
+    use proto_blue_common::parse_did_document;
 
     fn sample_doc() -> DidDocument {
         let json = r#"{"id": "did:plc:test", "verificationMethod": [], "service": []}"#;

@@ -3,7 +3,7 @@
 //! An ordered, insertion-order-independent, deterministic tree for storing
 //! key-value pairs where keys are `collection/rkey` paths and values are CIDs.
 
-use atproto_lex_data::Cid;
+use proto_blue_lex_data::Cid;
 
 use crate::block_map::BlockMap;
 use crate::cid_set::CidSet;
@@ -89,7 +89,7 @@ impl MstNode {
         let bytes = blocks
             .get(cid)
             .ok_or_else(|| RepoError::MissingBlock(cid.clone()))?;
-        let value = atproto_lex_cbor::decode(bytes)?;
+        let value = proto_blue_lex_cbor::decode(bytes)?;
         let data = deserialize_node_data(&value)?;
         let mut node = Self::from_data(&data, blocks)?;
         node.pointer = Some(cid.clone());
@@ -699,10 +699,10 @@ impl MstNode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atproto_lex_data::LexValue;
+    use proto_blue_lex_data::LexValue;
 
     fn make_cid(data: &str) -> Cid {
-        atproto_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
+        proto_blue_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
     }
 
     #[test]

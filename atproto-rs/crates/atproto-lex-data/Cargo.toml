@@ -1,5 +1,5 @@
 [package]
-name = "atproto-lex-data"
+name = "proto-blue-lex-data"
 description = "AT Protocol core data types: CID, LexValue, BlobRef"
 version.workspace = true
 edition.workspace = true

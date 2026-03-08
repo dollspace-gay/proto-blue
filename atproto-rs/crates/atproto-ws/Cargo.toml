@@ -1,5 +1,5 @@
 [package]
-name = "atproto-ws"
+name = "proto-blue-ws"
 description = "AT Protocol WebSocket client with auto-reconnection"
 version.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-common = { workspace = true }
+proto-blue-common = { workspace = true }
 tokio-tungstenite = { workspace = true }
 tokio = { workspace = true }
 futures = { workspace = true }

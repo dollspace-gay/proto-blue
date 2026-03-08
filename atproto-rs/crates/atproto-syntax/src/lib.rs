@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_syntax::{Did, Handle, Nsid, AtUri, Tid, RecordKey};
+//! use proto_blue_syntax::{Did, Handle, Nsid, AtUri, Tid, RecordKey};
 //!
 //! // Parse and validate a DID
 //! let did = Did::new("did:plc:z72i7hdynmk6r22z27h6tvur").unwrap();

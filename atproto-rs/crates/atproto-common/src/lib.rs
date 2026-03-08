@@ -5,7 +5,7 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_common::{grapheme_len, utf8_len, next_tid, SECOND, MINUTE, HOUR, DAY};
+//! use proto_blue_common::{grapheme_len, utf8_len, next_tid, SECOND, MINUTE, HOUR, DAY};
 //!
 //! // Grapheme-aware string length
 //! assert_eq!(grapheme_len("Hello"), 5);

@@ -1,6 +1,6 @@
 //! Error types for the repository system.
 
-use atproto_lex_data::Cid;
+use proto_blue_lex_data::Cid;
 use thiserror::Error;
 
 /// Errors that can occur when working with repositories.
@@ -21,7 +21,7 @@ pub enum RepoError {
     #[error("Key already exists: {0}")]
     KeyAlreadyExists(String),
     #[error("CBOR error: {0}")]
-    Cbor(#[from] atproto_lex_cbor::CborError),
+    Cbor(#[from] proto_blue_lex_cbor::CborError),
     #[error("CAR error: {0}")]
     Car(String),
     #[error("Storage error: {0}")]

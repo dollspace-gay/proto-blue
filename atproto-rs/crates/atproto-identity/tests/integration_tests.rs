@@ -1,9 +1,9 @@
 //! Integration tests against live AT Protocol infrastructure.
 //!
 //! These tests require network access and hit real services.
-//! Run with: cargo test -p atproto-identity --test integration_tests -- --ignored
+//! Run with: cargo test -p proto-blue-identity --test integration_tests -- --ignored
 
-use atproto_identity::{DidResolver, HandleResolver, IdResolver};
+use proto_blue_identity::{DidResolver, HandleResolver, IdResolver};
 
 #[tokio::test]
 #[ignore = "requires network access"]
@@ -71,13 +71,13 @@ async fn id_resolver_full_flow() {
 
     let doc = doc.expect("Should resolve bsky.app DID");
 
-    let pds = atproto_common::did_doc::get_pds_endpoint(&doc);
+    let pds = proto_blue_common::did_doc::get_pds_endpoint(&doc);
     assert!(
         pds.is_some(),
         "bsky.app's DID document should have a PDS endpoint"
     );
 
-    let signing_key = atproto_common::did_doc::get_signing_key(&doc);
+    let signing_key = proto_blue_common::did_doc::get_signing_key(&doc);
     assert!(
         signing_key.is_some(),
         "bsky.app's DID document should have a signing key"

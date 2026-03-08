@@ -1,21 +1,21 @@
 [package]
-name = "atproto-examples"
+name = "proto-blue-examples"
 version = "0.0.0"
 edition = "2024"
 publish = false
 rust-version = "1.85"
 
 [dependencies]
-atproto-syntax = { path = "../crates/atproto-syntax" }
-atproto-crypto = { path = "../crates/atproto-crypto" }
-atproto-lex-data = { path = "../crates/atproto-lex-data" }
-atproto-lex-cbor = { path = "../crates/atproto-lex-cbor" }
-atproto-lex-json = { path = "../crates/atproto-lex-json" }
-atproto-common = { path = "../crates/atproto-common" }
-atproto-repo = { path = "../crates/atproto-repo" }
-atproto-xrpc = { path = "../crates/atproto-xrpc" }
-atproto-identity = { path = "../crates/atproto-identity" }
-atproto-api = { path = "../crates/atproto-api" }
-atproto-oauth = { path = "../crates/atproto-oauth" }
+proto-blue-syntax = { path = "../crates/atproto-syntax" }
+proto-blue-crypto = { path = "../crates/atproto-crypto" }
+proto-blue-lex-data = { path = "../crates/atproto-lex-data" }
+proto-blue-lex-cbor = { path = "../crates/atproto-lex-cbor" }
+proto-blue-lex-json = { path = "../crates/atproto-lex-json" }
+proto-blue-common = { path = "../crates/atproto-common" }
+proto-blue-repo = { path = "../crates/atproto-repo" }
+proto-blue-xrpc = { path = "../crates/atproto-xrpc" }
+proto-blue-identity = { path = "../crates/atproto-identity" }
+proto-blue-api = { path = "../crates/atproto-api" }
+proto-blue-oauth = { path = "../crates/atproto-oauth" }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }

@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use atproto_lex_data::{Cid, LexValue};
+use proto_blue_lex_data::{Cid, LexValue};
 
 use crate::block_map::BlockMap;
 use crate::error::RepoError;
@@ -31,7 +31,7 @@ pub fn blocks_to_car(root: Option<&Cid>, blocks: &BlockMap) -> Result<Vec<u8>, R
     header_map.insert("version".to_string(), LexValue::Integer(1));
     header_map.insert("roots".to_string(), LexValue::Array(roots));
     let header_value = LexValue::Map(header_map);
-    let header_bytes = atproto_lex_cbor::encode(&header_value)?;
+    let header_bytes = proto_blue_lex_cbor::encode(&header_value)?;
 
     // Write header length varint + header
     write_varint(&mut output, header_bytes.len() as u64);
@@ -61,7 +61,7 @@ pub fn read_car(data: &[u8]) -> Result<(Vec<Cid>, BlockMap), RepoError> {
     let header_bytes = &data[pos..pos + header_len];
     pos += header_len;
 
-    let header_value = atproto_lex_cbor::decode(header_bytes)?;
+    let header_value = proto_blue_lex_cbor::decode(header_bytes)?;
     let header_map = header_value
         .as_map()
         .ok_or_else(|| RepoError::Car("Header is not a map".into()))?;
@@ -189,10 +189,10 @@ fn read_varint(data: &[u8], pos: &mut usize) -> Result<u64, RepoError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atproto_lex_data::LexValue;
+    use proto_blue_lex_data::LexValue;
 
     fn make_cid(data: &str) -> Cid {
-        atproto_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
+        proto_blue_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
     }
 
     #[test]
@@ -249,7 +249,7 @@ mod tests {
     fn car_preserves_block_content() {
         let mut blocks = BlockMap::new();
         let val = LexValue::String("test data".into());
-        let bytes = atproto_lex_cbor::encode(&val).unwrap();
+        let bytes = proto_blue_lex_cbor::encode(&val).unwrap();
         let cid = blocks.add_value(&val).unwrap();
 
         let car = blocks_to_car(Some(&cid), &blocks).unwrap();

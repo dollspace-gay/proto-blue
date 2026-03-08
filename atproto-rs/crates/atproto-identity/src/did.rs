@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use atproto_common::{DidDocument, get_did, get_handle, get_pds_endpoint, get_signing_key};
+use proto_blue_common::{DidDocument, get_did, get_handle, get_pds_endpoint, get_signing_key};
 
 use crate::cache::DidCache;
 use crate::error::IdentityError;
@@ -77,7 +77,7 @@ impl DidResolver {
     }
 
     /// Resolve a DID and extract AT Protocol-specific data.
-    pub async fn resolve_atproto_data(
+    pub async fn resolve_proto_blue_data(
         &self,
         did: &str,
         force_refresh: bool,
@@ -246,7 +246,7 @@ pub fn ensure_atp_document(doc: &DidDocument) -> Result<AtprotoData, IdentityErr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use atproto_common::parse_did_document;
+    use proto_blue_common::parse_did_document;
 
     #[test]
     fn ensure_atp_document_valid() {
@@ -260,7 +260,7 @@ mod tests {
                 "publicKeyMultibase": "zDnaerDaTF5BXEavCrfRZEk316dpbLsfPDZ3WJ5hRTPFU2169"
             }],
             "service": [{
-                "id": "#atproto_pds",
+                "id": "#proto_blue_pds",
                 "type": "AtprotoPersonalDataServer",
                 "serviceEndpoint": "https://bsky.social"
             }]
@@ -280,7 +280,7 @@ mod tests {
             "alsoKnownAs": ["at://test.bsky.social"],
             "verificationMethod": [],
             "service": [{
-                "id": "#atproto_pds",
+                "id": "#proto_blue_pds",
                 "type": "AtprotoPersonalDataServer",
                 "serviceEndpoint": "https://bsky.social"
             }]
@@ -302,7 +302,7 @@ mod tests {
                 "publicKeyMultibase": "zAbc123"
             }],
             "service": [{
-                "id": "#atproto_pds",
+                "id": "#proto_blue_pds",
                 "type": "AtprotoPersonalDataServer",
                 "serviceEndpoint": "https://bsky.social"
             }]

@@ -94,226 +94,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "atproto-api"
-version = "0.1.0"
-dependencies = [
- "atproto-common",
- "atproto-lex-data",
- "atproto-lexicon",
- "atproto-syntax",
- "atproto-xrpc",
- "chrono",
- "once_cell",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "unicode-segmentation",
-]
-
-[[package]]
-name = "atproto-codegen"
-version = "0.1.0"
-dependencies = [
- "atproto-lexicon",
- "clap",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn",
-]
-
-[[package]]
-name = "atproto-common"
-version = "0.1.0"
-dependencies = [
- "atproto-lex-cbor",
- "atproto-lex-data",
- "atproto-lex-json",
- "atproto-syntax",
- "chrono",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "unicode-segmentation",
- "url",
-]
-
-[[package]]
-name = "atproto-crypto"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "k256",
- "p256",
- "proptest",
- "rand 0.8.5",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
-]
-
-[[package]]
-name = "atproto-examples"
-version = "0.0.0"
-dependencies = [
- "atproto-api",
- "atproto-common",
- "atproto-crypto",
- "atproto-identity",
- "atproto-lex-cbor",
- "atproto-lex-data",
- "atproto-lex-json",
- "atproto-oauth",
- "atproto-repo",
- "atproto-syntax",
- "atproto-xrpc",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "atproto-identity"
-version = "0.1.0"
-dependencies = [
- "atproto-common",
- "atproto-crypto",
- "hickory-resolver",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
-]
-
-[[package]]
-name = "atproto-lex-cbor"
-version = "0.1.0"
-dependencies = [
- "atproto-lex-data",
- "ciborium",
- "proptest",
- "sha2",
- "thiserror",
-]
-
-[[package]]
-name = "atproto-lex-data"
-version = "0.1.0"
-dependencies = [
- "multibase",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
- "unsigned-varint",
-]
-
-[[package]]
-name = "atproto-lex-json"
-version = "0.1.0"
-dependencies = [
- "atproto-lex-data",
- "base64",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "atproto-lexicon"
-version = "0.1.0"
-dependencies = [
- "atproto-common",
- "atproto-lex-data",
- "atproto-syntax",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "atproto-oauth"
-version = "0.1.0"
-dependencies = [
- "atproto-crypto",
- "atproto-identity",
- "atproto-xrpc",
- "base64",
- "chrono",
- "p256",
- "rand 0.8.5",
- "reqwest",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
-name = "atproto-repo"
-version = "0.1.0"
-dependencies = [
- "atproto-common",
- "atproto-crypto",
- "atproto-lex-cbor",
- "atproto-lex-data",
- "atproto-lexicon",
- "futures",
- "proptest",
- "serde",
- "serde_json",
- "sha2",
- "thiserror",
- "tokio",
- "unsigned-varint",
-]
-
-[[package]]
-name = "atproto-syntax"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "proptest",
- "regex",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "atproto-ws"
-version = "0.1.0"
-dependencies = [
- "atproto-common",
- "futures",
- "thiserror",
- "tokio",
- "tokio-tungstenite",
- "tracing",
-]
-
-[[package]]
-name = "atproto-xrpc"
-version = "0.1.0"
-dependencies = [
- "atproto-lexicon",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "url",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1714,6 +1494,226 @@ dependencies = [
  "rusty-fork",
  "tempfile",
  "unarray",
+]
+
+[[package]]
+name = "proto-blue-api"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "once_cell",
+ "proto-blue-common",
+ "proto-blue-lex-data",
+ "proto-blue-lexicon",
+ "proto-blue-syntax",
+ "proto-blue-xrpc",
+ "regex",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "proto-blue-codegen"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "proc-macro2",
+ "proto-blue-lexicon",
+ "quote",
+ "serde_json",
+ "syn",
+]
+
+[[package]]
+name = "proto-blue-common"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "proto-blue-lex-cbor",
+ "proto-blue-lex-data",
+ "proto-blue-lex-json",
+ "proto-blue-syntax",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "unicode-segmentation",
+ "url",
+]
+
+[[package]]
+name = "proto-blue-crypto"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "k256",
+ "p256",
+ "proptest",
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "proto-blue-examples"
+version = "0.0.0"
+dependencies = [
+ "proto-blue-api",
+ "proto-blue-common",
+ "proto-blue-crypto",
+ "proto-blue-identity",
+ "proto-blue-lex-cbor",
+ "proto-blue-lex-data",
+ "proto-blue-lex-json",
+ "proto-blue-oauth",
+ "proto-blue-repo",
+ "proto-blue-syntax",
+ "proto-blue-xrpc",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "proto-blue-identity"
+version = "0.1.0"
+dependencies = [
+ "hickory-resolver",
+ "proto-blue-common",
+ "proto-blue-crypto",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "proto-blue-lex-cbor"
+version = "0.1.0"
+dependencies = [
+ "ciborium",
+ "proptest",
+ "proto-blue-lex-data",
+ "sha2",
+ "thiserror",
+]
+
+[[package]]
+name = "proto-blue-lex-data"
+version = "0.1.0"
+dependencies = [
+ "multibase",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "proto-blue-lex-json"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "proto-blue-lex-data",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "proto-blue-lexicon"
+version = "0.1.0"
+dependencies = [
+ "proto-blue-common",
+ "proto-blue-lex-data",
+ "proto-blue-syntax",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "proto-blue-oauth"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "chrono",
+ "p256",
+ "proto-blue-crypto",
+ "proto-blue-identity",
+ "proto-blue-xrpc",
+ "rand 0.8.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "proto-blue-repo"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "proptest",
+ "proto-blue-common",
+ "proto-blue-crypto",
+ "proto-blue-lex-cbor",
+ "proto-blue-lex-data",
+ "proto-blue-lexicon",
+ "serde",
+ "serde_json",
+ "sha2",
+ "thiserror",
+ "tokio",
+ "unsigned-varint",
+]
+
+[[package]]
+name = "proto-blue-syntax"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "proptest",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "proto-blue-ws"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "proto-blue-common",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite",
+ "tracing",
+]
+
+[[package]]
+name = "proto-blue-xrpc"
+version = "0.1.0"
+dependencies = [
+ "proto-blue-lexicon",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "url",
 ]
 
 [[package]]

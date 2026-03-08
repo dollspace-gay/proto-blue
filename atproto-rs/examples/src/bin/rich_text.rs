@@ -3,9 +3,9 @@
 //! Demonstrates creating rich text with automatic facet detection
 //! for mentions, links, and hashtags.
 //!
-//! Run with: cargo run -p atproto-examples --bin rich_text
+//! Run with: cargo run -p proto-blue-examples --bin rich_text
 
-use atproto_api::rich_text::{FacetFeature, RichText};
+use proto_blue_api::rich_text::{FacetFeature, RichText};
 
 fn main() {
     println!("=== AT Protocol Rich Text ===\n");
@@ -40,7 +40,7 @@ fn main() {
     println!("  Text byte length: {}", rt2.text().len());
     println!(
         "  Grapheme length: {}",
-        atproto_common::grapheme_len(rt2.text())
+        proto_blue_common::grapheme_len(rt2.text())
     );
     for facet in rt2.facets() {
         println!(

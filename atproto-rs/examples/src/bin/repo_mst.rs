@@ -3,13 +3,13 @@
 //! Demonstrates building an MST, adding/removing records, serializing
 //! to blocks, and CAR file encoding/decoding.
 //!
-//! Run with: cargo run -p atproto-examples --bin repo_mst
+//! Run with: cargo run -p proto-blue-examples --bin repo_mst
 
-use atproto_lex_data::LexValue;
-use atproto_repo::mst::MstNode;
+use proto_blue_lex_data::LexValue;
+use proto_blue_repo::mst::MstNode;
 
-fn make_cid(data: &str) -> atproto_lex_data::Cid {
-    atproto_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
+fn make_cid(data: &str) -> proto_blue_lex_data::Cid {
+    proto_blue_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
 }
 
 fn main() {
@@ -73,11 +73,11 @@ fn main() {
 
     // --- CAR encoding ---
     println!("\n--- CAR file encoding ---");
-    let car_bytes = atproto_repo::blocks_to_car(Some(&root_cid), &blocks).unwrap();
+    let car_bytes = proto_blue_repo::blocks_to_car(Some(&root_cid), &blocks).unwrap();
     println!("  CAR file size: {} bytes", car_bytes.len());
 
     // Decode it back
-    let (roots, restored_blocks) = atproto_repo::read_car(&car_bytes).unwrap();
+    let (roots, restored_blocks) = proto_blue_repo::read_car(&car_bytes).unwrap();
     println!("  Decoded roots: {}", roots.len());
     println!("  Decoded blocks: {}", restored_blocks.len());
     assert_eq!(roots[0].to_string_base32(), root_cid.to_string_base32());

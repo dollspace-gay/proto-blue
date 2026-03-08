@@ -7,12 +7,12 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_lex_data::{Cid, LexValue};
+//! use proto_blue_lex_data::{Cid, LexValue};
 //! use std::collections::BTreeMap;
 //!
 //! // Parse a CID from a base32 multibase string
 //! let cid: Cid = "bafyreif75igchtxu635l343pgwjxxtfdv5ngckj3khwzzpss4cv6dwvyeq".parse().unwrap();
-//! assert_eq!(cid.codec, atproto_lex_data::CBOR_CODEC);
+//! assert_eq!(cid.codec, proto_blue_lex_data::CBOR_CODEC);
 //!
 //! // Build a LexValue map (BTreeMap for deterministic ordering)
 //! let mut map = BTreeMap::new();

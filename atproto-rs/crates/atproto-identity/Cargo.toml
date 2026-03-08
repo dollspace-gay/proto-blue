@@ -1,5 +1,5 @@
 [package]
-name = "atproto-identity"
+name = "proto-blue-identity"
 description = "AT Protocol identity resolution: DID and handle resolution"
 version.workspace = true
 edition.workspace = true
@@ -8,8 +8,8 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-common = { workspace = true }
-atproto-crypto = { workspace = true }
+proto-blue-common = { workspace = true }
+proto-blue-crypto = { workspace = true }
 reqwest = { workspace = true }
 hickory-resolver = { workspace = true }
 tokio = { workspace = true }

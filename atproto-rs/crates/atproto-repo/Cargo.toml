@@ -1,5 +1,5 @@
 [package]
-name = "atproto-repo"
+name = "proto-blue-repo"
 description = "AT Protocol repository: MST, CAR files, commits, block storage"
 version.workspace = true
 edition.workspace = true
@@ -8,11 +8,11 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-common = { workspace = true }
-atproto-crypto = { workspace = true }
-atproto-lexicon = { workspace = true }
-atproto-lex-data = { workspace = true }
-atproto-lex-cbor = { workspace = true }
+proto-blue-common = { workspace = true }
+proto-blue-crypto = { workspace = true }
+proto-blue-lexicon = { workspace = true }
+proto-blue-lex-data = { workspace = true }
+proto-blue-lex-cbor = { workspace = true }
 sha2 = { workspace = true }
 tokio = { workspace = true }
 unsigned-varint = { workspace = true }

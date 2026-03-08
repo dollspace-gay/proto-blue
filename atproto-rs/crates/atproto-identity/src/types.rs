@@ -1,6 +1,6 @@
 //! Identity resolution types.
 
-pub use atproto_common::DidDocument;
+pub use proto_blue_common::DidDocument;
 
 /// AT Protocol data extracted from a DID document.
 #[derive(Debug, Clone)]

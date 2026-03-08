@@ -7,7 +7,7 @@
 
 use std::collections::BTreeMap;
 
-use atproto_lex_data::{Cid, LexValue};
+use proto_blue_lex_data::{Cid, LexValue};
 use base64::Engine as _;
 use serde_json::Value as JsonValue;
 

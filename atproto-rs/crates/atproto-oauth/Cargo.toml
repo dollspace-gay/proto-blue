@@ -1,5 +1,5 @@
 [package]
-name = "atproto-oauth"
+name = "proto-blue-oauth"
 description = "AT Protocol OAuth 2.0 client: DPoP, PKCE, PAR, session management"
 version.workspace = true
 edition.workspace = true
@@ -8,9 +8,9 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-identity = { workspace = true }
-atproto-crypto = { workspace = true }
-atproto-xrpc = { workspace = true }
+proto-blue-identity = { workspace = true }
+proto-blue-crypto = { workspace = true }
+proto-blue-xrpc = { workspace = true }
 base64 = { workspace = true }
 url = { workspace = true }
 reqwest = { workspace = true }

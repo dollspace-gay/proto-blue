@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use atproto_lexicon::types::*;
+use proto_blue_lexicon::types::*;
 
 /// Code generator that converts Lexicon documents to Rust source files.
 pub struct Generator<'a> {

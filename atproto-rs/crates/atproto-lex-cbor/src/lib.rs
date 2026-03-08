@@ -8,8 +8,8 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_lex_data::LexValue;
-//! use atproto_lex_cbor::{encode, decode, cid_for_lex};
+//! use proto_blue_lex_data::LexValue;
+//! use proto_blue_lex_cbor::{encode, decode, cid_for_lex};
 //! use std::collections::BTreeMap;
 //!
 //! // Encode a LexValue to DAG-CBOR bytes

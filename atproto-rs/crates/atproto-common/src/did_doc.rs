@@ -90,7 +90,7 @@ pub fn get_signing_did_key(doc: &DidDocument) -> Option<String> {
 
 /// Get the PDS (Personal Data Server) endpoint URL.
 pub fn get_pds_endpoint(doc: &DidDocument) -> Option<String> {
-    get_service_endpoint(doc, "#atproto_pds", Some("AtprotoPersonalDataServer"))
+    get_service_endpoint(doc, "#proto_blue_pds", Some("AtprotoPersonalDataServer"))
 }
 
 /// Get the Feed Generator service endpoint URL.
@@ -181,7 +181,7 @@ mod tests {
                 "publicKeyMultibase": "zDnaerDaTF5BXEavCrfRZEk316dpbLsfPDZ3WJ5hRTPFU2169"
             }],
             "service": [{
-                "id": "#atproto_pds",
+                "id": "#proto_blue_pds",
                 "type": "AtprotoPersonalDataServer",
                 "serviceEndpoint": "https://bsky.social"
             }, {
@@ -272,7 +272,7 @@ mod tests {
             "id": "did:plc:abc",
             "verificationMethod": [],
             "service": [{
-                "id": "#atproto_pds",
+                "id": "#proto_blue_pds",
                 "type": "AtprotoPersonalDataServer",
                 "serviceEndpoint": "ftp://not-http.example.com"
             }]
@@ -287,7 +287,7 @@ mod tests {
             "id": "did:plc:abc",
             "verificationMethod": [],
             "service": [{
-                "id": "#atproto_pds",
+                "id": "#proto_blue_pds",
                 "type": "WrongType",
                 "serviceEndpoint": "https://example.com"
             }]

@@ -7,7 +7,7 @@
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use atproto_syntax::Tid;
+use proto_blue_syntax::Tid;
 
 /// Base32-sortable character set used for TID encoding.
 const S32_CHAR: &[u8] = b"234567abcdefghijklmnopqrstuvwxyz";

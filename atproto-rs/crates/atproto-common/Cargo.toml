@@ -1,5 +1,5 @@
 [package]
-name = "atproto-common"
+name = "proto-blue-common"
 description = "AT Protocol shared utilities: TID generation, DID documents, retry, IPLD helpers"
 version.workspace = true
 edition.workspace = true
@@ -8,10 +8,10 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-atproto-syntax = { workspace = true }
-atproto-lex-data = { workspace = true }
-atproto-lex-json = { workspace = true }
-atproto-lex-cbor = { workspace = true }
+proto-blue-syntax = { workspace = true }
+proto-blue-lex-data = { workspace = true }
+proto-blue-lex-json = { workspace = true }
+proto-blue-lex-cbor = { workspace = true }
 unicode-segmentation = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }

@@ -10,8 +10,8 @@
 //! # Examples
 //!
 //! ```
-//! use atproto_lex_data::LexValue;
-//! use atproto_lex_json::{lex_to_json, json_to_lex, lex_stringify, lex_parse};
+//! use proto_blue_lex_data::LexValue;
+//! use proto_blue_lex_json::{lex_to_json, json_to_lex, lex_stringify, lex_parse};
 //! use std::collections::BTreeMap;
 //!
 //! // Convert LexValue to JSON

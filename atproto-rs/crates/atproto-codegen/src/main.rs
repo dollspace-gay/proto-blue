@@ -1,6 +1,6 @@
 //! AT Protocol code generator: reads Lexicon JSON schemas and outputs Rust source.
 //!
-//! Usage: atproto-codegen --lexicons <dir> --output <dir>
+//! Usage: proto-blue-codegen --lexicons <dir> --output <dir>
 
 mod generator;
 
@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use atproto_lexicon::types::LexiconDoc;
+use proto_blue_lexicon::types::LexiconDoc;
 use clap::Parser;
 
 use generator::Generator;
