@@ -6,6 +6,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+readme = "README.md"
+keywords = ["atproto", "bluesky", "oauth", "dpop", "pkce"]
+categories = ["authentication", "web-programming"]
 
 [dependencies]
 proto-blue-identity = { workspace = true }
