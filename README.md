@@ -306,7 +306,7 @@ cargo build --workspace --release
 
 ## License
 
-Licensed under the [MIT License](LICENSE).
+Licensed under [MIT](proto-blue/LICENSE-MIT) or [Apache-2.0](proto-blue/LICENSE-APACHE).
 
 ## Acknowledgments
 
