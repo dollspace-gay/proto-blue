@@ -15,24 +15,6 @@ This is a faithful 1:1 translation of the official [TypeScript SDK](https://gith
 - Zero `clippy` warnings, zero `unsafe` blocks
 - Requires **Rust 1.85+** (edition 2024)
 
-## Crate Overview
-
-```
-                              proto-blue-oauth
-                                   |
-                        +----------+----------+
-                        |                     |
-                   proto-blue-api           proto-blue-identity
-                    |       |              |         |
-            proto-blue-xrpc  proto-blue-ws  proto-blue-common  proto-blue-crypto
-                 |            |         |    |    |
-           proto-blue-lexicon    |    lex-json lex-cbor |
-                 |            |       |      |       |
-           proto-blue-common     +-------+------+       |
-              |    |                  |               |
-        proto-blue-syntax         proto-blue-lex-data       |
-                                                proto-blue-repo
-```
 
 | Crate | Description |
 |-------|-------------|
