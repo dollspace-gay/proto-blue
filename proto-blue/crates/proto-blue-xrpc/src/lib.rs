@@ -17,12 +17,17 @@ pub mod types;
 #[cfg(feature = "server")]
 pub mod server;
 
+#[cfg(feature = "server")]
+pub mod rate_limit;
+
 pub use client::{HttpMethod, XrpcClient};
 pub use error::{Error, RateLimit, ResponseType, XrpcError};
 pub use types::{
     CallOptions, HeadersMap, LexiconValidation, QueryParams, QueryValue, XrpcBody, XrpcResponse,
 };
 
+#[cfg(feature = "server")]
+pub use rate_limit::{CombinedLimiter, RateLimitDecision, TokenBucketLimiter};
 #[cfg(feature = "server")]
 pub use server::{
     AuthContext, AuthVerifier, HandlerContext, HandlerResult, RateLimiter, XrpcServer,
