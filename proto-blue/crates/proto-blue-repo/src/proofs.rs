@@ -134,6 +134,42 @@ pub fn verify_key_in_proof(
     Ok(ok)
 }
 
+/// A claim that a particular key either has a specific value CID or is
+/// absent from the tree. Used by [`verify_claims`] for batch proof
+/// verification.
+#[derive(Debug, Clone)]
+pub struct RecordCidClaim {
+    pub key: String,
+    /// `Some(cid)` asserts the leaf exists with that value; `None`
+    /// asserts absence.
+    pub cid: Option<Cid>,
+}
+
+/// Check a batch of [`RecordCidClaim`]s against a single proof.
+///
+/// Returns the indices of claims that **failed** verification, or an
+/// empty vec if all claims hold. Returns `Err(MissingBlock)` if the
+/// proof is structurally incomplete for any claim (the caller can
+/// retry with a more complete proof).
+///
+/// Mirrors TS `@atproto/repo`'s `verifyProofs` — batch check of
+/// existence / absence claims used by the sync consumer when
+/// validating `getRepo` output.
+pub fn verify_claims(
+    proof: &BlockMap,
+    root: &Cid,
+    claims: &[RecordCidClaim],
+) -> Result<Vec<usize>, RepoError> {
+    let mut failed = Vec::new();
+    for (i, claim) in claims.iter().enumerate() {
+        let ok = verify_key_in_proof(proof, root, &claim.key, claim.cid.as_ref())?;
+        if !ok {
+            failed.push(i);
+        }
+    }
+    Ok(failed)
+}
+
 /// Lazily traverse a proof tree looking for `key`, returning its leaf
 /// value CID if found or `None` if the proof proves absence. Returns
 /// `Err(MissingBlock)` when the proof is incomplete (a block needed

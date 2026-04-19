@@ -37,6 +37,7 @@ pub mod car;
 pub mod cid_set;
 pub mod commit;
 pub mod data_diff;
+pub mod data_key;
 pub mod error;
 pub mod firehose;
 #[cfg(feature = "firehose-client")]
@@ -60,8 +61,10 @@ pub use firehose::{
 #[cfg(feature = "firehose-client")]
 pub use firehose_client::Firehose;
 pub use mst::{Leaf, MstNode, NodeEntry};
+pub use data_key::{DataKey, DataKeyError, format_data_key, parse_data_key};
 pub use proofs::{
-    commit_proof, covering_proof, proof_for_key, proof_for_left_sibling, proof_for_right_sibling,
+    RecordCidClaim, commit_proof, covering_proof, proof_for_key, proof_for_left_sibling,
+    proof_for_right_sibling, verify_claims,
     verify_key_in_proof,
 };
 pub use sync::{VerifiedDiff, VerifiedRepo, verify_diff_car, verify_repo, verify_repo_car};

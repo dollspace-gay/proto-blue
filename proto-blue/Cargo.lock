@@ -1827,6 +1827,7 @@ dependencies = [
  "proto-blue-lex-cbor",
  "proto-blue-lex-data",
  "proto-blue-lexicon",
+ "proto-blue-syntax",
  "proto-blue-ws",
  "serde",
  "serde_json",

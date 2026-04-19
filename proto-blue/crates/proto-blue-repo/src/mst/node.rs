@@ -602,6 +602,74 @@ impl MstNode {
         }
     }
 
+    /// Collect all leaves whose key starts with `prefix`, in order.
+    ///
+    /// Mirrors TS `MST.listWithPrefix`. A prefix of `"app.bsky.feed.post/"`
+    /// returns every post record; `""` returns all leaves.
+    pub fn leaves_with_prefix(&self, prefix: &str) -> Vec<Leaf> {
+        self.leaves()
+            .into_iter()
+            .filter(|l| l.key.starts_with(prefix))
+            .collect()
+    }
+
+    /// All leaf keys in order.
+    ///
+    /// Mirrors TS `MST.paths`. Cheaper than `leaves()` when the caller
+    /// only cares about keys (no value CID cloning).
+    pub fn paths(&self) -> Vec<String> {
+        self.leaves().into_iter().map(|l| l.key).collect()
+    }
+
+    /// Collect leaves in order, filtered by pagination window.
+    ///
+    /// - `count`: maximum number of leaves to return. `None` for no limit.
+    /// - `after`: only include leaves whose key is strictly greater than this.
+    /// - `before`: only include leaves whose key is strictly less than this.
+    ///
+    /// Mirrors TS `MST.list(count, after, before)`. Useful for
+    /// implementing `listRecords`-style paginated APIs.
+    pub fn list(
+        &self,
+        count: Option<usize>,
+        after: Option<&str>,
+        before: Option<&str>,
+    ) -> Vec<Leaf> {
+        let all = self.leaves();
+        let mut out = Vec::new();
+        for leaf in all {
+            if let Some(a) = after
+                && leaf.key.as_str() <= a
+            {
+                continue;
+            }
+            if let Some(b) = before
+                && leaf.key.as_str() >= b
+            {
+                continue;
+            }
+            out.push(leaf);
+            if let Some(cap) = count
+                && out.len() >= cap
+            {
+                break;
+            }
+        }
+        out
+    }
+
+    /// Iterator-style walk starting at the first leaf whose key is
+    /// `>= from`. Mirrors TS `MST.walkLeavesFrom`. Returns a `Vec`
+    /// rather than a lazy iterator because the current MST stores the
+    /// whole tree eagerly — lazy iteration is part of #38/#51's
+    /// larger "lazy MST" work.
+    pub fn walk_leaves_from(&self, from: &str) -> Vec<Leaf> {
+        self.leaves()
+            .into_iter()
+            .skip_while(|l| l.key.as_str() < from)
+            .collect()
+    }
+
     // -----------------------------------------------------------------------
     // SERIALIZATION
     // -----------------------------------------------------------------------
