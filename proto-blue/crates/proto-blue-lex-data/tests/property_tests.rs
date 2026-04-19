@@ -61,7 +61,7 @@ proptest! {
         // Should never panic
         let _ = blob.is_valid();
         let _ = blob.is_strict_ref();
-        prop_assert_eq!(blob.size, size);
-        prop_assert_eq!(&blob.mime_type, &mime);
+        prop_assert_eq!(blob.size(), Some(size));
+        prop_assert_eq!(blob.mime_type(), mime.as_str());
     }
 }

@@ -30,6 +30,6 @@ mod blob;
 mod cid;
 mod lex_value;
 
-pub use blob::BlobRef;
+pub use blob::{BlobRef, LegacyBlobRef, TypedBlobRef};
 pub use cid::{CBOR_CODEC, Cid, CidError, RAW_CODEC, SHA2_256, SHA2_512};
 pub use lex_value::LexValue;
