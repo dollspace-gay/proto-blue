@@ -11,6 +11,8 @@
 pub mod client;
 pub mod dpop;
 pub mod error;
+pub mod jwt_assertion;
+pub mod loopback;
 pub mod pkce;
 pub mod scope;
 pub mod session;
@@ -20,6 +22,8 @@ pub mod types;
 pub use client::{DpopNonceCache, OAuthClient, validate_client_metadata};
 pub use dpop::{DpopAlg, DpopKey, build_dpop_proof};
 pub use error::OAuthError;
+pub use jwt_assertion::{CLIENT_ASSERTION_TYPE, ClientKey, ClientKeyset, build_client_assertion};
+pub use loopback::{LoopbackClientId, is_loopback_client_id, loopback_client_metadata};
 pub use pkce::{PkceChallenge, generate_pkce, verify_pkce};
 pub use scope::{PermissionNamespace, Scope, ScopeError, ScopeSet};
 pub use session::OAuthSession;

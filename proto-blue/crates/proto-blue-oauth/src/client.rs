@@ -58,6 +58,10 @@ pub struct OAuthClient {
     fetcher: Arc<dyn FetchHandler>,
     /// DPoP nonce cache (per-origin).
     dpop_nonces: DpopNonceCache,
+    /// Optional signing keyset for `private_key_jwt` client auth. When
+    /// set, token-endpoint requests include a signed `client_assertion`
+    /// alongside the grant.
+    keyset: Option<Arc<crate::jwt_assertion::ClientKeyset>>,
 }
 
 impl OAuthClient {
@@ -98,7 +102,67 @@ impl OAuthClient {
             client_metadata,
             fetcher,
             dpop_nonces: DpopNonceCache::new(),
+            keyset: None,
         }
+    }
+
+    /// Install a `private_key_jwt` signing keyset. After this call,
+    /// all token-endpoint requests emitted by `exchange_code` and
+    /// `refresh_token` include a signed `client_assertion` alongside
+    /// the grant (RFC 7523 §2.2).
+    ///
+    /// The keyset is ignored when the authorization server doesn't
+    /// advertise a compatible `token_endpoint_auth_signing_alg_values_supported`
+    /// — in that case the client silently falls back to public-client
+    /// (DPoP-only) auth, matching the TS SDK's behaviour.
+    pub fn with_keyset(mut self, keyset: crate::jwt_assertion::ClientKeyset) -> Self {
+        self.keyset = Some(Arc::new(keyset));
+        self
+    }
+
+    /// Convenience constructor for loopback clients (CLIs, desktop
+    /// apps). Parses a `http://localhost[/?scope=…&redirect_uri=…]`
+    /// client ID into implicit [`OAuthClientMetadata`] via
+    /// [`crate::loopback::loopback_client_metadata`] and configures a
+    /// native-reqwest fetch handler.
+    #[cfg(feature = "fetch-reqwest")]
+    pub fn new_loopback(client_id: &str) -> Result<Self, OAuthError> {
+        let metadata = crate::loopback::loopback_client_metadata(client_id)?;
+        Ok(Self::new(metadata))
+    }
+
+    /// Internal: build the client-auth form fields for a token-endpoint
+    /// request. Returns `[(client_assertion_type, ...), (client_assertion, ...)]`
+    /// when `private_key_jwt` is configured and the AS advertises a
+    /// matching `alg`; otherwise returns an empty vec (public client).
+    fn client_auth_fields(
+        &self,
+        server_metadata: &OAuthServerMetadata,
+    ) -> Result<Vec<(String, String)>, OAuthError> {
+        let Some(keyset) = &self.keyset else {
+            return Ok(Vec::new());
+        };
+        let algs = server_metadata
+            .token_endpoint_auth_signing_alg_values_supported
+            .as_ref();
+        let Some(algs) = algs else {
+            return Ok(Vec::new());
+        };
+        let Some(key) = keyset.select_for(algs) else {
+            return Ok(Vec::new());
+        };
+        let assertion = crate::jwt_assertion::build_client_assertion(
+            key,
+            &self.client_metadata.client_id,
+            &server_metadata.token_endpoint,
+        )?;
+        Ok(vec![
+            (
+                "client_assertion_type".to_string(),
+                crate::jwt_assertion::CLIENT_ASSERTION_TYPE.to_string(),
+            ),
+            ("client_assertion".to_string(), assertion),
+        ])
     }
 
     /// Fetch a client metadata document from the client's `client_id` URL.
@@ -471,12 +535,7 @@ impl OAuthClient {
 
         // Exchange authorization code for tokens
         let token_response = self
-            .exchange_code(
-                &server_metadata.token_endpoint,
-                code,
-                &auth_state.verifier,
-                &dpop_key,
-            )
+            .exchange_code(server_metadata, code, &auth_state.verifier, &dpop_key)
             .await?;
 
         // Verify issuer matches
@@ -496,11 +555,12 @@ impl OAuthClient {
     /// Exchange an authorization code for tokens at the token endpoint.
     async fn exchange_code(
         &self,
-        token_endpoint: &str,
+        server_metadata: &OAuthServerMetadata,
         code: &str,
         verifier: &str,
         dpop_key: &DpopKey,
     ) -> Result<OAuthTokenResponse, OAuthError> {
+        let token_endpoint = server_metadata.token_endpoint.as_str();
         let redirect_uri = self
             .client_metadata
             .redirect_uris
@@ -515,14 +575,16 @@ impl OAuthClient {
         let dpop_proof =
             build_dpop_proof(dpop_key, "POST", token_endpoint, nonce.as_deref(), None)?;
 
-        let form: [(&str, &str); 5] = [
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("code_verifier", verifier),
-            ("redirect_uri", redirect_uri.as_str()),
-            ("client_id", &self.client_metadata.client_id),
+        let auth_fields = self.client_auth_fields(server_metadata)?;
+        let mut fields: Vec<(String, String)> = vec![
+            ("grant_type".into(), "authorization_code".into()),
+            ("code".into(), code.into()),
+            ("code_verifier".into(), verifier.into()),
+            ("redirect_uri".into(), redirect_uri.clone()),
+            ("client_id".into(), self.client_metadata.client_id.clone()),
         ];
-        let body = encode_form(form.iter().copied());
+        fields.extend(auth_fields);
+        let body = encode_form(fields.iter().map(|(k, v)| (k.as_str(), v.as_str())));
 
         let resp = self
             .post_form(token_endpoint, &body, Some(&dpop_proof))
@@ -579,12 +641,14 @@ impl OAuthClient {
         let dpop_proof =
             build_dpop_proof(dpop_key, "POST", token_endpoint, nonce.as_deref(), None)?;
 
-        let form: [(&str, &str); 3] = [
-            ("grant_type", "refresh_token"),
-            ("refresh_token", refresh_token),
-            ("client_id", &self.client_metadata.client_id),
+        let auth_fields = self.client_auth_fields(server_metadata)?;
+        let mut fields: Vec<(String, String)> = vec![
+            ("grant_type".into(), "refresh_token".into()),
+            ("refresh_token".into(), refresh_token.into()),
+            ("client_id".into(), self.client_metadata.client_id.clone()),
         ];
-        let body = encode_form(form.iter().copied());
+        fields.extend(auth_fields);
+        let body = encode_form(fields.iter().map(|(k, v)| (k.as_str(), v.as_str())));
 
         let resp = self
             .post_form(token_endpoint, &body, Some(&dpop_proof))

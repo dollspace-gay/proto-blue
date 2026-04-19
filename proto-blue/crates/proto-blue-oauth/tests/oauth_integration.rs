@@ -787,3 +787,137 @@ async fn session_refresh_dedupes_concurrent_callers() {
 
     assert_eq!(session.token_set().access_token, "at-fresh");
 }
+
+/// When the client is configured with a `ClientKeyset` and the AS
+/// advertises a compatible `alg`, token-endpoint requests carry a
+/// `client_assertion` + `client_assertion_type` in the form body.
+#[tokio::test]
+async fn refresh_sends_private_key_jwt_client_assertion() {
+    use proto_blue_oauth::{ClientKey, ClientKeyset, DpopAlg};
+
+    let (token_base, cap) = spawn_oneshot(Reply::json(
+        200,
+        br#"{
+          "access_token":"at-fresh",
+          "token_type":"DPoP",
+          "refresh_token":"rt-fresh",
+          "expires_in":3600,
+          "scope":"atproto",
+          "sub":"did:plc:abc"
+        }"#
+        .to_vec(),
+    ))
+    .await;
+    let token_endpoint = format!("{token_base}/token");
+
+    // Fresh ES256 key for the test — signing correctness is already
+    // covered by unit tests; here we assert wire-level presence.
+    use p256::ecdsa::SigningKey as P256SigningKey;
+    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let key = ClientKey {
+        alg: DpopAlg::Es256,
+        kid: "test-key".into(),
+        d: sk.to_bytes().to_vec(),
+    };
+
+    let client = OAuthClient::new(client_metadata_with_id(
+        "https://app.example.com/metadata.json",
+    ))
+    .with_keyset(ClientKeyset::new().with_key(key));
+
+    let mut meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        &token_endpoint,
+        None,
+        None,
+    );
+    meta.token_endpoint_auth_signing_alg_values_supported = Some(vec!["ES256".into()]);
+
+    let dpop = DpopKey::generate().unwrap();
+    let current = TokenSet {
+        issuer: "https://as.example.com".to_string(),
+        sub: "did:plc:abc".to_string(),
+        scope: "atproto".to_string(),
+        access_token: "at-old".to_string(),
+        refresh_token: Some("rt-old".to_string()),
+        token_type: "DPoP".to_string(),
+        expires_at: None,
+        aud: None,
+    };
+    client.refresh_token(&meta, &current, &dpop).await.unwrap();
+
+    let captured = cap.lock().await.clone().expect("server saw a request");
+    let form = parse_form(&captured.body);
+    assert_eq!(
+        form.get("client_assertion_type").map(String::as_str),
+        Some("urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+    );
+    let assertion = form
+        .get("client_assertion")
+        .expect("client_assertion must be present");
+    // Three compact-JWS segments, not empty.
+    assert_eq!(assertion.matches('.').count(), 2);
+}
+
+/// When the AS doesn't advertise any `token_endpoint_auth_signing_alg`
+/// the client silently falls back to public-client auth (no
+/// `client_assertion` even though a keyset is configured).
+#[tokio::test]
+async fn refresh_omits_client_assertion_when_as_does_not_advertise_alg() {
+    use proto_blue_oauth::{ClientKey, ClientKeyset, DpopAlg};
+
+    let (token_base, cap) = spawn_oneshot(Reply::json(
+        200,
+        br#"{
+          "access_token":"at-fresh",
+          "token_type":"DPoP",
+          "refresh_token":"rt-fresh",
+          "expires_in":3600,
+          "scope":"atproto",
+          "sub":"did:plc:abc"
+        }"#
+        .to_vec(),
+    ))
+    .await;
+    let token_endpoint = format!("{token_base}/token");
+
+    use p256::ecdsa::SigningKey as P256SigningKey;
+    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let key = ClientKey {
+        alg: DpopAlg::Es256,
+        kid: "test-key".into(),
+        d: sk.to_bytes().to_vec(),
+    };
+
+    let client = OAuthClient::new(client_metadata_with_id(
+        "https://app.example.com/metadata.json",
+    ))
+    .with_keyset(ClientKeyset::new().with_key(key));
+    // Note: no `token_endpoint_auth_signing_alg_values_supported` set.
+    let meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        &token_endpoint,
+        None,
+        None,
+    );
+
+    let dpop = DpopKey::generate().unwrap();
+    let current = TokenSet {
+        issuer: "https://as.example.com".to_string(),
+        sub: "did:plc:abc".to_string(),
+        scope: "atproto".to_string(),
+        access_token: "at-old".to_string(),
+        refresh_token: Some("rt-old".to_string()),
+        token_type: "DPoP".to_string(),
+        expires_at: None,
+        aud: None,
+    };
+    client.refresh_token(&meta, &current, &dpop).await.unwrap();
+
+    let captured = cap.lock().await.clone().expect("server saw a request");
+    let form = parse_form(&captured.body);
+    assert!(!form.contains_key("client_assertion"));
+    assert!(!form.contains_key("client_assertion_type"));
+}

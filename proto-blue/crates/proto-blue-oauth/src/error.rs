@@ -54,6 +54,11 @@ pub enum OAuthError {
     #[error("Missing required field: {0}")]
     MissingField(String),
 
+    /// Client metadata failed validation (malformed client_id, bad
+    /// redirect URI, unsupported auth method, etc.).
+    #[error("Invalid client metadata: {0}")]
+    InvalidClientMetadata(String),
+
     /// Catch-all for other errors.
     #[error("{0}")]
     Other(String),
