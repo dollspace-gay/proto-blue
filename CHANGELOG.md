@@ -19,6 +19,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2026-04-18
 
 ### Added
+- Migrate proto-blue-oauth and proto-blue-api to FetchHandler (#29)
+- WebSocket abstraction for firehose (web-sys WebSocket on wasm) (#27)
 - Pluggable DID/handle resolver (replace hickory-resolver default on wasm) (#26)
 - Abstract XRPC transport behind a trait (pluggable fetch) (#25)
 - Add wasm32 target to CI (regression gate) (#28)
