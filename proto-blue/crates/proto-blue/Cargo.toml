@@ -37,20 +37,20 @@ default = ["full"]
 # Everything. Matches the pre-0.2.2 surface.
 full = ["net", "ws", "resolver", "oauth", "api"]
 
-# XRPC HTTP client / server.
-net = ["dep:proto-blue-xrpc"]
+# XRPC HTTP client / server (native reqwest transport + axum server).
+net = ["dep:proto-blue-xrpc", "proto-blue-xrpc/server", "proto-blue-xrpc/fetch-reqwest"]
 
 # Live firehose WebSocket (`ws` and `repo::Firehose`).
 ws = ["dep:proto-blue-ws", "proto-blue-repo/firehose-client"]
 
-# DID / handle resolution (depends on HTTP).
+# DID / handle resolution (depends on HTTP; defaults to native reqwest + DNS).
 resolver = ["dep:proto-blue-identity", "net"]
 
-# OAuth 2.0 client (depends on HTTP + identity).
-oauth = ["dep:proto-blue-oauth", "resolver"]
+# OAuth 2.0 client (defaults to native reqwest transport).
+oauth = ["dep:proto-blue-oauth", "proto-blue-oauth/fetch-reqwest"]
 
-# High-level agent (depends on HTTP).
-api = ["dep:proto-blue-api", "net"]
+# High-level agent (defaults to native reqwest transport via xrpc).
+api = ["dep:proto-blue-api", "proto-blue-api/fetch-reqwest", "net"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

@@ -1,10 +1,15 @@
 //! OAuth 2.0 client for AT Protocol.
 //!
 //! Implements the full OAuth authorization code flow with PKCE, DPoP, and PAR.
+//!
+//! HTTP transport is abstracted behind
+//! [`proto_blue_common::fetch::FetchHandler`] so the same flow drives
+//! `reqwest` on native and browser `fetch()` on `wasm32-unknown-unknown`.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use proto_blue_common::fetch::{FetchHandler, HttpRequest, HttpResponse};
 use url::Url;
 
 use crate::dpop::{DpopKey, build_dpop_proof};
@@ -49,27 +54,49 @@ impl DpopNonceCache {
 pub struct OAuthClient {
     /// Client metadata (client_id, redirect_uris, etc.).
     pub client_metadata: OAuthClientMetadata,
-    /// HTTP client for making requests.
-    http: reqwest::Client,
+    /// HTTP transport.
+    fetcher: Arc<dyn FetchHandler>,
     /// DPoP nonce cache (per-origin).
     dpop_nonces: DpopNonceCache,
 }
 
 impl OAuthClient {
-    /// Create a new OAuth client.
+    /// Create a new OAuth client using the crate's default fetch handler.
+    ///
+    /// With the `fetch-reqwest` feature (default on native), a fresh
+    /// `reqwest::Client` is constructed internally. Otherwise the caller
+    /// must use [`Self::with_fetch_handler`].
+    #[cfg(feature = "fetch-reqwest")]
     pub fn new(client_metadata: OAuthClientMetadata) -> Self {
-        OAuthClient {
+        Self::with_fetch_handler(
             client_metadata,
-            http: reqwest::Client::new(),
-            dpop_nonces: DpopNonceCache::new(),
-        }
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
     }
 
-    /// Create a new OAuth client with a custom HTTP client.
+    /// Create a new OAuth client with a user-supplied `reqwest::Client`.
+    ///
+    /// Back-compat constructor — wraps the client in a
+    /// [`proto_blue_common::fetch::ReqwestFetcher`].
+    #[cfg(feature = "fetch-reqwest")]
     pub fn with_http_client(client_metadata: OAuthClientMetadata, http: reqwest::Client) -> Self {
+        Self::with_fetch_handler(
+            client_metadata,
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::from_client(http)),
+        )
+    }
+
+    /// Create a new OAuth client with an arbitrary [`FetchHandler`].
+    ///
+    /// Primary entry point for wasm and for unit tests that want to mock
+    /// out the authorization server.
+    pub fn with_fetch_handler(
+        client_metadata: OAuthClientMetadata,
+        fetcher: Arc<dyn FetchHandler>,
+    ) -> Self {
         OAuthClient {
             client_metadata,
-            http,
+            fetcher,
             dpop_nonces: DpopNonceCache::new(),
         }
     }
@@ -93,24 +120,20 @@ impl OAuthClient {
         &self,
         client_id_url: &str,
     ) -> Result<OAuthClientMetadata, OAuthError> {
-        let resp = self
-            .http
-            .get(client_id_url)
-            .header("Accept", "application/json")
-            .send()
-            .await?
-            .error_for_status()
-            .map_err(OAuthError::Http)?;
+        let req = HttpRequest::get(client_id_url).with_header("accept", "application/json");
+        let resp = self.fetcher.fetch(req).await?;
+
+        if !resp.is_success() {
+            return Err(OAuthError::Other(format!(
+                "client metadata fetch failed: HTTP {}",
+                resp.status
+            )));
+        }
 
         // Strict Content-Type check. atproto's profile requires
         // `application/json`; accepting other types could open up
         // protocol-confusion attacks if an attacker controls the URL.
-        let ct = resp
-            .headers()
-            .get(reqwest::header::CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-            .map(str::to_string)
-            .unwrap_or_default();
+        let ct = resp.header("content-type").unwrap_or("").to_string();
         // Allow parameters like `application/json; charset=utf-8`.
         let base_ct = ct
             .split(';')
@@ -124,7 +147,7 @@ impl OAuthClient {
             )));
         }
 
-        let metadata: OAuthClientMetadata = resp.json().await?;
+        let metadata: OAuthClientMetadata = serde_json::from_slice(&resp.body)?;
 
         // The document's `client_id` must match the URL it came from,
         // otherwise an authorization server couldn't trust that the
@@ -147,14 +170,14 @@ impl OAuthClient {
             "{}/.well-known/oauth-authorization-server",
             issuer.trim_end_matches('/')
         );
-        let resp = self
-            .http
-            .get(&url)
-            .send()
-            .await?
-            .error_for_status()
-            .map_err(OAuthError::Http)?;
-        let metadata: OAuthServerMetadata = resp.json().await?;
+        let resp = self.fetcher.fetch(HttpRequest::get(url)).await?;
+        if !resp.is_success() {
+            return Err(OAuthError::Other(format!(
+                "authorization server discovery failed: HTTP {}",
+                resp.status
+            )));
+        }
+        let metadata: OAuthServerMetadata = serde_json::from_slice(&resp.body)?;
 
         // Verify issuer matches
         let expected_issuer = issuer.trim_end_matches('/');
@@ -243,43 +266,44 @@ impl OAuthClient {
         dpop_key: &DpopKey,
         _token_endpoint: &str,
     ) -> Result<ParResponse, OAuthError> {
+        let body = encode_form(params.iter().map(|(k, v)| (*k, v.as_str())));
         let dpop_proof = build_dpop_proof(dpop_key, "POST", par_endpoint, None, None)?;
 
         let resp = self
-            .http
-            .post(par_endpoint)
-            .header("DPoP", &dpop_proof)
-            .form(params)
-            .send()
+            .post_form(par_endpoint, &body, Some(&dpop_proof))
             .await?;
 
         // Check for DPoP nonce requirement
-        if let Some(nonce) = resp.headers().get("dpop-nonce") {
-            let nonce_str = nonce
-                .to_str()
-                .map_err(|e| OAuthError::Other(format!("Invalid DPoP-Nonce header: {e}")))?;
+        if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
             if let Ok(origin) = Url::parse(par_endpoint).map(|u| u.origin().ascii_serialization()) {
-                self.dpop_nonces.set(&origin, nonce_str);
+                self.dpop_nonces.set(&origin, &nonce_str);
             }
 
             // Retry with nonce
             let dpop_proof =
-                build_dpop_proof(dpop_key, "POST", par_endpoint, Some(nonce_str), None)?;
+                build_dpop_proof(dpop_key, "POST", par_endpoint, Some(&nonce_str), None)?;
             let resp = self
-                .http
-                .post(par_endpoint)
-                .header("DPoP", &dpop_proof)
-                .form(params)
-                .send()
-                .await?
-                .error_for_status()
-                .map_err(OAuthError::Http)?;
-            let par: ParResponse = resp.json().await?;
+                .post_form(par_endpoint, &body, Some(&dpop_proof))
+                .await?;
+            if !resp.is_success() {
+                return Err(OAuthError::Other(format!(
+                    "PAR failed: HTTP {}: {}",
+                    resp.status,
+                    String::from_utf8_lossy(&resp.body)
+                )));
+            }
+            let par: ParResponse = serde_json::from_slice(&resp.body)?;
             return Ok(par);
         }
 
-        let resp = resp.error_for_status().map_err(OAuthError::Http)?;
-        let par: ParResponse = resp.json().await?;
+        if !resp.is_success() {
+            return Err(OAuthError::Other(format!(
+                "PAR failed: HTTP {}: {}",
+                resp.status,
+                String::from_utf8_lossy(&resp.body)
+            )));
+        }
+        let par: ParResponse = serde_json::from_slice(&resp.body)?;
         Ok(par)
     }
 
@@ -345,47 +369,38 @@ impl OAuthClient {
         let dpop_proof =
             build_dpop_proof(dpop_key, "POST", token_endpoint, nonce.as_deref(), None)?;
 
-        let mut form = HashMap::new();
-        form.insert("grant_type", "authorization_code");
-        form.insert("code", code);
-        form.insert("code_verifier", verifier);
-        form.insert("redirect_uri", redirect_uri.as_str());
-        form.insert("client_id", &self.client_metadata.client_id);
+        let form: [(&str, &str); 5] = [
+            ("grant_type", "authorization_code"),
+            ("code", code),
+            ("code_verifier", verifier),
+            ("redirect_uri", redirect_uri.as_str()),
+            ("client_id", &self.client_metadata.client_id),
+        ];
+        let body = encode_form(form.iter().copied());
 
         let resp = self
-            .http
-            .post(token_endpoint)
-            .header("DPoP", &dpop_proof)
-            .form(&form)
-            .send()
+            .post_form(token_endpoint, &body, Some(&dpop_proof))
             .await?;
 
         // Handle DPoP nonce rotation
-        if let Some(nonce) = resp.headers().get("dpop-nonce") {
-            let nonce_str = nonce
-                .to_str()
-                .map_err(|e| OAuthError::Other(format!("Invalid DPoP-Nonce header: {e}")))?;
+        if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
             if let Ok(origin) = Url::parse(token_endpoint).map(|u| u.origin().ascii_serialization())
             {
-                self.dpop_nonces.set(&origin, nonce_str);
+                self.dpop_nonces.set(&origin, &nonce_str);
             }
 
             // If the server returned an error requiring a nonce, retry
-            if resp.status() == reqwest::StatusCode::BAD_REQUEST {
+            if resp.status == 400 {
                 let dpop_proof =
-                    build_dpop_proof(dpop_key, "POST", token_endpoint, Some(nonce_str), None)?;
+                    build_dpop_proof(dpop_key, "POST", token_endpoint, Some(&nonce_str), None)?;
                 let resp = self
-                    .http
-                    .post(token_endpoint)
-                    .header("DPoP", &dpop_proof)
-                    .form(&form)
-                    .send()
+                    .post_form(token_endpoint, &body, Some(&dpop_proof))
                     .await?;
-                return parse_token_response(resp).await;
+                return parse_token_response(resp);
             }
         }
 
-        parse_token_response(resp).await
+        parse_token_response(resp)
     }
 
     /// Refresh an access token using a refresh token.
@@ -409,40 +424,31 @@ impl OAuthClient {
         let dpop_proof =
             build_dpop_proof(dpop_key, "POST", token_endpoint, nonce.as_deref(), None)?;
 
-        let mut form = HashMap::new();
-        form.insert("grant_type", "refresh_token");
-        form.insert("refresh_token", refresh_token);
-        form.insert("client_id", &self.client_metadata.client_id);
+        let form: [(&str, &str); 3] = [
+            ("grant_type", "refresh_token"),
+            ("refresh_token", refresh_token),
+            ("client_id", &self.client_metadata.client_id),
+        ];
+        let body = encode_form(form.iter().copied());
 
         let resp = self
-            .http
-            .post(token_endpoint)
-            .header("DPoP", &dpop_proof)
-            .form(&form)
-            .send()
+            .post_form(token_endpoint, &body, Some(&dpop_proof))
             .await?;
 
         // Handle DPoP nonce rotation
-        if let Some(nonce_header) = resp.headers().get("dpop-nonce") {
-            let nonce_str = nonce_header
-                .to_str()
-                .map_err(|e| OAuthError::Other(format!("Invalid DPoP-Nonce header: {e}")))?;
+        if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
             if let Ok(origin) = Url::parse(token_endpoint).map(|u| u.origin().ascii_serialization())
             {
-                self.dpop_nonces.set(&origin, nonce_str);
+                self.dpop_nonces.set(&origin, &nonce_str);
             }
 
-            if resp.status() == reqwest::StatusCode::BAD_REQUEST {
+            if resp.status == 400 {
                 let dpop_proof =
-                    build_dpop_proof(dpop_key, "POST", token_endpoint, Some(nonce_str), None)?;
+                    build_dpop_proof(dpop_key, "POST", token_endpoint, Some(&nonce_str), None)?;
                 let resp = self
-                    .http
-                    .post(token_endpoint)
-                    .header("DPoP", &dpop_proof)
-                    .form(&form)
-                    .send()
+                    .post_form(token_endpoint, &body, Some(&dpop_proof))
                     .await?;
-                let token_response = parse_token_response(resp).await?;
+                let token_response = parse_token_response(resp)?;
                 return Ok(TokenSet::from_response(
                     &server_metadata.issuer,
                     &token_response,
@@ -450,7 +456,7 @@ impl OAuthClient {
             }
         }
 
-        let token_response = parse_token_response(resp).await?;
+        let token_response = parse_token_response(resp)?;
         Ok(TokenSet::from_response(
             &server_metadata.issuer,
             &token_response,
@@ -468,17 +474,20 @@ impl OAuthClient {
             .as_deref()
             .ok_or_else(|| OAuthError::MissingField("revocation_endpoint".into()))?;
 
-        let mut form = HashMap::new();
-        form.insert("token", token);
-        form.insert("client_id", self.client_metadata.client_id.as_str());
+        let form: [(&str, &str); 2] = [
+            ("token", token),
+            ("client_id", self.client_metadata.client_id.as_str()),
+        ];
+        let body = encode_form(form.iter().copied());
 
-        self.http
-            .post(revocation_endpoint)
-            .form(&form)
-            .send()
-            .await?
-            .error_for_status()
-            .map_err(OAuthError::Http)?;
+        let resp = self.post_form(revocation_endpoint, &body, None).await?;
+        if !resp.is_success() {
+            return Err(OAuthError::Other(format!(
+                "revocation failed: HTTP {}: {}",
+                resp.status,
+                String::from_utf8_lossy(&resp.body)
+            )));
+        }
 
         Ok(())
     }
@@ -487,6 +496,34 @@ impl OAuthClient {
     pub fn dpop_nonces(&self) -> &DpopNonceCache {
         &self.dpop_nonces
     }
+
+    /// POST an `application/x-www-form-urlencoded` body. Optional DPoP
+    /// proof header is threaded through — the call sites that need it
+    /// pass `Some(&proof)`, the revocation endpoint passes `None`.
+    async fn post_form(
+        &self,
+        url: &str,
+        body: &str,
+        dpop_proof: Option<&str>,
+    ) -> Result<HttpResponse, OAuthError> {
+        let mut req = HttpRequest::post(url)
+            .with_header("content-type", "application/x-www-form-urlencoded")
+            .with_body(body.as_bytes().to_vec());
+        if let Some(proof) = dpop_proof {
+            req = req.with_header("dpop", proof);
+        }
+        self.fetcher.fetch(req).await.map_err(OAuthError::Fetch)
+    }
+}
+
+/// Encode a sequence of `(name, value)` pairs as an
+/// `application/x-www-form-urlencoded` string.
+fn encode_form<'a>(pairs: impl IntoIterator<Item = (&'a str, &'a str)>) -> String {
+    let mut s = url::form_urlencoded::Serializer::new(String::new());
+    for (k, v) in pairs {
+        s.append_pair(k, v);
+    }
+    s.finish()
 }
 
 /// Reconstruct a DpopKey from a stored private JWK.
@@ -526,13 +563,10 @@ pub fn dpop_key_from_jwk(jwk: &serde_json::Value) -> Result<DpopKey, OAuthError>
 }
 
 /// Parse a token response, handling OAuth error responses.
-async fn parse_token_response(resp: reqwest::Response) -> Result<OAuthTokenResponse, OAuthError> {
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp
-            .text()
-            .await
-            .unwrap_or_else(|_| "unknown error".to_string());
+fn parse_token_response(resp: HttpResponse) -> Result<OAuthTokenResponse, OAuthError> {
+    if !resp.is_success() {
+        let status = resp.status;
+        let body = String::from_utf8_lossy(&resp.body).to_string();
 
         // Try to parse as OAuth error
         if let Ok(error_obj) = serde_json::from_str::<serde_json::Value>(&body) {
@@ -557,7 +591,7 @@ async fn parse_token_response(resp: reqwest::Response) -> Result<OAuthTokenRespo
         )));
     }
 
-    let token_response: OAuthTokenResponse = resp.json().await?;
+    let token_response: OAuthTokenResponse = serde_json::from_slice(&resp.body)?;
     Ok(token_response)
 }
 
@@ -582,6 +616,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "fetch-reqwest")]
     #[test]
     fn create_oauth_client() {
         let client = OAuthClient::new(test_client_metadata());
@@ -645,5 +680,12 @@ mod tests {
         assert_eq!(parsed.issuer, "https://bsky.social");
         assert_eq!(parsed.verifier, "test-verifier");
         assert!(parsed.dpop_key.get("d").is_some());
+    }
+
+    #[test]
+    fn encode_form_produces_urlencoded_output() {
+        let form = [("grant_type", "authorization_code"), ("code", "abc=xyz&")];
+        let encoded = encode_form(form.iter().copied());
+        assert_eq!(encoded, "grant_type=authorization_code&code=abc%3Dxyz%26");
     }
 }

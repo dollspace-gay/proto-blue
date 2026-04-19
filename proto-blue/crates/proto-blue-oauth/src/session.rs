@@ -1,9 +1,12 @@
 //! OAuth session for making authenticated API requests.
 //!
 //! Wraps a token set and DPoP key to automatically add authorization headers
-//! and handle token refresh when needed.
+//! and handle token refresh when needed. HTTP transport is abstracted
+//! behind [`proto_blue_common::fetch::FetchHandler`].
 
 use std::sync::{Arc, Mutex};
+
+use proto_blue_common::fetch::{FetchHandler, HttpMethod, HttpRequest, HttpResponse};
 
 use crate::client::{DpopNonceCache, OAuthClient};
 use crate::dpop::{DpopKey, build_dpop_proof};
@@ -13,41 +16,64 @@ use crate::types::{OAuthServerMetadata, TokenSet};
 /// An authenticated OAuth session.
 ///
 /// Provides methods for making authenticated HTTP requests to AT Protocol
-/// resource servers. Automatically handles DPoP proof generation and
-/// can refresh tokens when they expire.
+/// resource servers. Automatically handles DPoP proof generation and can
+/// refresh tokens when they expire.
 pub struct OAuthSession {
     /// The current token set.
     token_set: Arc<Mutex<TokenSet>>,
     /// The DPoP key for signing proofs.
     dpop_key: DpopKey,
-    /// The HTTP client.
-    http: reqwest::Client,
+    /// HTTP transport.
+    fetcher: Arc<dyn FetchHandler>,
     /// DPoP nonce cache (shared with OAuthClient).
     dpop_nonces: DpopNonceCache,
 }
 
 impl OAuthSession {
-    /// Create a new session from a token set and DPoP key.
+    /// Create a new session from a token set and DPoP key, using the
+    /// crate's default native fetch handler (`reqwest`).
+    #[cfg(feature = "fetch-reqwest")]
     pub fn new(token_set: TokenSet, dpop_key: DpopKey, dpop_nonces: DpopNonceCache) -> Self {
-        OAuthSession {
-            token_set: Arc::new(Mutex::new(token_set)),
+        Self::with_fetch_handler(
+            token_set,
             dpop_key,
-            http: reqwest::Client::new(),
             dpop_nonces,
-        }
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
     }
 
-    /// Create a new session with a custom HTTP client.
+    /// Create a new session with a custom `reqwest::Client`.
+    ///
+    /// Back-compat constructor — wraps the client in a
+    /// [`proto_blue_common::fetch::ReqwestFetcher`].
+    #[cfg(feature = "fetch-reqwest")]
     pub fn with_http_client(
         token_set: TokenSet,
         dpop_key: DpopKey,
         dpop_nonces: DpopNonceCache,
         http: reqwest::Client,
     ) -> Self {
+        Self::with_fetch_handler(
+            token_set,
+            dpop_key,
+            dpop_nonces,
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::from_client(http)),
+        )
+    }
+
+    /// Create a new session with a user-supplied [`FetchHandler`].
+    ///
+    /// Primary entry point for wasm and for unit tests.
+    pub fn with_fetch_handler(
+        token_set: TokenSet,
+        dpop_key: DpopKey,
+        dpop_nonces: DpopNonceCache,
+        fetcher: Arc<dyn FetchHandler>,
+    ) -> Self {
         OAuthSession {
             token_set: Arc::new(Mutex::new(token_set)),
             dpop_key,
-            http,
+            fetcher,
             dpop_nonces,
         }
     }
@@ -89,8 +115,8 @@ impl OAuthSession {
     /// Make an authenticated GET request to a resource server.
     ///
     /// Automatically adds `Authorization: DPoP {token}` and `DPoP` proof headers.
-    pub async fn get(&self, url: &str) -> Result<reqwest::Response, OAuthError> {
-        self.request("GET", url, None).await
+    pub async fn get(&self, url: &str) -> Result<HttpResponse, OAuthError> {
+        self.request("GET", url, None, None).await
     }
 
     /// Make an authenticated POST request with a JSON body.
@@ -98,17 +124,20 @@ impl OAuthSession {
         &self,
         url: &str,
         body: &serde_json::Value,
-    ) -> Result<reqwest::Response, OAuthError> {
-        self.request("POST", url, Some(body)).await
+    ) -> Result<HttpResponse, OAuthError> {
+        let encoded = serde_json::to_vec(body)?;
+        self.request("POST", url, Some(encoded), Some("application/json"))
+            .await
     }
 
-    /// Make an authenticated HTTP request.
+    /// Make an authenticated HTTP request with an optional body.
     async fn request(
         &self,
         method: &str,
         url: &str,
-        body: Option<&serde_json::Value>,
-    ) -> Result<reqwest::Response, OAuthError> {
+        body: Option<Vec<u8>>,
+        content_type: Option<&str>,
+    ) -> Result<HttpResponse, OAuthError> {
         let access_token = {
             let ts = self.token_set.lock().unwrap();
             ts.access_token.clone()
@@ -131,55 +160,60 @@ impl OAuthSession {
             Some(&access_token),
         )?;
 
-        let mut req = match method {
-            "GET" => self.http.get(url),
-            "POST" => self.http.post(url),
-            "PUT" => self.http.put(url),
-            "DELETE" => self.http.delete(url),
-            _ => self.http.request(
-                method
-                    .parse()
-                    .map_err(|e| OAuthError::Other(format!("Invalid HTTP method: {e}")))?,
-                url,
-            ),
+        let http_method = parse_http_method(method)?;
+        let mut req = HttpRequest {
+            method: http_method,
+            url: url.to_string(),
+            headers: Default::default(),
+            body: body.clone(),
         };
-
         req = req
-            .header("Authorization", format!("DPoP {access_token}"))
-            .header("DPoP", &dpop_proof);
-
-        if let Some(body) = body {
-            req = req.json(body);
+            .with_header("authorization", format!("DPoP {access_token}"))
+            .with_header("dpop", &dpop_proof);
+        if let Some(ct) = content_type {
+            req = req.with_header("content-type", ct);
         }
 
-        let resp = req.send().await?;
+        let resp = self.fetcher.fetch(req).await?;
 
-        // Update DPoP nonce if returned
-        if let Some(nonce_header) = resp.headers().get("dpop-nonce") {
-            if let Ok(nonce_str) = nonce_header.to_str() {
-                if let Ok(origin) = url::Url::parse(url).map(|u| u.origin().ascii_serialization()) {
-                    self.dpop_nonces.set(&origin, nonce_str);
-                }
-            }
+        // Update DPoP nonce if returned.
+        if let Some(nonce_str) = resp.header("dpop-nonce")
+            && let Ok(origin) = url::Url::parse(url).map(|u| u.origin().ascii_serialization())
+        {
+            self.dpop_nonces.set(&origin, nonce_str);
         }
 
-        // If 401 with invalid_token, the caller should refresh and retry
-        if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            if let Some(www_auth) = resp.headers().get("www-authenticate") {
-                if let Ok(auth_str) = www_auth.to_str() {
-                    if auth_str.contains("error=\"invalid_token\"")
-                        && (auth_str.starts_with("DPoP ") || auth_str.starts_with("Bearer "))
-                    {
-                        return Err(OAuthError::RefreshFailed(
-                            "Access token is invalid, refresh required".into(),
-                        ));
-                    }
-                }
-            }
+        // If 401 with invalid_token, the caller should refresh and retry.
+        if resp.status == 401
+            && let Some(auth_str) = resp.header("www-authenticate")
+            && auth_str.contains("error=\"invalid_token\"")
+            && (auth_str.starts_with("DPoP ") || auth_str.starts_with("Bearer "))
+        {
+            return Err(OAuthError::RefreshFailed(
+                "Access token is invalid, refresh required".into(),
+            ));
         }
 
         Ok(resp)
     }
+}
+
+/// Parse an HTTP method string into the common [`HttpMethod`] enum.
+fn parse_http_method(method: &str) -> Result<HttpMethod, OAuthError> {
+    Ok(match method.to_ascii_uppercase().as_str() {
+        "GET" => HttpMethod::Get,
+        "POST" => HttpMethod::Post,
+        "PUT" => HttpMethod::Put,
+        "DELETE" => HttpMethod::Delete,
+        "PATCH" => HttpMethod::Patch,
+        "HEAD" => HttpMethod::Head,
+        "OPTIONS" => HttpMethod::Options,
+        other => {
+            return Err(OAuthError::Other(format!(
+                "unsupported HTTP method: {other}"
+            )));
+        }
+    })
 }
 
 /// Strip query string and fragment from a URL (for DPoP htu claim).
@@ -212,6 +246,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_http_method_covers_common_verbs() {
+        assert_eq!(parse_http_method("GET").unwrap(), HttpMethod::Get);
+        assert_eq!(parse_http_method("post").unwrap(), HttpMethod::Post);
+        assert_eq!(parse_http_method("DELETE").unwrap(), HttpMethod::Delete);
+        assert!(parse_http_method("FOO").is_err());
+    }
+
+    #[cfg(feature = "fetch-reqwest")]
+    #[test]
     fn session_token_management() {
         let ts = TokenSet {
             issuer: "https://bsky.social".into(),
@@ -232,6 +275,7 @@ mod tests {
         assert_eq!(ts.access_token, "access-123");
     }
 
+    #[cfg(feature = "fetch-reqwest")]
     #[test]
     fn session_update_tokens() {
         let ts = TokenSet {
@@ -261,6 +305,7 @@ mod tests {
         assert!(session.token_set().refresh_token.is_some());
     }
 
+    #[cfg(feature = "fetch-reqwest")]
     #[test]
     fn session_expired_detection() {
         let ts = TokenSet {

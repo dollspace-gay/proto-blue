@@ -81,6 +81,11 @@ jobs:
       # WebSocket client — gloo-ws backs the browser's native WebSocket.
       - name: Check proto-blue-ws (gloo-ws)
         run: cargo check --target wasm32-unknown-unknown -p proto-blue-ws --no-default-features --features gloo-ws
+      # High-level API + OAuth, both routed through the xrpc/fetch-web transport.
+      - name: Check proto-blue-api (fetch-web)
+        run: cargo check --target wasm32-unknown-unknown -p proto-blue-api --no-default-features --features fetch-web
+      - name: Check proto-blue-oauth (fetch-web)
+        run: cargo check --target wasm32-unknown-unknown -p proto-blue-oauth --no-default-features --features fetch-web
 
   docs:
     name: Build docs (all-features)

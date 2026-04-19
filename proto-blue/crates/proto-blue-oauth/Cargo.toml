@@ -11,21 +11,44 @@ keywords = ["atproto", "bluesky", "oauth", "dpop", "pkce"]
 categories = ["authentication", "web-programming"]
 
 [dependencies]
-proto-blue-identity = { workspace = true }
+proto-blue-common = { workspace = true }
 proto-blue-crypto = { workspace = true }
 proto-blue-xrpc = { workspace = true }
 base64 = { workspace = true }
 url = { workspace = true }
-reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "sync", "time"] }
 thiserror = { workspace = true }
 rand = { workspace = true }
 chrono = { workspace = true }
 p256 = { workspace = true }
 k256 = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
+
+# Back-compat constructors that accept a `reqwest::Client` directly.
+# Only required when the `fetch-reqwest` feature is on.
+reqwest = { workspace = true, optional = true }
+
+[features]
+# Native default: reqwest HTTP transport, with DNS handle resolution
+# available through proto-blue-identity's default features.
+default = ["fetch-reqwest"]
+
+# Native `reqwest`-backed HTTP. Enables `OAuthClient::new`,
+# `::with_http_client`, and `OAuthSession::new` / `::with_http_client`.
+fetch-reqwest = [
+    "dep:reqwest",
+    "proto-blue-common/fetch-reqwest",
+    "proto-blue-xrpc/fetch-reqwest",
+]
+
+# Browser `fetch()`-backed HTTP for wasm32.
+fetch-web = [
+    "proto-blue-common/fetch-web",
+    "proto-blue-xrpc/fetch-web",
+]
 
 [dev-dependencies]
 proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "sync", "time"] }

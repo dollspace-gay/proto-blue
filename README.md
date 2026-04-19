@@ -305,8 +305,8 @@ proto-blue = { version = "0.2", default-features = false }
 | `net`      | `xrpc` (browser fetch via `proto-blue-xrpc/fetch-web`)                  | ✅       |
 | `ws`       | `ws`, enables `repo::Firehose` (browser WebSocket via `proto-blue-ws/gloo-ws`) | ✅ |
 | `resolver` | `identity` (browser fetch via `proto-blue-identity/fetch-web`, no DNS)  | ✅       |
-| `oauth`    | `oauth`                                                                | 🚧       |
-| `api`      | `api`                                                                  | 🚧       |
+| `oauth`    | `oauth` (browser fetch via `proto-blue-oauth/fetch-web`)                | ✅       |
+| `api`      | `api` (browser fetch via `proto-blue-api/fetch-web`)                   | ✅       |
 | `full`     | everything — **default**                                               | ❌       |
 
 The pure subset is regression-gated in CI by `cargo check --target wasm32-unknown-unknown`.

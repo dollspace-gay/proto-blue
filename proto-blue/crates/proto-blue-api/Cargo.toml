@@ -14,14 +14,23 @@ categories = ["api-bindings", "web-programming::http-client"]
 proto-blue-common = { workspace = true }
 proto-blue-syntax = { workspace = true }
 proto-blue-lexicon = { workspace = true }
-proto-blue-xrpc = { workspace = true }
 proto-blue-lex-data = { workspace = true }
+proto-blue-xrpc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-reqwest = { workspace = true }
 regex = { workspace = true }
 once_cell = { workspace = true }
 unicode-segmentation = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 thiserror = { workspace = true }
 chrono = { workspace = true }
+
+[features]
+# Native default: reqwest HTTP transport via proto-blue-xrpc.
+default = ["fetch-reqwest"]
+
+# Native `reqwest`-backed HTTP.
+fetch-reqwest = ["proto-blue-xrpc/fetch-reqwest"]
+
+# Browser `fetch()`-backed HTTP for wasm32-unknown-unknown.
+fetch-web = ["proto-blue-xrpc/fetch-web"]

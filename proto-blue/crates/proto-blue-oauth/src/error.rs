@@ -5,9 +5,11 @@ use thiserror::Error;
 /// Errors from the OAuth 2.0 flow.
 #[derive(Debug, Error)]
 pub enum OAuthError {
-    /// HTTP request failed.
-    #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    /// Transport-level failure from the configured [`FetchHandler`].
+    ///
+    /// [`FetchHandler`]: proto_blue_common::fetch::FetchHandler
+    #[error("fetch error: {0}")]
+    Fetch(#[from] proto_blue_common::fetch::FetchError),
 
     /// JSON serialization/deserialization failed.
     #[error("JSON error: {0}")]
