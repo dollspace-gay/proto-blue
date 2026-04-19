@@ -19,7 +19,9 @@ pub mod server;
 
 pub use client::{HttpMethod, XrpcClient};
 pub use error::{Error, RateLimit, ResponseType, XrpcError};
-pub use types::{CallOptions, HeadersMap, QueryParams, QueryValue, XrpcBody, XrpcResponse};
+pub use types::{
+    CallOptions, HeadersMap, LexiconValidation, QueryParams, QueryValue, XrpcBody, XrpcResponse,
+};
 
 #[cfg(feature = "server")]
 pub use server::{

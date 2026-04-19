@@ -1867,10 +1867,12 @@ dependencies = [
 name = "proto-blue-xrpc"
 version = "0.2.1"
 dependencies = [
+ "async-trait",
  "axum",
  "chrono",
  "proptest",
  "proto-blue-common",
+ "proto-blue-lex-json",
  "proto-blue-lexicon",
  "reqwest",
  "serde",

@@ -276,6 +276,7 @@ async fn bytes_body_uses_provided_encoding_header() {
     let opts = CallOptions {
         encoding: Some("image/png".into()),
         headers: None,
+        ..Default::default()
     };
     client
         .procedure(
@@ -331,6 +332,7 @@ async fn call_specific_header_overrides_default() {
     let opts = CallOptions {
         encoding: None,
         headers: Some(override_headers),
+        ..Default::default()
     };
     client.query("foo", None, Some(&opts)).await.unwrap();
     let c = captured.lock().await.clone().unwrap();

@@ -12,6 +12,7 @@ categories = ["web-programming::http-client", "api-bindings"]
 
 [dependencies]
 proto-blue-lexicon = { workspace = true }
+proto-blue-lex-json = { workspace = true }
 proto-blue-common = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -49,3 +50,4 @@ fetch-web = ["proto-blue-common/fetch-web"]
 proptest = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }
+async-trait = { workspace = true }

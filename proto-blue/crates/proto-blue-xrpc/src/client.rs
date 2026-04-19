@@ -120,7 +120,7 @@ impl XrpcClient {
     ) -> Result<XrpcResponse, Error> {
         let url = self.build_url(nsid, params)?;
         let req = self.build_request(CommonMethod::Get, url, opts, None);
-        self.send(req).await
+        self.send(req, opts).await
     }
 
     /// Make an XRPC procedure (POST) call.
@@ -133,7 +133,7 @@ impl XrpcClient {
     ) -> Result<XrpcResponse, Error> {
         let url = self.build_url(nsid, params)?;
         let req = self.build_request(CommonMethod::Post, url, opts, body);
-        self.send(req).await
+        self.send(req, opts).await
     }
 
     /// Generic call method — determines GET/POST based on the `method` parameter.
@@ -232,8 +232,36 @@ impl XrpcClient {
 
     /// Dispatch a pre-built request through the [`FetchHandler`] and
     /// interpret the response.
-    async fn send(&self, req: HttpRequest) -> Result<XrpcResponse, Error> {
-        let response = self.fetcher.fetch(req).await.map_err(Error::Fetch)?;
+    ///
+    /// Honours the `cancel`, `max_response_bytes`, and `validate`
+    /// fields on [`CallOptions`]:
+    ///
+    /// - **cancel**: races the fetch against the token; cancellation
+    ///   drops the in-flight connection and returns
+    ///   [`Error::Cancelled`].
+    /// - **max_response_bytes**: if the body exceeds the cap, returns
+    ///   [`Error::ResponseTooLarge`] without attempting to parse it.
+    /// - **validate**: after a successful call, runs
+    ///   [`Lexicons::assert_valid_xrpc_output`] against the response
+    ///   body and surfaces any [`ValidationError`] as
+    ///   [`Error::LexiconValidation`].
+    ///
+    /// [`Lexicons::assert_valid_xrpc_output`]: proto_blue_lexicon::Lexicons::assert_valid_xrpc_output
+    /// [`ValidationError`]: proto_blue_lexicon::ValidationError
+    async fn send(
+        &self,
+        req: HttpRequest,
+        opts: Option<&CallOptions>,
+    ) -> Result<XrpcResponse, Error> {
+        let fetch_fut = self.fetcher.fetch(req);
+        let response = if let Some(token) = opts.and_then(|o| o.cancel.as_ref()) {
+            tokio::select! {
+                r = fetch_fut => r.map_err(Error::Fetch)?,
+                _ = token.cancelled() => return Err(Error::Cancelled),
+            }
+        } else {
+            fetch_fut.await.map_err(Error::Fetch)?
+        };
 
         let status = response.status;
         let response_type = ResponseType::from_http_status(status);
@@ -244,6 +272,18 @@ impl XrpcClient {
             .map(|s| s.to_string());
 
         let body_bytes = response.body;
+
+        // Enforce response size cap before any parsing — protects
+        // against adversarial bodies that parse cheaply but consume
+        // memory (e.g. large base64 payloads).
+        if let Some(limit) = opts.and_then(|o| o.max_response_bytes)
+            && body_bytes.len() > limit
+        {
+            return Err(Error::ResponseTooLarge {
+                limit,
+                got: body_bytes.len(),
+            });
+        }
 
         if response_type != ResponseType::Success {
             let (error, message) = if let Some(ref ct) = content_type
@@ -263,6 +303,20 @@ impl XrpcClient {
         }
 
         let data = parse_response_body(content_type.as_deref(), &body_bytes);
+
+        // Optional lexicon validation. We validate the parsed
+        // response body against the method's XRPC output schema;
+        // subscription message frames follow a different path (see
+        // #35) and are not covered here.
+        if let Some(validate) = opts.and_then(|o| o.validate.as_ref()) {
+            // `assert_valid_xrpc_output` takes a `LexValue` — convert
+            // via proto-blue-lex-json, which already provides
+            // lenient JSON-to-LexValue conversion.
+            let lex = proto_blue_lex_json::json_to_lex(&data);
+            validate
+                .lexicons
+                .assert_valid_xrpc_output(&validate.lex_uri, &lex)?;
+        }
 
         Ok(XrpcResponse { data, headers })
     }
@@ -607,5 +661,232 @@ mod tests {
     fn http_method_debug() {
         assert_eq!(format!("{:?}", HttpMethod::Get), "Get");
         assert_eq!(format!("{:?}", HttpMethod::Post), "Post");
+    }
+
+    // ── CallOptions features: cancel, max_response_bytes, validate ───
+
+    use async_trait::async_trait;
+    use proto_blue_common::cancel::CancellationToken;
+    use proto_blue_common::fetch::{
+        FetchError, FetchHandler, HttpRequest, HttpResponse,
+    };
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    /// Fetcher that sleeps before returning, so we can race cancel.
+    struct SlowFetcher {
+        delay: Duration,
+        body: Vec<u8>,
+    }
+
+    #[async_trait]
+    impl FetchHandler for SlowFetcher {
+        async fn fetch(&self, _req: HttpRequest) -> Result<HttpResponse, FetchError> {
+            tokio::time::sleep(self.delay).await;
+            let mut headers = proto_blue_common::fetch::HttpHeaders::new();
+            headers.insert("content-type".into(), "application/json".into());
+            Ok(HttpResponse {
+                status: 200,
+                headers,
+                body: self.body.clone(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn cancel_token_aborts_in_flight_call() {
+        let fetcher = Arc::new(SlowFetcher {
+            delay: Duration::from_secs(5),
+            body: br#"{"ok":true}"#.to_vec(),
+        });
+        let client = XrpcClient::with_fetch_handler(
+            "https://example.com",
+            fetcher,
+        )
+        .unwrap();
+
+        let token = CancellationToken::new();
+        let opts = CallOptions {
+            cancel: Some(token.clone()),
+            ..Default::default()
+        };
+
+        // Fire cancel after a short delay.
+        let canceller = token.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+            canceller.cancel();
+        });
+
+        let t0 = std::time::Instant::now();
+        let err = client.query("com.example.x", None, Some(&opts)).await.unwrap_err();
+        let elapsed = t0.elapsed();
+
+        assert!(
+            matches!(err, Error::Cancelled),
+            "expected Error::Cancelled, got: {err:?}",
+        );
+        // Should cancel long before the 5s sleep completes.
+        assert!(
+            elapsed < Duration::from_millis(500),
+            "cancel took too long: {elapsed:?}",
+        );
+    }
+
+    #[tokio::test]
+    async fn max_response_bytes_enforced() {
+        let fetcher = Arc::new(SlowFetcher {
+            delay: Duration::from_millis(1),
+            body: vec![0u8; 1024],
+        });
+        let client = XrpcClient::with_fetch_handler(
+            "https://example.com",
+            fetcher,
+        )
+        .unwrap();
+
+        let opts = CallOptions {
+            max_response_bytes: Some(100),
+            ..Default::default()
+        };
+
+        let err = client
+            .query("com.example.x", None, Some(&opts))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                Error::ResponseTooLarge {
+                    limit: 100,
+                    got: 1024
+                }
+            ),
+            "unexpected error: {err:?}",
+        );
+    }
+
+    #[tokio::test]
+    async fn max_response_bytes_unset_allows_any_size() {
+        let fetcher = Arc::new(SlowFetcher {
+            delay: Duration::from_millis(1),
+            body: br#"{"ok":true}"#.to_vec(),
+        });
+        let client = XrpcClient::with_fetch_handler(
+            "https://example.com",
+            fetcher,
+        )
+        .unwrap();
+
+        let resp = client.query("com.example.x", None, None).await.unwrap();
+        assert_eq!(resp.data["ok"], true);
+    }
+
+    #[tokio::test]
+    async fn lexicon_validate_passes_valid_response() {
+        let mut lexicons = proto_blue_lexicon::Lexicons::new();
+        lexicons
+            .add_from_json(
+                r##"{
+                "lexicon": 1,
+                "id": "com.example.ping",
+                "defs": {
+                    "main": {
+                        "type": "query",
+                        "output": {
+                            "encoding": "application/json",
+                            "schema": {
+                                "type": "object",
+                                "required": ["ok"],
+                                "properties": {
+                                    "ok": {"type": "boolean"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }"##,
+            )
+            .unwrap();
+
+        let fetcher = Arc::new(SlowFetcher {
+            delay: Duration::from_millis(1),
+            body: br#"{"ok":true}"#.to_vec(),
+        });
+        let client = XrpcClient::with_fetch_handler(
+            "https://example.com",
+            fetcher,
+        )
+        .unwrap();
+
+        let opts = CallOptions {
+            validate: Some(crate::LexiconValidation {
+                lexicons: Arc::new(lexicons),
+                lex_uri: "com.example.ping".to_string(),
+            }),
+            ..Default::default()
+        };
+
+        let resp = client
+            .query("com.example.ping", None, Some(&opts))
+            .await
+            .unwrap();
+        assert_eq!(resp.data["ok"], true);
+    }
+
+    #[tokio::test]
+    async fn lexicon_validate_rejects_malformed_response() {
+        let mut lexicons = proto_blue_lexicon::Lexicons::new();
+        lexicons
+            .add_from_json(
+                r##"{
+                "lexicon": 1,
+                "id": "com.example.ping",
+                "defs": {
+                    "main": {
+                        "type": "query",
+                        "output": {
+                            "encoding": "application/json",
+                            "schema": {
+                                "type": "object",
+                                "required": ["ok"],
+                                "properties": {
+                                    "ok": {"type": "boolean"}
+                                }
+                            }
+                        }
+                    }
+                }
+            }"##,
+            )
+            .unwrap();
+
+        // Response missing the required `ok` field.
+        let fetcher = Arc::new(SlowFetcher {
+            delay: Duration::from_millis(1),
+            body: br#"{}"#.to_vec(),
+        });
+        let client = XrpcClient::with_fetch_handler(
+            "https://example.com",
+            fetcher,
+        )
+        .unwrap();
+
+        let opts = CallOptions {
+            validate: Some(crate::LexiconValidation {
+                lexicons: Arc::new(lexicons),
+                lex_uri: "com.example.ping".to_string(),
+            }),
+            ..Default::default()
+        };
+
+        let err = client
+            .query("com.example.ping", None, Some(&opts))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::LexiconValidation(_)),
+            "expected LexiconValidation, got: {err:?}",
+        );
     }
 }

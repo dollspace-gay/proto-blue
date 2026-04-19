@@ -1,6 +1,10 @@
 //! XRPC request/response types.
 
 use std::collections::HashMap;
+use std::sync::Arc;
+
+use proto_blue_common::cancel::CancellationToken;
+use proto_blue_lexicon::Lexicons;
 
 /// Query parameters for XRPC calls.
 pub type QueryParams = HashMap<String, QueryValue>;
@@ -69,12 +73,52 @@ impl<T: Into<QueryValue>> From<Vec<T>> for QueryValue {
 pub type HeadersMap = HashMap<String, String>;
 
 /// Options for an XRPC call.
-#[derive(Debug, Default, Clone)]
+///
+/// Cancellation, response-size caps, and optional lexicon validation
+/// all live here so callers can compose them per call without adding
+/// new method signatures. Defaults are benign — every field is
+/// opt-in.
+#[derive(Default, Clone)]
 pub struct CallOptions {
     /// Content encoding for the request body.
     pub encoding: Option<String>,
     /// Additional headers to include.
     pub headers: Option<HeadersMap>,
+    /// Optional cancellation token. When supplied, the in-flight
+    /// fetch is raced against `token.cancelled()`; a cancel drops
+    /// the connection mid-flight and surfaces as [`crate::Error::Cancelled`].
+    pub cancel: Option<CancellationToken>,
+    /// Maximum number of response-body bytes to read. Responses that
+    /// exceed this limit surface as [`crate::Error::ResponseTooLarge`].
+    /// `None` means no limit (the default).
+    pub max_response_bytes: Option<usize>,
+    /// Optional lexicon-driven response validation. When present,
+    /// after a successful call the response body is validated against
+    /// the `lex_uri`'s XRPC output/message schema via
+    /// [`Lexicons::assert_valid_xrpc_output`]. A validation failure
+    /// surfaces as [`crate::Error::LexiconValidation`].
+    pub validate: Option<LexiconValidation>,
+}
+
+/// Response-side lexicon validation configuration (see
+/// [`CallOptions::validate`]).
+#[derive(Clone)]
+pub struct LexiconValidation {
+    pub lexicons: Arc<Lexicons>,
+    /// Lexicon URI of the method being validated (NSID or `lex:nsid`).
+    pub lex_uri: String,
+}
+
+impl std::fmt::Debug for CallOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CallOptions")
+            .field("encoding", &self.encoding)
+            .field("headers", &self.headers)
+            .field("cancel", &self.cancel.is_some())
+            .field("max_response_bytes", &self.max_response_bytes)
+            .field("validate", &self.validate.is_some())
+            .finish()
+    }
 }
 
 /// Successful XRPC response.

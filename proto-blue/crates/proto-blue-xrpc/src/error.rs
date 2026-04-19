@@ -219,6 +219,21 @@ pub enum Error {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
+    /// The call was cancelled via [`crate::CallOptions::cancel`]. The
+    /// in-flight fetch was dropped before the response arrived.
+    #[error("call was cancelled")]
+    Cancelled,
+
+    /// The response body exceeded the configured maximum
+    /// ([`crate::CallOptions::max_response_bytes`]).
+    #[error("response body exceeded {limit} bytes (got {got})")]
+    ResponseTooLarge { limit: usize, got: usize },
+
+    /// The response body failed lexicon validation
+    /// ([`crate::CallOptions::validate`]).
+    #[error("lexicon validation failed: {0}")]
+    LexiconValidation(#[from] proto_blue_lexicon::ValidationError),
+
     #[error("{0}")]
     Other(String),
 }

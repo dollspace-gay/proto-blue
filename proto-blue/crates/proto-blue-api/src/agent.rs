@@ -85,6 +85,7 @@ impl Agent {
             CallOptions {
                 encoding: None,
                 headers: Some(headers),
+                ..Default::default()
             }
         })
     }
@@ -128,6 +129,7 @@ impl Agent {
         let opts = CallOptions {
             encoding: None,
             headers: Some(headers),
+            ..Default::default()
         };
         let response = self
             .client
@@ -167,6 +169,7 @@ impl Agent {
         let opts = CallOptions {
             encoding: None,
             headers: Some(headers),
+            ..Default::default()
         };
 
         let response = self
@@ -477,6 +480,7 @@ impl Agent {
         let opts = CallOptions {
             encoding: Some(content_type.to_string()),
             headers: Some(headers),
+            ..Default::default()
         };
 
         let response = self
