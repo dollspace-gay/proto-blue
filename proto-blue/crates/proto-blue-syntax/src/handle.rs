@@ -77,6 +77,35 @@ impl Handle {
     }
 }
 
+/// `true` if the handle ends in a TLD that AT Protocol forbids for
+/// handles (`.local`, `.arpa`, `.onion`, etc.). Mirrors TS
+/// `isValidTld` in `@atproto/syntax`.
+///
+/// Accepts either a raw string or anything that implements
+/// `AsRef<str>` so callers can pass `&Handle` directly.
+pub fn is_valid_tld(handle: impl AsRef<str>) -> bool {
+    let h = handle.as_ref();
+    let lower = h.to_ascii_lowercase();
+    !DISALLOWED_TLDS
+        .iter()
+        .any(|suffix| lower.ends_with(suffix))
+}
+
+/// Normalise a raw handle string to its canonical form (ASCII
+/// lowercase). Does **not** validate the handle — use [`Handle::new`]
+/// if you want validation. Mirrors TS `normalizeHandle`.
+pub fn normalize_handle(s: &str) -> String {
+    s.to_ascii_lowercase()
+}
+
+/// Normalise + validate in one step. Returns the canonical lowercase
+/// form on success. Mirrors TS `normalizeAndEnsureValidHandle`.
+pub fn normalize_and_ensure_valid_handle(s: &str) -> Result<String, InvalidHandleError> {
+    let n = normalize_handle(s);
+    Handle::new(&n)?;
+    Ok(n)
+}
+
 fn ensure_valid_handle(s: &str) -> Result<(), InvalidHandleError> {
     let err = |reason: &str| InvalidHandleError {
         reason: reason.to_string(),

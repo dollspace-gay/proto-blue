@@ -49,6 +49,15 @@ impl Nsid {
         ensure_valid_nsid(s).is_ok()
     }
 
+    /// Compose an NSID from an `authority` (reverse-DNS prefix, e.g.
+    /// `app.bsky.feed`) and a `name` (e.g. `post`). The inverse of
+    /// [`Nsid::authority`] + [`Nsid::name`]. Validates the result.
+    ///
+    /// Mirrors TS `NSID.create(authority, name)`.
+    pub fn create(authority: &str, name: &str) -> Result<Self, InvalidNsidError> {
+        Nsid::new(&format!("{authority}.{name}"))
+    }
+
     /// Return the authority portion (all segments except the last).
     ///
     /// For `com.atproto.repo.createRecord`, returns `com.atproto.repo`.

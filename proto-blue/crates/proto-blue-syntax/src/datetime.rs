@@ -53,6 +53,28 @@ impl Datetime {
     pub fn into_inner(self) -> String {
         self.0
     }
+
+    /// Produce an RFC 3339 datetime string for "now" with millisecond
+    /// precision and a UTC `Z` suffix — the canonical shape used by
+    /// atproto record `createdAt` fields. Mirrors TS
+    /// `currentDatetimeString`.
+    pub fn now() -> Self {
+        let s = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
+        // Safe — the formatter emits a valid atproto datetime shape.
+        Datetime(s)
+    }
+
+    /// Convert a `chrono::DateTime<Utc>` to a canonical atproto
+    /// datetime string (millisecond precision, `Z` suffix). Mirrors TS
+    /// `toDatetimeString(date)`.
+    pub fn from_utc(dt: DateTime<Utc>) -> Self {
+        Datetime(dt.to_rfc3339_opts(SecondsFormat::Millis, true))
+    }
+}
+
+/// Free-function shortcut for [`Datetime::now`], matching TS naming.
+pub fn current_datetime_string() -> String {
+    Datetime::now().into_inner()
 }
 
 fn ensure_valid_datetime(s: &str) -> Result<(), InvalidDatetimeError> {

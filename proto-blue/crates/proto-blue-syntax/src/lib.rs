@@ -44,13 +44,18 @@ mod language;
 mod nsid;
 mod recordkey;
 mod tid;
+mod uri;
 
 pub use at_identifier::{AtIdentifier, InvalidAtIdentifierError};
 pub use aturi::{AtUri, InvalidAtUriError};
-pub use datetime::{Datetime, InvalidDatetimeError, normalize_datetime};
+pub use datetime::{Datetime, InvalidDatetimeError, current_datetime_string, normalize_datetime};
 pub use did::{Did, InvalidDidError};
-pub use handle::{DISALLOWED_TLDS, Handle, InvalidHandleError};
+pub use handle::{
+    DISALLOWED_TLDS, HANDLE_INVALID, Handle, InvalidHandleError, is_valid_tld, normalize_handle,
+    normalize_and_ensure_valid_handle,
+};
 pub use language::is_valid_language;
 pub use nsid::{InvalidNsidError, Nsid};
 pub use recordkey::{InvalidRecordKeyError, RecordKey};
 pub use tid::{InvalidTidError, Tid};
+pub use uri::is_valid_uri;
