@@ -12,16 +12,44 @@ categories = ["web-programming::http-client", "api-bindings"]
 
 [dependencies]
 proto-blue-lexicon = { workspace = true }
-reqwest = { workspace = true }
+proto-blue-common = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 url = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }
 thiserror = { workspace = true }
 chrono = { workspace = true }
-axum = { workspace = true }
+async-trait = { workspace = true }
+
+# Native runtime — only needed when the server or the reqwest fetch
+# backend is enabled. Tokio itself is wasm-safe with the features below,
+# but `server` and `fetch-reqwest` each request the tokio features they
+# actually need.
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
+
+# Optional native backends.
+reqwest = { workspace = true, optional = true }
+axum = { workspace = true, optional = true }
+
+# Optional wasm backend.
+gloo-net = { version = "0.6", features = ["http"], optional = true }
+js-sys = { version = "0.3", optional = true }
+
+[features]
+# Default: full native stack (server + reqwest client), matching pre-refactor behaviour.
+default = ["server", "fetch-reqwest"]
+
+# Axum-based inbound XRPC server. Native-only.
+server = ["dep:axum", "tokio/net", "tokio/io-util", "tokio/rt-multi-thread", "tokio/time"]
+
+# reqwest-backed `FetchHandler` (`ReqwestFetcher`). Native / wasm32 compatible
+# (reqwest itself works on wasm, but usually `fetch-web` is preferred there).
+fetch-reqwest = ["dep:reqwest", "tokio/rt-multi-thread", "tokio/time", "tokio/io-util"]
+
+# `gloo-net`-backed `FetchHandler` for `wasm32-unknown-unknown`. Uses the
+# browser's native `fetch()`.
+fetch-web = ["dep:gloo-net", "dep:js-sys"]
 
 [dev-dependencies]
 proptest = { workspace = true }
-proto-blue-common = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }

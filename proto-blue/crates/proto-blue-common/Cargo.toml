@@ -19,6 +19,7 @@ unicode-segmentation = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
 tokio-util = { workspace = true }
+async-trait = { workspace = true }
 chrono = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }

@@ -70,6 +70,10 @@ jobs:
             cargo check --target wasm32-unknown-unknown -p "$crate" --no-default-features
             echo "::endgroup::"
           done
+      # The xrpc crate exposes a browser `fetch()` backend via the
+      # `fetch-web` feature (gloo-net).
+      - name: Check proto-blue-xrpc (fetch-web)
+        run: cargo check --target wasm32-unknown-unknown -p proto-blue-xrpc --no-default-features --features fetch-web
 
   docs:
     name: Build docs (all-features)

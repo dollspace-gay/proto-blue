@@ -207,8 +207,11 @@ pub enum Error {
     #[error("XRPC error: {0}")]
     Xrpc(#[from] XrpcError),
 
-    #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    /// Transport-level failure from the configured [`FetchHandler`].
+    ///
+    /// [`FetchHandler`]: proto_blue_common::fetch::FetchHandler
+    #[error("fetch error: {0}")]
+    Fetch(#[from] proto_blue_common::fetch::FetchError),
 
     #[error("URL parse error: {0}")]
     Url(#[from] url::ParseError),

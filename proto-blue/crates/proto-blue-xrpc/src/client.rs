@@ -1,8 +1,21 @@
 //! XRPC HTTP client implementation.
+//!
+//! The client is transport-agnostic: it constructs a
+//! [`proto_blue_common::fetch::HttpRequest`] and hands it off to a
+//! [`FetchHandler`]. Two implementations ship in this crate:
+//!
+//! - [`reqwest_fetch::ReqwestFetcher`] (feature `fetch-reqwest`, default) —
+//!   native HTTP via `reqwest`.
+//! - [`web_fetch::WebFetcher`] (feature `fetch-web`) — browser `fetch()`
+//!   via `gloo-net`, for `wasm32-unknown-unknown`.
+//!
+//! Callers can also supply their own implementation, which is the primary
+//! seam for unit-testable mocks.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
+use proto_blue_common::fetch::{FetchHandler, HttpMethod as CommonMethod, HttpRequest};
 use url::Url;
 
 use crate::error::{Error, ResponseType, XrpcError};
@@ -10,43 +23,62 @@ use crate::types::{CallOptions, HeadersMap, QueryParams, QueryValue, XrpcBody, X
 
 /// XRPC HTTP client for making AT Protocol API calls.
 ///
-/// Handles query (GET) and procedure (POST) XRPC methods,
-/// with URL construction, parameter encoding, and response parsing.
+/// Handles query (GET) and procedure (POST) XRPC methods, URL
+/// construction, parameter encoding, and response parsing. The actual HTTP
+/// transport is abstracted behind [`FetchHandler`].
 pub struct XrpcClient {
     /// The base service URL (e.g. `https://bsky.social`).
     service: Url,
-    /// HTTP client.
-    client: reqwest::Client,
-    /// Default headers sent with every request.
+    /// HTTP transport.
+    fetcher: Arc<dyn FetchHandler>,
+    /// Default headers sent with every request (lowercase keys).
     headers: HashMap<String, String>,
 }
 
 impl XrpcClient {
-    /// Create a new XRPC client for the given service URL.
+    /// Create a new XRPC client using the crate's default [`FetchHandler`].
+    ///
+    /// With the `fetch-reqwest` feature (default on native), this uses a
+    /// fresh `reqwest::Client`. With only `fetch-web`, it uses
+    /// [`web_fetch::WebFetcher`]. If neither feature is enabled, callers
+    /// must construct the client via [`Self::with_fetch_handler`].
+    #[cfg(any(feature = "fetch-reqwest", feature = "fetch-web"))]
     pub fn new(service: impl AsRef<str>) -> Result<Self, Error> {
+        Self::with_fetch_handler(service, Arc::new(default_fetcher()))
+    }
+
+    /// Create a new XRPC client backed by a custom [`FetchHandler`].
+    ///
+    /// Primary extension point for callers who want to inject a mock, a
+    /// proxying transport, a custom TLS configuration, or — on
+    /// wasm32-unknown-unknown — a browser-native fetch implementation.
+    pub fn with_fetch_handler(
+        service: impl AsRef<str>,
+        fetcher: Arc<dyn FetchHandler>,
+    ) -> Result<Self, Error> {
         let mut service_url = Url::parse(service.as_ref())?;
-        // Ensure trailing slash for proper URL joining
         if !service_url.path().ends_with('/') {
             service_url.set_path(&format!("{}/", service_url.path()));
         }
         Ok(XrpcClient {
             service: service_url,
-            client: reqwest::Client::new(),
+            fetcher,
             headers: HashMap::new(),
         })
     }
 
-    /// Create a new XRPC client with a custom reqwest::Client.
-    pub fn with_client(service: impl AsRef<str>, client: reqwest::Client) -> Result<Self, Error> {
-        let mut service_url = Url::parse(service.as_ref())?;
-        if !service_url.path().ends_with('/') {
-            service_url.set_path(&format!("{}/", service_url.path()));
-        }
-        Ok(XrpcClient {
-            service: service_url,
-            client,
-            headers: HashMap::new(),
-        })
+    /// Create a new XRPC client that wraps a user-supplied `reqwest::Client`.
+    ///
+    /// Feature-gated behind `fetch-reqwest`.
+    #[cfg(feature = "fetch-reqwest")]
+    pub fn with_client(
+        service: impl AsRef<str>,
+        client: reqwest::Client,
+    ) -> Result<Self, Error> {
+        Self::with_fetch_handler(
+            service,
+            Arc::new(crate::reqwest_fetch::ReqwestFetcher::from_client(client)),
+        )
     }
 
     /// Get the service URL.
@@ -87,11 +119,8 @@ impl XrpcClient {
         opts: Option<&CallOptions>,
     ) -> Result<XrpcResponse, Error> {
         let url = self.build_url(nsid, params)?;
-        let mut req = self.client.get(url);
-        req = self.apply_headers(req, opts);
-
-        let response = req.send().await?;
-        self.handle_response(response).await
+        let req = self.build_request(CommonMethod::Get, url, opts, None);
+        self.send(req).await
     }
 
     /// Make an XRPC procedure (POST) call.
@@ -103,25 +132,8 @@ impl XrpcClient {
         opts: Option<&CallOptions>,
     ) -> Result<XrpcResponse, Error> {
         let url = self.build_url(nsid, params)?;
-        let mut req = self.client.post(url);
-        req = self.apply_headers(req, opts);
-
-        // Set body
-        match body {
-            Some(XrpcBody::Json(value)) => {
-                req = req.header(CONTENT_TYPE, "application/json").json(&value);
-            }
-            Some(XrpcBody::Bytes(data)) => {
-                let encoding = opts
-                    .and_then(|o| o.encoding.as_deref())
-                    .unwrap_or("application/octet-stream");
-                req = req.header(CONTENT_TYPE, encoding).body(data);
-            }
-            None => {}
-        }
-
-        let response = req.send().await?;
-        self.handle_response(response).await
+        let req = self.build_request(CommonMethod::Post, url, opts, body);
+        self.send(req).await
     }
 
     /// Generic call method — determines GET/POST based on the `method` parameter.
@@ -163,71 +175,81 @@ impl XrpcClient {
         Ok(url)
     }
 
-    /// Apply default headers and call-specific headers to a request.
-    fn apply_headers(
+    /// Construct a transport-independent [`HttpRequest`], applying default
+    /// headers, per-call header overrides, and any body.
+    fn build_request(
         &self,
-        mut req: reqwest::RequestBuilder,
+        method: CommonMethod,
+        url: Url,
         opts: Option<&CallOptions>,
-    ) -> reqwest::RequestBuilder {
-        // Apply default headers
-        let mut header_map = HeaderMap::new();
+        body: Option<XrpcBody>,
+    ) -> HttpRequest {
+        let mut req = HttpRequest {
+            method,
+            url: url.into(),
+            headers: Default::default(),
+            body: None,
+        };
+
+        // Apply default headers.
         for (key, value) in &self.headers {
-            if let (Ok(name), Ok(val)) = (
-                HeaderName::from_bytes(key.as_bytes()),
-                HeaderValue::from_str(value),
-            ) {
-                header_map.insert(name, val);
+            req.headers.insert(key.clone(), value.clone());
+        }
+
+        // Apply call-specific headers (override defaults).
+        if let Some(opts) = opts
+            && let Some(call_headers) = &opts.headers
+        {
+            for (key, value) in call_headers {
+                req.headers.insert(key.to_lowercase(), value.clone());
             }
         }
 
-        // Apply call-specific headers (override defaults)
-        if let Some(opts) = opts {
-            if let Some(call_headers) = &opts.headers {
-                for (key, value) in call_headers {
-                    if let (Ok(name), Ok(val)) = (
-                        HeaderName::from_bytes(key.to_lowercase().as_bytes()),
-                        HeaderValue::from_str(value),
-                    ) {
-                        header_map.insert(name, val);
-                    }
+        // Body + Content-Type.
+        if let Some(body) = body {
+            match body {
+                XrpcBody::Json(value) => {
+                    req.headers
+                        .entry("content-type".to_string())
+                        .or_insert_with(|| "application/json".to_string());
+                    req.body = Some(
+                        serde_json::to_vec(&value).expect("JSON serialization cannot fail"),
+                    );
+                }
+                XrpcBody::Bytes(data) => {
+                    let encoding = opts
+                        .and_then(|o| o.encoding.as_deref())
+                        .unwrap_or("application/octet-stream")
+                        .to_string();
+                    req.headers.insert("content-type".to_string(), encoding);
+                    req.body = Some(data);
                 }
             }
         }
 
-        if !header_map.is_empty() {
-            req = req.headers(header_map);
-        }
         req
     }
 
-    /// Process an HTTP response into an XrpcResponse or XrpcError.
-    async fn handle_response(&self, response: reqwest::Response) -> Result<XrpcResponse, Error> {
-        let status = response.status().as_u16();
+    /// Dispatch a pre-built request through the [`FetchHandler`] and
+    /// interpret the response.
+    async fn send(&self, req: HttpRequest) -> Result<XrpcResponse, Error> {
+        let response = self.fetcher.fetch(req).await.map_err(Error::Fetch)?;
+
+        let status = response.status;
         let response_type = ResponseType::from_http_status(status);
 
-        // Collect response headers
-        let headers: HeadersMap = response
-            .headers()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
-            .collect();
-
+        let headers: HeadersMap = response.headers.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
         let content_type = response
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
+            .header("content-type")
             .map(|s| s.to_string());
 
-        let body_bytes = response.bytes().await?;
+        let body_bytes = response.body;
 
         if response_type != ResponseType::Success {
-            // Try to parse error response body
-            let (error, message) = if let Some(ref ct) = content_type {
-                if ct.contains("application/json") {
-                    parse_error_body(&body_bytes)
-                } else {
-                    (None, None)
-                }
+            let (error, message) = if let Some(ref ct) = content_type
+                && ct.contains("application/json")
+            {
+                parse_error_body(&body_bytes)
             } else {
                 (None, None)
             };
@@ -240,14 +262,30 @@ impl XrpcClient {
             }));
         }
 
-        // Parse response body based on content type
         let data = parse_response_body(content_type.as_deref(), &body_bytes);
 
         Ok(XrpcResponse { data, headers })
     }
 }
 
+/// Construct the default [`FetchHandler`] for this crate's feature set.
+///
+/// Prefers `fetch-reqwest` when available. On wasm-only builds, falls back
+/// to `fetch-web`.
+#[cfg(feature = "fetch-reqwest")]
+fn default_fetcher() -> crate::reqwest_fetch::ReqwestFetcher {
+    crate::reqwest_fetch::ReqwestFetcher::new()
+}
+
+#[cfg(all(feature = "fetch-web", not(feature = "fetch-reqwest")))]
+fn default_fetcher() -> crate::web_fetch::WebFetcher {
+    crate::web_fetch::WebFetcher::new()
+}
+
 /// HTTP method for XRPC calls.
+///
+/// XRPC only defines GET (query) and POST (procedure); the broader set of
+/// HTTP methods lives in [`proto_blue_common::fetch::HttpMethod`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HttpMethod {
     Get,
@@ -286,19 +324,15 @@ fn parse_response_body(content_type: Option<&str>, bytes: &[u8]) -> serde_json::
         }
     }
 
-    // Return raw bytes as null if empty, or as a JSON value if possible
     if bytes.is_empty() {
         serde_json::Value::Null
     } else {
-        // For binary data, we can't represent it as JSON directly.
-        // Return as a JSON string of the base64-encoded data.
         use serde_json::json;
         json!({ "$bytes": base64_encode(bytes) })
     }
 }
 
 fn base64_encode(data: &[u8]) -> String {
-    // Simple base64 encoding using a lookup table
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut result = String::new();
     for chunk in data.chunks(3) {
@@ -322,7 +356,7 @@ fn base64_encode(data: &[u8]) -> String {
     result
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fetch-reqwest"))]
 mod tests {
     use super::*;
 
@@ -421,7 +455,6 @@ mod tests {
             ResponseType::from_http_status(500),
             ResponseType::InternalServerError
         );
-        // Unmapped codes fall to range defaults
         assert_eq!(
             ResponseType::from_http_status(418),
             ResponseType::InvalidRequest
@@ -517,9 +550,6 @@ mod tests {
     fn query_value_encode() {
         assert_eq!(QueryValue::String("hello".into()).encode(), "hello");
         assert_eq!(QueryValue::Integer(42).encode(), "42");
-        // Use a generic non-reserved value — clippy rejects anything
-        // close to mathematical constants like π, and the test only
-        // cares that floats round-trip their Display form.
         assert_eq!(QueryValue::Float(2.5).encode(), "2.5");
         assert_eq!(QueryValue::Boolean(true).encode(), "true");
         assert_eq!(QueryValue::Boolean(false).encode(), "false");
