@@ -49,7 +49,7 @@ pub enum WsFrame {
 /// performs a clean shutdown.
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
-pub trait WebSocketTransport: Send {
+pub trait WebSocketTransport: Send + Sync {
     async fn recv(&mut self) -> Result<Option<WsFrame>, WsError>;
     async fn send(&mut self, frame: WsFrame) -> Result<(), WsError>;
     async fn close(&mut self) -> Result<(), WsError>;
