@@ -15,6 +15,7 @@ proto-blue-syntax = { workspace = true }
 proto-blue-lex-data = { workspace = true }
 proto-blue-lex-json = { workspace = true }
 proto-blue-lex-cbor = { workspace = true }
+http = "1"
 unicode-segmentation = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
@@ -34,11 +35,14 @@ url = { workspace = true }
 # `cfg(not(target_arch = "wasm32"))` lets the `fetch-reqwest` feature
 # stay quietly enabled on wasm builds (no effect) instead of breaking
 # them.
-gloo-net = { version = "0.6", features = ["http"], optional = true }
-js-sys = { version = "0.3", optional = true }
 
+# Native: reqwest as an optional dep, gated by `fetch-reqwest`.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { workspace = true, optional = true }
+
+# (Wasm deps consolidated into the single target-conditional table
+# below, alongside the `getrandom` entry — cargo forbids duplicate
+# `[target.'cfg(…)'.dependencies]` sections.)
 
 [features]
 # No features on by default — pure subset only. Consumers opt into a
@@ -54,15 +58,23 @@ default = []
 # built (i.e. on native targets).
 fetch-reqwest = ["dep:reqwest"]
 
-# `WebFetcher` — browser-fetch handler for `wasm32-unknown-unknown`.
-fetch-web = ["dep:gloo-net", "dep:js-sys"]
+# Kept for source-compatibility with downstream Cargo.toml files that
+# explicitly set `features = ["fetch-web"]`. The `WebFetcher` impl is
+# now always compiled on wasm (its deps — gloo-net / js-sys — are
+# target-conditional unconditional deps, above), so this feature is a
+# no-op.
+fetch-web = []
 
 [dev-dependencies]
 proptest = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }
 
-# Browser entropy — `rand` pulls in getrandom 0.2, which refuses to compile
-# for wasm32-unknown-unknown without an explicit backend. The `js` feature
-# routes it through `crypto.getRandomValues()`.
+# Wasm-only dependencies:
+# - `gloo-net` + `js-sys` back `WebFetcher`; always compiled on wasm so
+#   consumer crates get a default fetcher without the `fetch-web` flag.
+# - `getrandom` with the `js` feature routes `rand`'s OS entropy
+#   source through `crypto.getRandomValues()`.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+gloo-net = { version = "0.6", features = ["http"] }
+js-sys = "0.3"
 getrandom = { version = "0.2", features = ["js"] }

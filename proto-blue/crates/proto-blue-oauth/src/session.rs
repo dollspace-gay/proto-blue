@@ -35,8 +35,10 @@ pub struct OAuthSession {
 }
 
 impl OAuthSession {
-    /// Create a new session from a token set and `DPoP` key, using the
-    /// crate's default native fetch handler (`reqwest`).
+    /// Create a new session from a token set and `DPoP` key, using
+    /// the crate's default fetch handler — `reqwest` on native (with
+    /// the `fetch-reqwest` feature), `WebFetcher` on wasm (always
+    /// available).
     #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(token_set: TokenSet, dpop_key: DpopKey, dpop_nonces: DpopNonceCache) -> Self {
@@ -45,6 +47,18 @@ impl OAuthSession {
             dpop_key,
             dpop_nonces,
             Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
+    }
+
+    /// Wasm default: browser `fetch()`-backed session.
+    #[cfg(target_arch = "wasm32")]
+    #[must_use]
+    pub fn new(token_set: TokenSet, dpop_key: DpopKey, dpop_nonces: DpopNonceCache) -> Self {
+        Self::with_fetch_handler(
+            token_set,
+            dpop_key,
+            dpop_nonces,
+            Arc::new(proto_blue_common::fetch::WebFetcher::new()),
         )
     }
 

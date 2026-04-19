@@ -42,11 +42,9 @@ struct DidResolverInner {
 }
 
 impl DidResolver {
-    /// Create a new DID resolver using the crate's default fetch handler.
-    ///
-    /// With the `fetch-reqwest` feature (default on native), a fresh
-    /// `reqwest::Client` is constructed internally. Otherwise the caller
-    /// must use [`Self::with_fetch_handler`].
+    /// Create a new DID resolver using the crate's default fetch
+    /// handler — `reqwest` on native (requires `fetch-reqwest`),
+    /// browser `fetch()` on wasm (always available).
     #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Arc<dyn DidCache>>) -> Self {
@@ -55,6 +53,18 @@ impl DidResolver {
             timeout_ms,
             cache,
             Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
+    }
+
+    /// Wasm default: browser `fetch()`-backed DID resolver.
+    #[cfg(target_arch = "wasm32")]
+    #[must_use]
+    pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Arc<dyn DidCache>>) -> Self {
+        Self::with_fetch_handler(
+            plc_url,
+            timeout_ms,
+            cache,
+            Arc::new(proto_blue_common::fetch::WebFetcher::new()),
         )
     }
 

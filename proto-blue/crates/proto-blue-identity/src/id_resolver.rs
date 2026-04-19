@@ -20,11 +20,11 @@ pub struct IdResolver {
 }
 
 impl IdResolver {
-    /// Create a new `IdResolver` with the given options, using the crate's
-    /// default native fetch handler (`reqwest`).
-    ///
-    /// Requires `fetch-reqwest` + `dns` (both default on native). For
-    /// wasm, use [`Self::with_fetch_handler`].
+    /// Create a new `IdResolver` with the given options, using the
+    /// crate's default fetch handler. On native (requires the
+    /// `fetch-reqwest` and `dns` features) this includes DNS handle
+    /// resolution. On wasm the DNS path is elided; the HTTPS
+    /// `.well-known` path still runs.
     #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(opts: IdentityResolverOpts, cache: Option<Arc<dyn DidCache>>) -> Self {
@@ -42,6 +42,17 @@ impl IdResolver {
             handle: HandleResolver::with_backup_nameservers(opts.timeout_ms, backups),
             did: DidResolver::new(opts.plc_url.as_deref(), opts.timeout_ms, cache),
         }
+    }
+
+    /// Wasm default: browser `fetch()`-backed identity resolver.
+    /// DNS handle resolution isn't available on wasm; the HTTPS
+    /// `.well-known/atproto-did` path is always used.
+    #[cfg(target_arch = "wasm32")]
+    #[must_use]
+    pub fn new(opts: IdentityResolverOpts, cache: Option<Arc<dyn DidCache>>) -> Self {
+        let fetcher: Arc<dyn FetchHandler> =
+            Arc::new(proto_blue_common::fetch::WebFetcher::new());
+        Self::with_fetch_handler(opts, cache, fetcher)
     }
 
     /// Create a new `IdResolver` with a user-supplied [`FetchHandler`].
@@ -110,7 +121,10 @@ impl IdResolver {
     }
 }
 
-#[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
+#[cfg(any(
+    all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")),
+    target_arch = "wasm32",
+))]
 impl Default for IdResolver {
     fn default() -> Self {
         Self::new(IdentityResolverOpts::default(), None)

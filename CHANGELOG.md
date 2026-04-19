@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-04-19
+
+### Fixed
+- **wasm32 ergonomics**: downstream consumers of `OAuthClient::new`,
+  `OAuthSession::new`, `Agent::new`, `XrpcClient::new`, `IdResolver::new`,
+  `HandleResolver::new`, and `DidResolver::new` can now call the
+  default constructor on wasm without manually enabling `fetch-web`.
+  The `WebFetcher` impl is now always compiled on wasm (gloo-net +
+  js-sys moved into unconditional `[target.cfg(target_arch = "wasm32")]`
+  deps), and each `new()` has a wasm arm that uses it. The `fetch-web`
+  feature is kept as a no-op for source-compat.
+- **`HttpResponse` reqwest-style API**: added `status()` returning
+  `http::StatusCode` (the same type reqwest re-exports as
+  `reqwest::StatusCode`), plus async `text()` / `json::<T>()` methods
+  on `HttpResponse`. Lets downstream crates written against reqwest
+  call `resp.status().is_success()`, `resp.text().await`,
+  `resp.json().await` on `OAuthSession::get` / `post` return values
+  without refactoring.
+- **`FetchHandler: Send + Sync` on wasm**: the wasm variant now
+  requires `Send + Sync` (the future is still `?Send`). Lets
+  `Arc<OAuthSession>` / `Arc<dyn FetchHandler>` live inside Bevy
+  `Resource` fields, which require `Send + Sync` even on
+  single-threaded wasm builds.
+
+### Verified against
+- `cargo build --workspace` ✓
+- `cargo clippy --workspace --all-targets --all-features -- -D warnings` ✓
+- `cargo test --workspace --all-features` ✓
+- `cargo check -p proto-blue --target wasm32-unknown-unknown` ✓
+- Downstream `symbios-overlands` (Bevy + bevy_symbios_multiuser +
+  proto-blue-oauth + proto-blue-api) `cargo check --target
+  wasm32-unknown-unknown` ✓ (was failing on 0.2.2/0.2.3).
+
 ## [0.2.3] - 2026-04-19
 
 ### Fixed

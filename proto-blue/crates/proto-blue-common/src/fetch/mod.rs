@@ -44,13 +44,16 @@ use thiserror::Error;
 #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
 pub mod reqwest_impl;
 
-#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
+// `web_impl` is always compiled on wasm — its deps (gloo-net, js-sys)
+// are target-conditional non-optional, so downstream callers don't
+// have to enable `fetch-web` to get a default fetcher.
+#[cfg(target_arch = "wasm32")]
 pub mod web_impl;
 
 #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
 pub use reqwest_impl::ReqwestFetcher;
 
-#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
+#[cfg(target_arch = "wasm32")]
 pub use web_impl::WebFetcher;
 
 /// Ordered map of lowercase header names to values.
@@ -150,6 +153,20 @@ impl HttpResponse {
         (200..300).contains(&self.status)
     }
 
+    /// Return the HTTP status as an [`http::StatusCode`] — the same
+    /// type reqwest returns from `reqwest::Response::status`, so
+    /// callers coming from a `reqwest::Response` can use
+    /// `resp.status().is_success()` / `resp.status() == StatusCode::UNAUTHORIZED`
+    /// without change.
+    ///
+    /// Falls back to `INTERNAL_SERVER_ERROR` (500) if the raw status
+    /// is outside the valid u16 range (1–999) — which shouldn't happen
+    /// in practice but keeps this infallible.
+    #[must_use]
+    pub fn status(&self) -> http::StatusCode {
+        http::StatusCode::from_u16(self.status).unwrap_or(http::StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
     /// Look up a header by case-insensitive name.
     #[must_use]
     pub fn header(&self, key: &str) -> Option<&str> {
@@ -157,7 +174,39 @@ impl HttpResponse {
             .get(&key.to_lowercase())
             .map(std::string::String::as_str)
     }
+
+    /// Consume the response and return the body as a UTF-8 string.
+    /// Mirrors `reqwest::Response::text`. The `async` signature is kept
+    /// for source-compatibility with reqwest callers even though no
+    /// I/O is performed here — the body is already buffered.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FetchError::Body`] when the body is not valid UTF-8.
+    #[allow(clippy::unused_async)]
+    pub async fn text(self) -> Result<String, FetchError> {
+        String::from_utf8(self.body)
+            .map_err(|e| FetchError::Body(format!("response body is not utf-8: {e}")))
+    }
+
+    /// Consume the response and deserialize the body from JSON.
+    /// Mirrors `reqwest::Response::json`. `async` for source-
+    /// compatibility with reqwest callers.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`FetchError::Body`] when the body isn't valid JSON
+    /// for the requested type `T`.
+    #[allow(clippy::unused_async)]
+    pub async fn json<T: serde::de::DeserializeOwned>(self) -> Result<T, FetchError> {
+        serde_json::from_slice(&self.body)
+            .map_err(|e| FetchError::Body(format!("response body is not json: {e}")))
+    }
 }
+
+/// Re-export of [`http::StatusCode`] so callers can refer to it
+/// without adding `http` as an explicit dependency.
+pub use http::StatusCode;
 
 /// Errors surfaced by a [`FetchHandler`] implementation.
 #[derive(Debug, Error)]
@@ -205,10 +254,15 @@ pub trait FetchHandler: Send + Sync {
     async fn fetch(&self, req: HttpRequest) -> Result<HttpResponse, FetchError>;
 }
 
-/// A trait for issuing HTTP requests. Wasm variant with `?Send` futures.
+/// A trait for issuing HTTP requests. Wasm variant: the returned
+/// future is `?Send` (since `gloo-net` / browser `fetch` futures
+/// aren't `Send`), but the handler itself is still `Send + Sync` so
+/// it can live inside `Arc<dyn FetchHandler>` fields on types that
+/// need thread-safety markers (notably Bevy `Resource`s). On
+/// single-threaded wasm this is vacuously true.
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
-pub trait FetchHandler {
+pub trait FetchHandler: Send + Sync {
     /// Send `req` and return its response, or an error.
     async fn fetch(&self, req: HttpRequest) -> Result<HttpResponse, FetchError>;
 }

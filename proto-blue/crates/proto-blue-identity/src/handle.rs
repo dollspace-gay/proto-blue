@@ -51,14 +51,25 @@ pub struct HandleResolver {
 }
 
 impl HandleResolver {
-    /// Create a new handle resolver with only the system DNS resolver (on
-    /// native) and the default fetch backend.
+    /// Create a new handle resolver with the default fetch backend —
+    /// `reqwest` on native (requires `fetch-reqwest`), browser
+    /// `fetch()` on wasm (always available).
     #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(timeout_ms: u64) -> Self {
         Self::with_fetch_handler(
             timeout_ms,
             Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
+    }
+
+    /// Wasm default: browser `fetch()`-backed handle resolver.
+    #[cfg(target_arch = "wasm32")]
+    #[must_use]
+    pub fn new(timeout_ms: u64) -> Self {
+        Self::with_fetch_handler(
+            timeout_ms,
+            Arc::new(proto_blue_common::fetch::WebFetcher::new()),
         )
     }
 

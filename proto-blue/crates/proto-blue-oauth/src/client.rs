@@ -67,17 +67,28 @@ pub struct OAuthClient {
 }
 
 impl OAuthClient {
-    /// Create a new OAuth client using the crate's default fetch handler.
-    ///
-    /// With the `fetch-reqwest` feature (default on native), a fresh
-    /// `reqwest::Client` is constructed internally. Otherwise the caller
-    /// must use [`Self::with_fetch_handler`].
+    /// Create a new OAuth client using the crate's default fetch
+    /// handler — `reqwest` on native, `WebFetcher` (browser
+    /// `fetch()`) on wasm. On native requires the `fetch-reqwest`
+    /// feature; on wasm the web backend is always available.
     #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(client_metadata: OAuthClientMetadata) -> Self {
         Self::with_fetch_handler(
             client_metadata,
             Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
+    }
+
+    /// Wasm default: browser `fetch()`-backed handler via
+    /// `WebFetcher`. The web backend is always available on wasm so
+    /// this constructor doesn't need a feature gate.
+    #[cfg(target_arch = "wasm32")]
+    #[must_use]
+    pub fn new(client_metadata: OAuthClientMetadata) -> Self {
+        Self::with_fetch_handler(
+            client_metadata,
+            Arc::new(proto_blue_common::fetch::WebFetcher::new()),
         )
     }
 

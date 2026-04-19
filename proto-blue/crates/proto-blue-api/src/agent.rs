@@ -126,13 +126,12 @@ impl LabelerOpts {
 impl Agent {
     /// Create a new agent pointing at the given service URL.
     ///
-    /// Only available when the crate has a working default
-    /// [`XrpcClient`] for the current target — that's
-    /// `fetch-reqwest` on native and `fetch-web` on wasm. For any
-    /// other combination use [`Self::with_client`].
+    /// Available whenever [`XrpcClient::new`] is — native requires
+    /// `fetch-reqwest`; on wasm the default is always the browser
+    /// `fetch` backend.
     #[cfg(any(
         all(feature = "fetch-reqwest", not(target_arch = "wasm32")),
-        all(feature = "fetch-web", target_arch = "wasm32"),
+        target_arch = "wasm32",
     ))]
     pub fn new(service: impl AsRef<str>) -> Result<Self, AgentError> {
         let client = XrpcClient::new(service)?;

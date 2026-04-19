@@ -44,12 +44,12 @@ impl XrpcClient {
     /// [`web_fetch::WebFetcher`]. If neither feature is enabled, callers
     /// must construct the client via [`Self::with_fetch_handler`].
     ///
-    /// The `fetch-reqwest` path is native-only — enabling
-    /// `fetch-reqwest` on wasm is a no-op (the dep is target-gated in
-    /// `Cargo.toml`), so on wasm this constructor requires `fetch-web`.
+    /// On native this requires `fetch-reqwest`; on wasm `WebFetcher`
+    /// is always available (its deps are target-conditional in
+    /// `proto-blue-common`), so the wasm arm is unconditional.
     #[cfg(any(
         all(feature = "fetch-reqwest", not(target_arch = "wasm32")),
-        all(feature = "fetch-web", target_arch = "wasm32"),
+        target_arch = "wasm32",
     ))]
     pub fn new(service: impl AsRef<str>) -> Result<Self, Error> {
         Self::with_fetch_handler(service, Arc::new(default_fetcher()))
@@ -342,11 +342,11 @@ fn default_fetcher() -> proto_blue_common::fetch::ReqwestFetcher {
     proto_blue_common::fetch::ReqwestFetcher::new()
 }
 
-// On wasm, `fetch-reqwest`'s reqwest dep is target-gated out, so even
-// when both features are on we need the web fetcher. This arm covers
-// that case too — the other `default_fetcher` arm is explicitly
-// restricted to non-wasm via its own cfg.
-#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
+// On wasm, `WebFetcher` is always available (the gloo-net / js-sys
+// deps are target-conditional non-optional in proto-blue-common), so
+// every wasm build has a default fetcher regardless of feature flags.
+// The native arm above is explicitly restricted to non-wasm.
+#[cfg(target_arch = "wasm32")]
 fn default_fetcher() -> proto_blue_common::fetch::WebFetcher {
     proto_blue_common::fetch::WebFetcher::new()
 }
