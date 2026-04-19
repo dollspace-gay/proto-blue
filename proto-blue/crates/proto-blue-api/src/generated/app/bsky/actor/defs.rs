@@ -122,8 +122,8 @@ pub struct MutedWord {
 }
 
 pub type MutedWordTarget = String;
-pub const MutedWordTarget_CONTENT: &str = "content";
-pub const MutedWordTarget_TAG: &str = "tag";
+pub const MUTED_WORD_TARGET_CONTENT: &str = "content";
+pub const MUTED_WORD_TARGET_TAG: &str = "tag";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -288,7 +288,7 @@ pub struct ProfileViewDetailed {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pinned_post: Option<crate::com::atproto::repo::strongRef::Main>,
+    pub pinned_post: Option<crate::com::atproto::repo::strong_ref::Main>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub posts_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]

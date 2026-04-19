@@ -4,10 +4,10 @@
 //! [`proto_blue_common::fetch::HttpRequest`] and hands it off to a
 //! [`FetchHandler`]. Two implementations ship in `proto-blue-common`:
 //!
-//! - [`proto_blue_common::fetch::ReqwestFetcher`] (feature
-//!   `fetch-reqwest`, default) — native HTTP via `reqwest`.
-//! - [`proto_blue_common::fetch::WebFetcher`] (feature `fetch-web`) —
-//!   browser `fetch()` via `gloo-net`, for `wasm32-unknown-unknown`.
+//! - `ReqwestFetcher` (feature `fetch-reqwest`, default on native) —
+//!   native HTTP via `reqwest`.
+//! - `WebFetcher` (always available on `wasm32-unknown-unknown`) —
+//!   browser `fetch()` via `gloo-net`.
 //!
 //! Callers can also supply their own implementation, which is the primary
 //! seam for unit-testable mocks.
@@ -39,14 +39,12 @@ pub struct XrpcClient {
 impl XrpcClient {
     /// Create a new XRPC client using the crate's default [`FetchHandler`].
     ///
-    /// With the `fetch-reqwest` feature (default on native), this uses a
-    /// fresh `reqwest::Client`. With only `fetch-web`, it uses
-    /// [`web_fetch::WebFetcher`]. If neither feature is enabled, callers
+    /// On native (with the `fetch-reqwest` feature, on by default)
+    /// this uses a fresh `reqwest::Client`. On wasm the browser
+    /// `fetch()`-backed `WebFetcher` is always available (its deps
+    /// are target-conditional in `proto-blue-common`), so the wasm
+    /// arm has no feature gate. For any other combination, callers
     /// must construct the client via [`Self::with_fetch_handler`].
-    ///
-    /// On native this requires `fetch-reqwest`; on wasm `WebFetcher`
-    /// is always available (its deps are target-conditional in
-    /// `proto-blue-common`), so the wasm arm is unconditional.
     #[cfg(any(
         all(feature = "fetch-reqwest", not(target_arch = "wasm32")),
         target_arch = "wasm32",

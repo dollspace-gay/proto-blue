@@ -1,6 +1,6 @@
 //! AT Protocol code generator: reads Lexicon JSON schemas and outputs Rust source.
 //!
-//! Usage: proto-blue-codegen --lexicons <dir> --output <dir>
+//! Usage: `proto-blue-codegen --lexicons <dir> --output <dir>`
 
 mod generator;
 
@@ -139,13 +139,17 @@ mod tests {
         let has_profile = files.keys().any(|k| k.contains("app/bsky/actor"));
         assert!(has_profile, "Should generate app.bsky.actor types");
 
-        // Check that generated code contains expected patterns
+        // Every generated leaf file should be a real lexicon module:
+        // its first lines are the header + `//! Lexicon: <nsid>` line
+        // the generator writes. Some files won't carry a `use serde`
+        // import (methods with no schema deserialize an opaque JSON
+        // value) — the header is what proves the file was generated
+        // from a document and isn't an empty placeholder.
         for (path, content) in &files {
             if path.ends_with(".rs") && !path.ends_with("mod.rs") {
                 assert!(
-                    content.contains("use serde") || content.contains("pub mod"),
-                    "Generated file {} should contain serde imports or module declarations",
-                    path
+                    content.contains("//! Lexicon:"),
+                    "Generated file {path} should carry a `//! Lexicon:` header"
                 );
             }
         }

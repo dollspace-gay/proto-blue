@@ -23,11 +23,11 @@ pub struct Main {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub joined_via_starter_pack: Option<crate::com::atproto::repo::strongRef::Main>,
+    pub joined_via_starter_pack: Option<crate::com::atproto::repo::strong_ref::Main>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pinned_post: Option<crate::com::atproto::repo::strongRef::Main>,
+    pub pinned_post: Option<crate::com::atproto::repo::strong_ref::Main>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pronouns: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

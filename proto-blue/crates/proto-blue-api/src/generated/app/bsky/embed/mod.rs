@@ -4,5 +4,6 @@ pub mod defs;
 pub mod external;
 pub mod images;
 pub mod record;
-pub mod recordWithMedia;
+#[path = "recordWithMedia.rs"]
+pub mod record_with_media;
 pub mod video;

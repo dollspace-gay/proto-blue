@@ -4,9 +4,9 @@
 use serde::{Deserialize, Serialize};
 
 pub type ActionType = String;
-pub const ActionType_BLOCK: &str = "block";
-pub const ActionType_WARN: &str = "warn";
-pub const ActionType_WHITELIST: &str = "whitelist";
+pub const ACTION_TYPE_BLOCK: &str = "block";
+pub const ACTION_TYPE_WARN: &str = "warn";
+pub const ACTION_TYPE_WHITELIST: &str = "whitelist";
 
 /// An event for URL safety decisions
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,19 +25,19 @@ pub struct Event {
 }
 
 pub type EventType = String;
-pub const EventType_ADD_RULE: &str = "addRule";
-pub const EventType_UPDATE_RULE: &str = "updateRule";
-pub const EventType_REMOVE_RULE: &str = "removeRule";
+pub const EVENT_TYPE_ADD_RULE: &str = "addRule";
+pub const EVENT_TYPE_UPDATE_RULE: &str = "updateRule";
+pub const EVENT_TYPE_REMOVE_RULE: &str = "removeRule";
 
 pub type PatternType = String;
-pub const PatternType_DOMAIN: &str = "domain";
-pub const PatternType_URL: &str = "url";
+pub const PATTERN_TYPE_DOMAIN: &str = "domain";
+pub const PATTERN_TYPE_URL: &str = "url";
 
 pub type ReasonType = String;
-pub const ReasonType_CSAM: &str = "csam";
-pub const ReasonType_SPAM: &str = "spam";
-pub const ReasonType_PHISHING: &str = "phishing";
-pub const ReasonType_NONE: &str = "none";
+pub const REASON_TYPE_CSAM: &str = "csam";
+pub const REASON_TYPE_SPAM: &str = "spam";
+pub const REASON_TYPE_PHISHING: &str = "phishing";
+pub const REASON_TYPE_NONE: &str = "none";
 
 /// Input for creating a URL safety rule
 #[derive(Debug, Clone, Serialize, Deserialize)]

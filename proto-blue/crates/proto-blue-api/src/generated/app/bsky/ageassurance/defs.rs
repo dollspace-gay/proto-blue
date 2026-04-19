@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 
 /// The access level granted based on Age Assurance data we've processed.
 pub type Access = String;
-pub const Access_UNKNOWN: &str = "unknown";
-pub const Access_NONE: &str = "none";
-pub const Access_SAFE: &str = "safe";
-pub const Access_FULL: &str = "full";
+pub const ACCESS_UNKNOWN: &str = "unknown";
+pub const ACCESS_NONE: &str = "none";
+pub const ACCESS_SAFE: &str = "safe";
+pub const ACCESS_FULL: &str = "full";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -125,7 +125,7 @@ pub struct StateMetadata {
 
 /// The status of the Age Assurance process.
 pub type Status = String;
-pub const Status_UNKNOWN: &str = "unknown";
-pub const Status_PENDING: &str = "pending";
-pub const Status_ASSURED: &str = "assured";
-pub const Status_BLOCKED: &str = "blocked";
+pub const STATUS_UNKNOWN: &str = "unknown";
+pub const STATUS_PENDING: &str = "pending";
+pub const STATUS_ASSURED: &str = "assured";
+pub const STATUS_BLOCKED: &str = "blocked";

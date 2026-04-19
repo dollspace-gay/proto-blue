@@ -14,9 +14,9 @@ pub struct ListItemView {
 }
 
 pub type ListPurpose = String;
-pub const ListPurpose_MODLIST: &str = "app.bsky.graph.defs#modlist";
-pub const ListPurpose_CURATELIST: &str = "app.bsky.graph.defs#curatelist";
-pub const ListPurpose_REFERENCELIST: &str = "app.bsky.graph.defs#referencelist";
+pub const LIST_PURPOSE_MODLIST: &str = "app.bsky.graph.defs#modlist";
+pub const LIST_PURPOSE_CURATELIST: &str = "app.bsky.graph.defs#curatelist";
+pub const LIST_PURPOSE_REFERENCELIST: &str = "app.bsky.graph.defs#referencelist";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

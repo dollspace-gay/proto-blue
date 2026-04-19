@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Import contacts for securely matching with other users. This follows the protocol explained in https://docs.bsky.app/blog/contact-import-rfc. Requires authentication.
+/// Import contacts for securely matching with other users. This follows the protocol explained in <https://docs.bsky.app/blog/contact-import-rfc>. Requires authentication.
 /// XRPC Procedure: app.bsky.contact.importContacts
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +69,7 @@ pub async fn call(
     Ok(serde_json::from_value(response.data)?)
 }
 
-/// Register a typed handler for this procedure on an [`XrpcServer`].
+/// Register a typed handler for this procedure on an [`proto_blue_xrpc::XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
     server: proto_blue_xrpc::XrpcServer,

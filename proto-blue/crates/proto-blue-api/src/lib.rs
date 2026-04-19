@@ -31,12 +31,6 @@ pub mod agent;
 pub mod moderation;
 pub mod rich_text;
 
-#[allow(
-    non_snake_case,
-    non_upper_case_globals,
-    unused_imports,
-    clippy::redundant_field_names
-)]
 pub mod generated;
 
 // Re-export generated namespaces at crate root for cross-module references

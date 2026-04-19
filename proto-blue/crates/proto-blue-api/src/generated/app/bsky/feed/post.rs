@@ -47,8 +47,8 @@ fn default_type() -> String {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReplyRef {
-    pub parent: crate::com::atproto::repo::strongRef::Main,
-    pub root: crate::com::atproto::repo::strongRef::Main,
+    pub parent: crate::com::atproto::repo::strong_ref::Main,
+    pub root: crate::com::atproto::repo::strong_ref::Main,
 }
 
 /// Deprecated. Use app.bsky.richtext instead -- A text segment. Start is inclusive, end is exclusive. Indices are for utf16-encoded strings.

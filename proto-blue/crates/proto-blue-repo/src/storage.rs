@@ -42,8 +42,8 @@ pub trait RepoStorage: Send + Sync {
 
     /// Store every block in a [`BlockMap`] atomically.
     ///
-    /// Default impl loops over [`put_block`]; backends that support
-    /// transactional writes should override.
+    /// Default impl loops over [`Self::put_block`]; backends that
+    /// support transactional writes should override.
     fn put_blocks(&self, blocks: &BlockMap) -> Result<(), RepoError> {
         for (cid, bytes) in blocks.iter() {
             self.put_block(cid.clone(), bytes.to_vec())?;

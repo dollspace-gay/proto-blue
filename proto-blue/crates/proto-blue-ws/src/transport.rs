@@ -8,7 +8,7 @@
 //!
 //! - [`TungsteniteConnector`] (feature `tungstenite`, default on native) —
 //!   the pre-existing `tokio-tungstenite` implementation.
-//! - [`GlooWsConnector`] (feature `gloo-ws`, wasm32 only) — backed by the
+//! - `GlooWsConnector` (feature `gloo-ws`, wasm32 only) — backed by the
 //!   browser's native `WebSocket` via `gloo-net`.
 //!
 //! Higher-level code — [`crate::keepalive::WebSocketKeepAlive`] — drives

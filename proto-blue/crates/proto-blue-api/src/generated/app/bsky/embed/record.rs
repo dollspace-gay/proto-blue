@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
-    pub record: crate::com::atproto::repo::strongRef::Main,
+    pub record: crate::com::atproto::repo::strong_ref::Main,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

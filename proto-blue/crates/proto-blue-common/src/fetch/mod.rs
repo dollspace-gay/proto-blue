@@ -6,12 +6,13 @@
 //!
 //! # Backends
 //!
-//! Two implementations ship with this crate, feature-gated:
+//! Two implementations ship with this crate:
 //!
-//! - [`reqwest_impl::ReqwestFetcher`] (`fetch-reqwest`, default on native) —
-//!   backed by `reqwest`.
-//! - [`web_impl::WebFetcher`] (`fetch-web`, wasm32 only) — backed by
-//!   `gloo-net` which drives the browser's native `fetch()`.
+//! - `ReqwestFetcher` (feature `fetch-reqwest`, default on native) —
+//!   backed by `reqwest`. Target-gated to `not(target_arch = "wasm32")`
+//!   in `Cargo.toml` so enabling `fetch-reqwest` on wasm is a no-op.
+//! - `WebFetcher` (always available on wasm32) — backed by `gloo-net`
+//!   which drives the browser's native `fetch()`.
 //!
 //! Callers can also supply their own implementation, which is the primary
 //! seam for unit-testable mocks.
@@ -183,7 +184,6 @@ impl HttpResponse {
     /// # Errors
     ///
     /// Returns [`FetchError::Body`] when the body is not valid UTF-8.
-    #[allow(clippy::unused_async)]
     pub async fn text(self) -> Result<String, FetchError> {
         String::from_utf8(self.body)
             .map_err(|e| FetchError::Body(format!("response body is not utf-8: {e}")))
@@ -197,7 +197,6 @@ impl HttpResponse {
     ///
     /// Returns [`FetchError::Body`] when the body isn't valid JSON
     /// for the requested type `T`.
-    #[allow(clippy::unused_async)]
     pub async fn json<T: serde::de::DeserializeOwned>(self) -> Result<T, FetchError> {
         serde_json::from_slice(&self.body)
             .map_err(|e| FetchError::Body(format!("response body is not json: {e}")))

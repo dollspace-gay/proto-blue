@@ -62,7 +62,7 @@ pub async fn call(
     Ok(serde_json::from_value(response.data)?)
 }
 
-/// Register a typed handler for this procedure on an [`XrpcServer`].
+/// Register a typed handler for this procedure on an [`proto_blue_xrpc::XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
     server: proto_blue_xrpc::XrpcServer,

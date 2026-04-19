@@ -578,10 +578,11 @@ pub struct ScheduledActionView {
 }
 
 pub type SubjectReviewState = String;
-pub const SubjectReviewState_REVIEW_OPEN: &str = "tools.ozone.moderation.defs#reviewOpen";
-pub const SubjectReviewState_REVIEW_ESCALATED: &str = "tools.ozone.moderation.defs#reviewEscalated";
-pub const SubjectReviewState_REVIEW_CLOSED: &str = "tools.ozone.moderation.defs#reviewClosed";
-pub const SubjectReviewState_REVIEW_NONE: &str = "tools.ozone.moderation.defs#reviewNone";
+pub const SUBJECT_REVIEW_STATE_REVIEW_OPEN: &str = "tools.ozone.moderation.defs#reviewOpen";
+pub const SUBJECT_REVIEW_STATE_REVIEW_ESCALATED: &str =
+    "tools.ozone.moderation.defs#reviewEscalated";
+pub const SUBJECT_REVIEW_STATE_REVIEW_CLOSED: &str = "tools.ozone.moderation.defs#reviewClosed";
+pub const SUBJECT_REVIEW_STATE_REVIEW_NONE: &str = "tools.ozone.moderation.defs#reviewNone";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

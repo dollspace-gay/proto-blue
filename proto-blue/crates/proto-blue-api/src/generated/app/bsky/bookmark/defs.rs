@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Bookmark {
-    pub subject: crate::com::atproto::repo::strongRef::Main,
+    pub subject: crate::com::atproto::repo::strong_ref::Main,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,5 +16,5 @@ pub struct BookmarkView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
     pub item: serde_json::Value,
-    pub subject: crate::com::atproto::repo::strongRef::Main,
+    pub subject: crate::com::atproto::repo::strong_ref::Main,
 }

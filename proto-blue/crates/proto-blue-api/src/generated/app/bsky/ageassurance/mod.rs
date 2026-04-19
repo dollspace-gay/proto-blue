@@ -2,5 +2,7 @@
 
 pub mod begin;
 pub mod defs;
-pub mod getConfig;
-pub mod getState;
+#[path = "getConfig.rs"]
+pub mod get_config;
+#[path = "getState.rs"]
+pub mod get_state;

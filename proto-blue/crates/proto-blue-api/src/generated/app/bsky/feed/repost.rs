@@ -13,9 +13,9 @@ pub struct Main {
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
     pub created_at: String,
-    pub subject: crate::com::atproto::repo::strongRef::Main,
+    pub subject: crate::com::atproto::repo::strong_ref::Main,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub via: Option<crate::com::atproto::repo::strongRef::Main>,
+    pub via: Option<crate::com::atproto::repo::strong_ref::Main>,
 }
 
 fn default_type() -> String {

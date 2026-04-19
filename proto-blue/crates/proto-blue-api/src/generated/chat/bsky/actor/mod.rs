@@ -2,5 +2,7 @@
 
 pub mod declaration;
 pub mod defs;
-pub mod deleteAccount;
-pub mod exportAccountData;
+#[path = "deleteAccount.rs"]
+pub mod delete_account;
+#[path = "exportAccountData.rs"]
+pub mod export_account_data;

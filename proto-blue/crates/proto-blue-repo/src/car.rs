@@ -1,8 +1,8 @@
 //! CAR (Content Addressable aRchive) file reading and writing.
 //!
 //! CAR format:
-//! 1. Header (CBOR): { version: 1, roots: [CID] }
-//! 2. Blocks (repeated): varint(len) + CID bytes + block data
+//! 1. Header (CBOR): `{ version: 1, roots: [CID] }`
+//! 2. Blocks (repeated): `varint(len) + CID bytes + block data`
 //!
 //! # CID verification on read
 //!

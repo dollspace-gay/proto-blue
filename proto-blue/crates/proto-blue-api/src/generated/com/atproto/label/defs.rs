@@ -24,17 +24,17 @@ pub struct Label {
 }
 
 pub type LabelValue = String;
-pub const LabelValue_HIDE: &str = "!hide";
-pub const LabelValue_NO_PROMOTE: &str = "!no-promote";
-pub const LabelValue_WARN: &str = "!warn";
-pub const LabelValue_NO_UNAUTHENTICATED: &str = "!no-unauthenticated";
-pub const LabelValue_DMCA_VIOLATION: &str = "dmca-violation";
-pub const LabelValue_DOXXING: &str = "doxxing";
-pub const LabelValue_PORN: &str = "porn";
-pub const LabelValue_SEXUAL: &str = "sexual";
-pub const LabelValue_NUDITY: &str = "nudity";
-pub const LabelValue_NSFL: &str = "nsfl";
-pub const LabelValue_GORE: &str = "gore";
+pub const LABEL_VALUE_HIDE: &str = "!hide";
+pub const LABEL_VALUE_NO_PROMOTE: &str = "!no-promote";
+pub const LABEL_VALUE_WARN: &str = "!warn";
+pub const LABEL_VALUE_NO_UNAUTHENTICATED: &str = "!no-unauthenticated";
+pub const LABEL_VALUE_DMCA_VIOLATION: &str = "dmca-violation";
+pub const LABEL_VALUE_DOXXING: &str = "doxxing";
+pub const LABEL_VALUE_PORN: &str = "porn";
+pub const LABEL_VALUE_SEXUAL: &str = "sexual";
+pub const LABEL_VALUE_NUDITY: &str = "nudity";
+pub const LABEL_VALUE_NSFL: &str = "nsfl";
+pub const LABEL_VALUE_GORE: &str = "gore";
 
 /// Declares a label value and its expected interpretations and behaviors.
 #[derive(Debug, Clone, Serialize, Deserialize)]

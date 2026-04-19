@@ -7,14 +7,15 @@
 //! The lifecycle:
 //!
 //! 1. Server receives a request.
-//! 2. Server resolves a [`RateLimitKey`] from the request (IP, DID,
-//!    custom).
-//! 3. Server calls [`RateLimiter::check`] with the key.
-//! 4. On `Ok(decision)`, the handler runs; the decision's `limit` /
-//!    `remaining` / `reset` become `RateLimit-Limit` /
+//! 2. Server derives a string key from the request (client IP,
+//!    authenticated DID, custom composite — caller's choice).
+//! 3. Server calls [`RateLimiter::check`] with that key.
+//! 4. On an allowed decision, the handler runs; the decision's
+//!    `limit` / `remaining` / `reset` become `RateLimit-Limit` /
 //!    `RateLimit-Remaining` / `RateLimit-Reset` response headers.
-//! 5. On `Err(XrpcServerError::rate_limit_exceeded(decision))`, the
-//!    server returns 429 with the same headers plus `Retry-After`.
+//! 5. On a denied decision, the server returns 429 with the same
+//!    headers plus `Retry-After`, typically via
+//!    `XrpcServerError::rate_limit_exceeded(decision)`.
 //!
 //! Matches TS `@atproto/xrpc-server`'s `rate-limiter-flexible`-backed
 //! limiter semantically (token bucket, per-route + shared, combined

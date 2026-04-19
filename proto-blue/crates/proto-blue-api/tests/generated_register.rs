@@ -8,7 +8,7 @@
 
 use std::time::Duration;
 
-use proto_blue_api::com::atproto::server::getSession;
+use proto_blue_api::com::atproto::server::get_session;
 
 async fn spawn_server(router: axum::Router) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -23,8 +23,8 @@ async fn spawn_server(router: axum::Router) -> String {
 #[tokio::test]
 async fn generated_register_wraps_typed_query_handler() {
     let server = proto_blue_xrpc::XrpcServer::new();
-    let server = getSession::register(server, |_ctx| async move {
-        Ok(getSession::Output {
+    let server = get_session::register(server, |_ctx| async move {
+        Ok(get_session::Output {
             active: Some(true),
             did: "did:plc:generated".to_string(),
             did_doc: None,
