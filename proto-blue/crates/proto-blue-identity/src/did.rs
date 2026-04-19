@@ -1,6 +1,7 @@
 //! DID resolution: did:plc and did:web methods.
 
-use std::sync::Arc;
+use std::collections::HashSet;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use proto_blue_common::fetch::{FetchHandler, HttpRequest};
@@ -20,11 +21,24 @@ const DEFAULT_PLC_URL: &str = "https://plc.directory";
 /// HTTP transport is abstracted behind [`FetchHandler`] so the same code
 /// drives `reqwest` on native and `fetch()` on
 /// `wasm32-unknown-unknown`.
+///
+/// Internally shared via `Arc<DidResolverInner>` so background-refresh
+/// tasks can be spawned on a stale-cache hit without moving `self`.
+/// Clone of `DidResolver` is cheap (Arc bump).
+#[derive(Clone)]
 pub struct DidResolver {
+    inner: Arc<DidResolverInner>,
+}
+
+struct DidResolverInner {
     plc_url: String,
     timeout: Duration,
     fetcher: Arc<dyn FetchHandler>,
-    cache: Option<Box<dyn DidCache>>,
+    cache: Option<Arc<dyn DidCache>>,
+    /// DIDs currently being refreshed in the background. Used to dedupe
+    /// concurrent stale-hit refreshes — only one outstanding refresh per
+    /// DID at a time.
+    refreshing: Mutex<HashSet<String>>,
 }
 
 impl DidResolver {
@@ -34,7 +48,7 @@ impl DidResolver {
     /// `reqwest::Client` is constructed internally. Otherwise the caller
     /// must use [`Self::with_fetch_handler`].
     #[cfg(feature = "fetch-reqwest")]
-    pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Box<dyn DidCache>>) -> Self {
+    pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Arc<dyn DidCache>>) -> Self {
         Self::with_fetch_handler(
             plc_url,
             timeout_ms,
@@ -50,36 +64,47 @@ impl DidResolver {
     pub fn with_fetch_handler(
         plc_url: Option<&str>,
         timeout_ms: u64,
-        cache: Option<Box<dyn DidCache>>,
+        cache: Option<Arc<dyn DidCache>>,
         fetcher: Arc<dyn FetchHandler>,
     ) -> Self {
         DidResolver {
-            plc_url: plc_url.unwrap_or(DEFAULT_PLC_URL).to_string(),
-            timeout: Duration::from_millis(timeout_ms),
-            fetcher,
-            cache,
+            inner: Arc::new(DidResolverInner {
+                plc_url: plc_url.unwrap_or(DEFAULT_PLC_URL).to_string(),
+                timeout: Duration::from_millis(timeout_ms),
+                fetcher,
+                cache,
+                refreshing: Mutex::new(HashSet::new()),
+            }),
         }
     }
 
-    /// Resolve a DID to its DID document, with caching.
+    /// Resolve a DID to its DID document, with caching and background
+    /// refresh on stale hits.
+    ///
+    /// Cache semantics (mirroring TS `@atproto/identity`):
+    /// - **Fresh hit** — return cached doc immediately.
+    /// - **Stale hit** — return cached doc immediately, spawn a
+    ///   background task to refetch + repopulate. Only one refresh per
+    ///   DID is in flight at a time (deduped via `refreshing` set).
+    /// - **Expired hit / miss** — resolve synchronously, write to cache.
     pub async fn resolve(
         &self,
         did: &str,
         force_refresh: bool,
     ) -> Result<Option<DidDocument>, IdentityError> {
         // Check cache first
-        if !force_refresh {
-            if let Some(cache) = &self.cache {
-                if let Some(cached) = cache.check_cache(did).await {
-                    if !cached.expired {
-                        if cached.stale {
-                            // Background refresh — just return stale data
-                            // In a full impl, we'd spawn a task to refresh
-                        }
-                        return Ok(Some(cached.doc));
-                    }
-                }
+        if !force_refresh
+            && let Some(cache) = &self.inner.cache
+            && let Some(cached) = cache.check_cache(did).await
+            && !cached.expired
+        {
+            if cached.stale {
+                // Kick off a background refresh so the next reader
+                // sees a fresh doc. The current call still returns
+                // the stale doc without waiting.
+                self.spawn_background_refresh(did.to_string());
             }
+            return Ok(Some(cached.doc));
         }
 
         // Resolve fresh
@@ -87,14 +112,77 @@ impl DidResolver {
 
         // Update cache
         if let Some(doc) = &doc {
-            if let Some(cache) = &self.cache {
+            if let Some(cache) = &self.inner.cache {
                 cache.cache_did(did, doc.clone()).await;
             }
-        } else if let Some(cache) = &self.cache {
+        } else if let Some(cache) = &self.inner.cache {
             cache.clear_entry(did).await;
         }
 
         Ok(doc)
+    }
+
+    /// Spawn a background task to refresh a stale cache entry.
+    ///
+    /// Deduplicated: if a refresh for this DID is already in flight,
+    /// this is a no-op. The task updates the cache with the fresh
+    /// result (or clears the entry on not-found), then removes the DID
+    /// from the in-flight set.
+    ///
+    /// Native: uses `tokio::spawn`. wasm32: uses `wasm-bindgen-futures`
+    /// `spawn_local` when the `fetch-web` feature is active; without
+    /// that feature, refresh degrades to a no-op on wasm (the next
+    /// `resolve` call after expiry will fetch synchronously).
+    fn spawn_background_refresh(&self, did: String) {
+        // Check-and-insert under a single lock so two concurrent stale
+        // hits don't both spawn a refresh.
+        {
+            let mut refreshing = self.inner.refreshing.lock().unwrap();
+            if !refreshing.insert(did.clone()) {
+                return; // already in flight
+            }
+        }
+
+        let resolver = self.clone();
+        let did_for_task = did.clone();
+
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::spawn(async move {
+            resolver.perform_refresh(did_for_task).await;
+        });
+
+        #[cfg(all(target_arch = "wasm32", feature = "fetch-web"))]
+        wasm_bindgen_futures::spawn_local(async move {
+            resolver.perform_refresh(did_for_task).await;
+        });
+
+        // Fallback for wasm builds that don't enable fetch-web: drop the
+        // refresh intent. Remove ourselves from the refreshing set so a
+        // later call can retry.
+        #[cfg(all(target_arch = "wasm32", not(feature = "fetch-web")))]
+        {
+            let mut refreshing = self.inner.refreshing.lock().unwrap();
+            refreshing.remove(&did_for_task);
+            let _ = resolver; // silence unused-variable lint
+        }
+    }
+
+    /// The background refresh body: fetch fresh, update cache, remove
+    /// from in-flight set. Failures drop the stale entry in place so
+    /// the next reader will either see the refreshed doc or fall
+    /// through to the expired path and fetch synchronously.
+    async fn perform_refresh(&self, did: String) {
+        // Best-effort: ignore errors. The next resolve call will retry.
+        let result = self.resolve_no_cache(&did).await;
+        if let Some(cache) = &self.inner.cache {
+            match result {
+                Ok(Some(doc)) => cache.cache_did(&did, doc).await,
+                Ok(None) => cache.clear_entry(&did).await,
+                Err(_) => {}
+            }
+        }
+        let mut refreshing = self.inner.refreshing.lock().unwrap();
+        refreshing.remove(&did);
     }
 
     /// Resolve a DID, returning an error if not found.
@@ -166,8 +254,8 @@ impl DidResolver {
     ) -> Result<proto_blue_common::fetch::HttpResponse, IdentityError> {
         let req = HttpRequest::get(url)
             .with_header("accept", "application/did+ld+json,application/json");
-        let fut = self.fetcher.fetch(req);
-        match tokio::time::timeout(self.timeout, fut).await {
+        let fut = self.inner.fetcher.fetch(req);
+        match tokio::time::timeout(self.inner.timeout, fut).await {
             Ok(Ok(resp)) => Ok(resp),
             Ok(Err(e)) => Err(IdentityError::Fetch(e)),
             Err(_) => Err(IdentityError::Timeout),
@@ -176,7 +264,7 @@ impl DidResolver {
 
     /// Resolve a did:plc DID via the PLC directory.
     async fn resolve_plc(&self, did: &str) -> Result<Option<DidDocument>, IdentityError> {
-        let url = format!("{}/{}", self.plc_url, did);
+        let url = format!("{}/{}", self.inner.plc_url, did);
         let response = self.get_json(&url).await?;
 
         if response.status == 404 {
@@ -520,5 +608,155 @@ mod tests {
         let doc = synthesize_did_key_doc(SAMPLE_DID_KEY).unwrap();
         let err = ensure_atp_document(&doc).unwrap_err();
         assert!(matches!(err, IdentityError::MissingHandle(_)));
+    }
+
+    // ── Background refresh tests ─────────────────────────────────────
+    //
+    // These assert that a stale cache hit triggers exactly one
+    // background refresh even under concurrent reads, and that the
+    // stale doc is returned without waiting for the refresh.
+
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
+    mod refresh {
+        use super::*;
+        use async_trait::async_trait;
+        use proto_blue_common::fetch::{
+            FetchError, FetchHandler, HttpRequest, HttpResponse,
+        };
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::time::Duration;
+
+        /// Fetcher that counts invocations and returns a hard-coded JSON DID doc.
+        struct CountingFetcher {
+            calls: Arc<AtomicUsize>,
+            body: Vec<u8>,
+        }
+
+        #[async_trait]
+        impl FetchHandler for CountingFetcher {
+            async fn fetch(
+                &self,
+                _req: HttpRequest,
+            ) -> Result<HttpResponse, FetchError> {
+                self.calls.fetch_add(1, Ordering::SeqCst);
+                let mut headers = proto_blue_common::fetch::HttpHeaders::new();
+                headers.insert("content-type".into(), "application/json".into());
+                Ok(HttpResponse {
+                    status: 200,
+                    headers,
+                    body: self.body.clone(),
+                })
+            }
+        }
+
+        fn test_doc_json(did: &str) -> Vec<u8> {
+            format!(
+                r#"{{
+                    "id":"{did}",
+                    "alsoKnownAs":["at://alice.bsky.social"],
+                    "verificationMethod":[],
+                    "service":[]
+                }}"#
+            )
+            .into_bytes()
+        }
+
+        #[tokio::test]
+        async fn stale_hit_returns_immediately_and_spawns_refresh() {
+            let did = "did:plc:stale-refresh-test";
+            let doc_json = test_doc_json(did);
+
+            let calls = Arc::new(AtomicUsize::new(0));
+            let fetcher = Arc::new(CountingFetcher {
+                calls: calls.clone(),
+                body: doc_json.clone(),
+            });
+
+            // stale_ttl = 0 → always stale; max_ttl large → not expired.
+            let cache: Arc<dyn DidCache> = Arc::new(
+                crate::cache::MemoryCache::new(Some(0), Some(60_000)),
+            );
+
+            let resolver = DidResolver::with_fetch_handler(
+                None,
+                5000,
+                Some(cache.clone()),
+                fetcher,
+            );
+
+            // Seed the cache with one fetch.
+            let doc1 = resolver.resolve(did, false).await.unwrap();
+            assert!(doc1.is_some());
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+            // Next call should be a stale hit — returns cached doc
+            // without waiting; spawns a background refresh that will
+            // hit the fetcher again once the task scheduler runs.
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            let doc2 = resolver.resolve(did, false).await.unwrap();
+            assert!(doc2.is_some());
+
+            // Give the spawned task a moment to run.
+            tokio::time::sleep(Duration::from_millis(50)).await;
+
+            let total = calls.load(Ordering::SeqCst);
+            assert_eq!(
+                total, 2,
+                "expected stale hit to trigger exactly one refresh, got {total} fetches",
+            );
+        }
+
+        #[tokio::test]
+        async fn concurrent_stale_hits_dedupe_to_one_refresh() {
+            let did = "did:plc:dedupe-test";
+            let doc_json = test_doc_json(did);
+
+            let calls = Arc::new(AtomicUsize::new(0));
+            let fetcher = Arc::new(CountingFetcher {
+                calls: calls.clone(),
+                body: doc_json.clone(),
+            });
+
+            let cache: Arc<dyn DidCache> = Arc::new(
+                crate::cache::MemoryCache::new(Some(0), Some(60_000)),
+            );
+
+            let resolver = DidResolver::with_fetch_handler(
+                None,
+                5000,
+                Some(cache.clone()),
+                fetcher,
+            );
+
+            // Prime.
+            let _ = resolver.resolve(did, false).await.unwrap();
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+            // 10 concurrent stale hits. At most ONE background refresh
+            // should fire: the first stale hit inserts into the
+            // refreshing set; the other nine observe it already in
+            // flight and skip.
+            tokio::time::sleep(Duration::from_millis(2)).await;
+            let mut handles = Vec::new();
+            for _ in 0..10 {
+                let r = resolver.clone();
+                let d = did.to_string();
+                handles.push(tokio::spawn(async move {
+                    let _ = r.resolve(&d, false).await.unwrap();
+                }));
+            }
+            for h in handles {
+                h.await.unwrap();
+            }
+
+            // Let any spawned refresh finish.
+            tokio::time::sleep(Duration::from_millis(100)).await;
+
+            let total = calls.load(Ordering::SeqCst);
+            assert!(
+                total == 2,
+                "expected exactly one dedup'd refresh (2 fetches total), got {total}",
+            );
+        }
     }
 }

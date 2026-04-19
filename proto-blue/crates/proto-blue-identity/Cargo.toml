@@ -24,6 +24,13 @@ tokio = { workspace = true, features = ["macros", "rt", "time"] }
 # works everywhere.
 hickory-resolver = { workspace = true, optional = true }
 
+# Used by the DID-cache background-refresh path on wasm32. Optional;
+# only pulled in when `fetch-web` is active.
+wasm-bindgen-futures = { version = "0.4", optional = true }
+
+[dev-dependencies]
+async-trait = { workspace = true }
+
 [features]
 # Native default: DNS + reqwest fetch. Matches the pre-refactor behaviour.
 default = ["dns", "fetch-reqwest"]
@@ -35,5 +42,6 @@ dns = ["dep:hickory-resolver"]
 # Native HTTP transport (`reqwest`) for DID / HTTPS handle resolution.
 fetch-reqwest = ["proto-blue-common/fetch-reqwest"]
 
-# Browser HTTP transport (`fetch()` via gloo-net) for wasm32.
-fetch-web = ["proto-blue-common/fetch-web"]
+# Browser HTTP transport (`fetch()` via gloo-net) for wasm32. Also
+# enables background cache-refresh via wasm-bindgen-futures.
+fetch-web = ["proto-blue-common/fetch-web", "dep:wasm-bindgen-futures"]

@@ -26,7 +26,7 @@ impl IdResolver {
     /// Requires `fetch-reqwest` + `dns` (both default on native). For
     /// wasm, use [`Self::with_fetch_handler`].
     #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
-    pub fn new(opts: IdentityResolverOpts, cache: Option<Box<dyn DidCache>>) -> Self {
+    pub fn new(opts: IdentityResolverOpts, cache: Option<Arc<dyn DidCache>>) -> Self {
         // Parse backup nameserver strings into IP addresses; silently
         // drop entries that don't parse (they were a caller typo, not a
         // reason to fail every request).
@@ -50,7 +50,7 @@ impl IdResolver {
     /// transport across multiple resolvers.
     pub fn with_fetch_handler(
         opts: IdentityResolverOpts,
-        cache: Option<Box<dyn DidCache>>,
+        cache: Option<Arc<dyn DidCache>>,
         fetcher: Arc<dyn FetchHandler>,
     ) -> Self {
         IdResolver {

@@ -1731,6 +1731,7 @@ dependencies = [
 name = "proto-blue-identity"
 version = "0.2.1"
 dependencies = [
+ "async-trait",
  "futures",
  "hickory-resolver",
  "proto-blue-common",
@@ -1739,6 +1740,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
