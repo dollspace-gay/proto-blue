@@ -30,5 +30,5 @@
 mod encoding;
 mod error;
 
-pub use encoding::{cid_for_lex, decode, decode_all, encode};
+pub use encoding::{cid_for_lex, decode, decode_all, decode_lenient, encode};
 pub use error::CborError;

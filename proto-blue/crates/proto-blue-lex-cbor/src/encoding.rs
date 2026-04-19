@@ -30,20 +30,51 @@ pub fn encode(value: &LexValue) -> Result<Vec<u8>, CborError> {
     Ok(buf)
 }
 
-/// Decode DAG-CBOR bytes to a LexValue.
+/// Decode DAG-CBOR bytes to a LexValue, enforcing canonical form.
 ///
-/// Validates AT Protocol data model constraints:
+/// Validates AT Protocol data model constraints and DAG-CBOR spec:
 /// - Rejects float values (NaN, Infinity, non-integer floats)
 /// - Rejects non-string map keys
 /// - Rejects duplicate map keys
-/// - Decodes CBOR tag 42 as CIDs
+/// - Rejects unknown tags (only tag 42 is valid for CIDs)
+/// - Rejects non-canonical encodings (bad key order, non-shortest
+///   integers, indefinite-length items) via a re-encode comparison
+///
+/// The canonical-form check is structural: after parsing the value, we
+/// re-encode it with our deterministic encoder and compare byte-for-byte
+/// against the input. Any deviation (reordered keys, over-long integer
+/// encoding, indefinite-length prefixes, trailing padding) produces
+/// `CborError::NonCanonical`. For callers that have already verified
+/// canonicality upstream, [`decode_lenient`] skips this check.
 pub fn decode(bytes: &[u8]) -> Result<LexValue, CborError> {
+    let value = decode_lenient(bytes)?;
+    let canonical = encode(&value)?;
+    if canonical != bytes {
+        return Err(CborError::NonCanonical {
+            input_len: bytes.len(),
+            canonical_len: canonical.len(),
+        });
+    }
+    Ok(value)
+}
+
+/// Decode DAG-CBOR bytes **without** verifying canonical form.
+///
+/// Rejects the data-model-level constraints ([`CborError::FloatNotSupported`],
+/// [`CborError::NonStringKey`], [`CborError::DuplicateKey`],
+/// [`CborError::UnknownTag`]) but does **not** catch non-canonical
+/// encodings (bad key order, non-shortest integers, indefinite-length
+/// items). Use this only when the caller has already validated
+/// canonicality upstream, or in performance-sensitive hot paths where
+/// the extra re-encode is unacceptable.
+pub fn decode_lenient(bytes: &[u8]) -> Result<LexValue, CborError> {
     let cbor_value: ciborium::Value =
         ciborium::from_reader(bytes).map_err(|e| CborError::Decode(e.to_string()))?;
     cbor_to_lex(cbor_value)
 }
 
-/// Decode all concatenated DAG-CBOR values from a byte buffer.
+/// Decode all concatenated DAG-CBOR values from a byte buffer, enforcing
+/// canonical form per value.
 ///
 /// Useful for processing CAR file blocks or event streams containing
 /// multiple back-to-back CBOR-encoded values.
@@ -51,9 +82,23 @@ pub fn decode_all(bytes: &[u8]) -> Result<Vec<LexValue>, CborError> {
     let mut results = Vec::new();
     let mut remaining = bytes;
     while !remaining.is_empty() {
+        let before = remaining;
         let cbor_value: ciborium::Value =
             ciborium::from_reader(&mut remaining).map_err(|e| CborError::Decode(e.to_string()))?;
-        results.push(cbor_to_lex(cbor_value)?);
+        let value = cbor_to_lex(cbor_value)?;
+
+        // Per-value canonical check: re-encode this one value and
+        // compare against the exact byte slice it consumed.
+        let consumed = before.len() - remaining.len();
+        let canonical = encode(&value)?;
+        if canonical.as_slice() != &before[..consumed] {
+            return Err(CborError::NonCanonical {
+                input_len: consumed,
+                canonical_len: canonical.len(),
+            });
+        }
+
+        results.push(value);
     }
     Ok(results)
 }
@@ -166,9 +211,11 @@ fn cbor_to_lex(value: ciborium::Value) -> Result<LexValue, CborError> {
                 "Tag 42 must contain bytes".to_string(),
             )),
         },
-        ciborium::Value::Tag(_, inner) => {
-            // Unknown tags: decode the inner value
-            cbor_to_lex(*inner)
+        ciborium::Value::Tag(tag, _) => {
+            // DAG-CBOR defines only tag 42 (CID). Any other tag is a
+            // spec violation — silently unwrapping would let non-DAG
+            // payloads round-trip as if they were valid.
+            Err(CborError::UnknownTag(tag))
         }
         other => Err(CborError::Decode(format!(
             "Unsupported CBOR value type: {other:?}"
@@ -491,6 +538,129 @@ mod tests {
 
         let decoded = decode(&encoded).unwrap();
         assert_eq!(val, decoded);
+    }
+
+    // ── Strict canonical-form rejection tests ────────────────────────
+    //
+    // Each test hand-constructs a byte sequence that is valid CBOR but
+    // violates the DAG-CBOR canonical-form rules, and asserts that
+    // `decode` rejects it with `NonCanonical` while `decode_lenient`
+    // still accepts it (or returns a different data-model error).
+
+    #[test]
+    fn rejects_non_canonical_map_key_order() {
+        // A map with two single-char keys. Canonical order requires
+        // "a" before "b" (same length, lex order). Encode the map with
+        // keys intentionally swapped using raw CBOR bytes.
+        //
+        // 0xa2: map of length 2
+        // 0x61 b'b': text(1) = "b"  → value 2
+        // 0x02: int 2
+        // 0x61 b'a': text(1) = "a"  → value 1
+        // 0x01: int 1
+        let non_canonical = [0xa2, 0x61, b'b', 0x02, 0x61, b'a', 0x01];
+
+        // Lenient decode accepts the bytes and yields the expected map.
+        let lenient = decode_lenient(&non_canonical).unwrap();
+        assert!(matches!(lenient, LexValue::Map(_)));
+
+        // Strict decode rejects with NonCanonical.
+        let err = decode(&non_canonical).unwrap_err();
+        assert!(
+            matches!(err, CborError::NonCanonical { .. }),
+            "expected NonCanonical, got: {err:?}",
+        );
+    }
+
+    #[test]
+    fn rejects_non_shortest_integer() {
+        // The integer 42 canonically encodes as [0x18, 0x2a] (1-byte
+        // uint). A non-shortest 4-byte uint encoding of 42 is
+        // [0x1a, 0x00, 0x00, 0x00, 0x2a].
+        let non_canonical = [0x1a, 0x00, 0x00, 0x00, 0x2a];
+
+        // Lenient still yields 42.
+        let lenient = decode_lenient(&non_canonical).unwrap();
+        assert_eq!(lenient, LexValue::Integer(42));
+
+        // Strict rejects.
+        let err = decode(&non_canonical).unwrap_err();
+        assert!(
+            matches!(err, CborError::NonCanonical { .. }),
+            "expected NonCanonical, got: {err:?}",
+        );
+    }
+
+    #[test]
+    fn rejects_indefinite_length_array() {
+        // Indefinite-length array containing a single int 1:
+        //   0x9f: array(indefinite)
+        //   0x01: int 1
+        //   0xff: break stop code
+        let non_canonical = [0x9f, 0x01, 0xff];
+
+        // Lenient accepts the indefinite form.
+        let lenient = decode_lenient(&non_canonical).unwrap();
+        assert_eq!(
+            lenient,
+            LexValue::Array(vec![LexValue::Integer(1)]),
+        );
+
+        // Strict rejects (canonical would be [0x81, 0x01], 2 bytes).
+        let err = decode(&non_canonical).unwrap_err();
+        assert!(
+            matches!(err, CborError::NonCanonical { .. }),
+            "expected NonCanonical, got: {err:?}",
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_tag() {
+        // Tag 99 wrapping the int 0. Tag 99 is not defined by DAG-CBOR.
+        //   0xd8, 0x63: tag(99)
+        //   0x00: int 0
+        let tagged = [0xd8, 0x63, 0x00];
+
+        // Unlike the canonical-form gates above, unknown tags should be
+        // rejected even by lenient decode — they carry no valid
+        // data-model meaning.
+        let err = decode_lenient(&tagged).unwrap_err();
+        assert!(matches!(err, CborError::UnknownTag(99)));
+
+        let err = decode(&tagged).unwrap_err();
+        assert!(matches!(err, CborError::UnknownTag(99)));
+    }
+
+    #[test]
+    fn canonical_roundtrip_decodes_cleanly() {
+        // Round-tripping a canonical payload must succeed under both
+        // decode and decode_lenient.
+        let mut map = BTreeMap::new();
+        map.insert("a".into(), LexValue::Integer(1));
+        map.insert("b".into(), LexValue::Integer(2));
+        map.insert("c".into(), LexValue::String("x".into()));
+        let val = LexValue::Map(map);
+
+        let encoded = encode(&val).unwrap();
+
+        let strict = decode(&encoded).unwrap();
+        assert_eq!(strict, val);
+        let lenient = decode_lenient(&encoded).unwrap();
+        assert_eq!(lenient, val);
+    }
+
+    #[test]
+    fn decode_all_rejects_non_canonical_one_of_many() {
+        // First frame canonical, second non-canonical (non-shortest int).
+        let mut combined = Vec::new();
+        combined.extend(encode(&LexValue::String("ok".into())).unwrap());
+        combined.extend_from_slice(&[0x1a, 0x00, 0x00, 0x00, 0x2a]);
+
+        let err = decode_all(&combined).unwrap_err();
+        assert!(
+            matches!(err, CborError::NonCanonical { .. }),
+            "expected NonCanonical, got: {err:?}",
+        );
     }
 
     #[test]
