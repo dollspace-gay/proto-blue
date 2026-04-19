@@ -31,7 +31,7 @@ proto-blue-repo = { workspace = true }
 proto-blue-xrpc = { workspace = true, optional = true, features = ["server", "fetch-reqwest"] }
 proto-blue-ws = { workspace = true, optional = true, features = ["tungstenite"] }
 proto-blue-identity = { workspace = true, optional = true, features = ["dns", "fetch-reqwest"] }
-proto-blue-api = { workspace = true, optional = true, features = ["fetch-reqwest"] }
+proto-blue-api = { workspace = true, optional = true, features = ["fetch-reqwest", "server"] }
 proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-reqwest"] }
 
 # ── Wasm backends ──────────────────────────────────────────────────────

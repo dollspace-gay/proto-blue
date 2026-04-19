@@ -1642,6 +1642,7 @@ name = "proto-blue-api"
 version = "0.2.1"
 dependencies = [
  "async-trait",
+ "axum",
  "chrono",
  "once_cell",
  "proto-blue-common",
@@ -1650,6 +1651,7 @@ dependencies = [
  "proto-blue-syntax",
  "proto-blue-xrpc",
  "regex",
+ "reqwest",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

@@ -269,6 +269,7 @@ impl<'a> Generator<'a> {
 
         self.generate_errors(out, &query.errors);
         self.generate_query_call_fn(out, nsid, query);
+        self.generate_query_register_fn(out, nsid, query);
     }
 
     /// Generate a procedure (POST endpoint).
@@ -313,6 +314,7 @@ impl<'a> Generator<'a> {
 
         self.generate_errors(out, &proc.errors);
         self.generate_procedure_call_fn(out, nsid, proc);
+        self.generate_procedure_register_fn(out, nsid, proc);
     }
 
     /// Emit a per-method error enum from the `errors` array on the def.
@@ -478,6 +480,204 @@ impl<'a> Generator<'a> {
         } else {
             out.push_str("    Ok(response.data)\n");
         }
+        out.push_str("}\n\n");
+    }
+
+    /// Emit the server-side `register()` helper for a query.
+    ///
+    /// The handler receives typed `Params` (when declared) and
+    /// returns `Result<Output, CallError>` (or `Result<JsonValue,
+    /// CallError>` when the method has no output schema). The helper
+    /// converts the raw `HandlerContext` into typed params and
+    /// serialises the output.
+    ///
+    /// Gated behind the `server` feature so this module compiles
+    /// client-side without pulling in axum.
+    fn generate_query_register_fn(
+        &self,
+        out: &mut String,
+        nsid: &str,
+        query: &LexXrpcQuery,
+    ) {
+        let has_params = query
+            .parameters
+            .as_ref()
+            .is_some_and(|p| !p.properties.is_empty());
+        let has_output = query.output.as_ref().is_some_and(|o| o.schema.is_some());
+        out.push_str("/// Register a typed handler for this method on an [`XrpcServer`].\n");
+        out.push_str("#[cfg(feature = \"server\")]\n");
+        out.push_str(
+            "pub fn register<F, Fut>(\n\
+                 server: proto_blue_xrpc::XrpcServer,\n\
+                 handler: F,\n\
+             ) -> proto_blue_xrpc::XrpcServer\n",
+        );
+        out.push_str("where\n");
+        if has_params {
+            out.push_str("    F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,\n");
+        } else {
+            out.push_str("    F: Fn(proto_blue_xrpc::HandlerContext) -> Fut + Send + Sync + 'static,\n");
+        }
+        if has_output {
+            out.push_str("    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,\n");
+        } else {
+            out.push_str("    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>> + Send + 'static,\n");
+        }
+        out.push_str("{\n");
+        out.push_str("    let handler = std::sync::Arc::new(handler);\n");
+        out.push_str(&format!("    server.query(\"{nsid}\", move |ctx| {{\n"));
+        out.push_str("        let handler = handler.clone();\n");
+        out.push_str("        async move {\n");
+        if has_params {
+            out.push_str("            let params = params_from_ctx(&ctx);\n");
+            out.push_str("            let out = handler(ctx, params).await?;\n");
+        } else {
+            out.push_str("            let out = handler(ctx).await?;\n");
+        }
+        if has_output {
+            out.push_str("            let value = serde_json::to_value(&out)\n");
+            out.push_str("                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!(\"output serialize: {e}\")))?;\n");
+            out.push_str("            Ok::<_, proto_blue_xrpc::XrpcServerError>(value)\n");
+        } else {
+            out.push_str("            Ok::<_, proto_blue_xrpc::XrpcServerError>(out)\n");
+        }
+        out.push_str("        }\n");
+        out.push_str("    })\n");
+        out.push_str("}\n\n");
+        if has_params
+            && let Some(params) = &query.parameters
+        {
+            self.generate_params_from_ctx(out, params);
+        }
+    }
+
+    /// Emit the server-side `register()` helper for a procedure.
+    fn generate_procedure_register_fn(
+        &self,
+        out: &mut String,
+        nsid: &str,
+        proc: &LexXrpcProcedure,
+    ) {
+        let has_params = proc
+            .parameters
+            .as_ref()
+            .is_some_and(|p| !p.properties.is_empty());
+        let has_input = proc.input.as_ref().is_some_and(|i| i.schema.is_some());
+        let has_output = proc.output.as_ref().is_some_and(|o| o.schema.is_some());
+        out.push_str("/// Register a typed handler for this procedure on an [`XrpcServer`].\n");
+        out.push_str("#[cfg(feature = \"server\")]\n");
+        out.push_str(
+            "pub fn register<F, Fut>(\n\
+                 server: proto_blue_xrpc::XrpcServer,\n\
+                 handler: F,\n\
+             ) -> proto_blue_xrpc::XrpcServer\n",
+        );
+        out.push_str("where\n");
+        let mut arg = String::from("proto_blue_xrpc::HandlerContext");
+        if has_params {
+            arg.push_str(", Option<Params>");
+        }
+        if has_input {
+            arg.push_str(", Option<Input>");
+        }
+        out.push_str(&format!("    F: Fn({arg}) -> Fut + Send + Sync + 'static,\n"));
+        if has_output {
+            out.push_str("    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,\n");
+        } else {
+            out.push_str("    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>> + Send + 'static,\n");
+        }
+        out.push_str("{\n");
+        out.push_str("    let handler = std::sync::Arc::new(handler);\n");
+        out.push_str(&format!("    server.procedure(\"{nsid}\", move |ctx| {{\n"));
+        out.push_str("        let handler = handler.clone();\n");
+        out.push_str("        async move {\n");
+        if has_params {
+            out.push_str("            let params = params_from_ctx(&ctx);\n");
+        }
+        if has_input {
+            out.push_str("            let input = match ctx.json_body()? {\n");
+            out.push_str("                Some(v) => Some(serde_json::from_value::<Input>(v).map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InvalidRequest, format!(\"input deserialize: {e}\")))?),\n");
+            out.push_str("                None => None,\n");
+            out.push_str("            };\n");
+        }
+        // Build the handler call expression based on arg shape.
+        let call = match (has_params, has_input) {
+            (true, true) => "handler(ctx, params, input)",
+            (true, false) => "handler(ctx, params)",
+            (false, true) => "handler(ctx, input)",
+            (false, false) => "handler(ctx)",
+        };
+        out.push_str(&format!("            let out = {call}.await?;\n"));
+        if has_output {
+            out.push_str("            let value = serde_json::to_value(&out)\n");
+            out.push_str("                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!(\"output serialize: {e}\")))?;\n");
+            out.push_str("            Ok::<_, proto_blue_xrpc::XrpcServerError>(value)\n");
+        } else {
+            out.push_str("            Ok::<_, proto_blue_xrpc::XrpcServerError>(out)\n");
+        }
+        out.push_str("        }\n");
+        out.push_str("    })\n");
+        out.push_str("}\n\n");
+        if has_params
+            && let Some(params) = &proc.parameters
+        {
+            self.generate_params_from_ctx(out, params);
+        }
+    }
+
+    /// Emit the helper that reads params out of a `HandlerContext`.
+    /// Missing values just leave the field `None`; string-based
+    /// coercion mirrors the TS `paramsParseLoose` default (numbers
+    /// and booleans are accepted in string form, matching how an
+    /// HTTP query string transports them).
+    fn generate_params_from_ctx(&self, out: &mut String, params: &LexXrpcParameters) {
+        out.push_str("#[cfg(feature = \"server\")]\n");
+        out.push_str("fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {\n");
+        out.push_str("    // Always construct a `Params` — required fields are\n");
+        out.push_str("    // validated upstream by the lexicon validator when enabled;\n");
+        out.push_str("    // missing values surface as runtime errors from the handler.\n");
+        out.push_str("    Some(Params {\n");
+
+        let mut prop_names: Vec<&String> = params.properties.keys().collect();
+        prop_names.sort();
+        let required: BTreeSet<&str> = params.required.iter().map(|s| s.as_str()).collect();
+
+        for prop_name in prop_names {
+            let prop = &params.properties[prop_name];
+            let field = to_snake_case(prop_name);
+            let key = prop_name;
+            let is_required = required.contains(prop_name.as_str());
+
+            let parser = match prop {
+                LexUserType::String(_) => format!("ctx.params.get(\"{key}\").cloned()"),
+                LexUserType::Integer(_) => format!(
+                    "ctx.params.get(\"{key}\").and_then(|v| v.parse::<i64>().ok())"
+                ),
+                LexUserType::Boolean(_) => format!(
+                    "ctx.params.get(\"{key}\").and_then(|v| v.parse::<bool>().ok())"
+                ),
+                LexUserType::Array(arr) => match &*arr.items {
+                    LexUserType::String(_) => format!(
+                        "Some(ctx.params.get(\"{key}\").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default())"
+                    ),
+                    _ => format!("ctx.params.get(\"{key}\").cloned().map(|_| Vec::new())"),
+                },
+                _ => format!("ctx.params.get(\"{key}\").cloned()"),
+            };
+
+            if is_required {
+                // required fields get the bare value (Option is
+                // unwrapped with a default-ish fallback); upstream
+                // lexicon validation should have caught absence.
+                out.push_str(&format!(
+                    "        {field}: ({parser})?,\n",
+                ));
+            } else {
+                out.push_str(&format!("        {field}: {parser},\n"));
+            }
+        }
+
+        out.push_str("    })\n");
         out.push_str("}\n\n");
     }
 

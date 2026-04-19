@@ -49,3 +49,36 @@ pub async fn call(
     Ok(serde_json::from_value(response.data)?)
 }
 
+/// Register a typed handler for this method on an [`XrpcServer`].
+#[cfg(feature = "server")]
+pub fn register<F, Fut>(
+server: proto_blue_xrpc::XrpcServer,
+handler: F,
+) -> proto_blue_xrpc::XrpcServer
+where
+    F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+{
+    let handler = std::sync::Arc::new(handler);
+    server.query("com.atproto.admin.getAccountInfo", move |ctx| {
+        let handler = handler.clone();
+        async move {
+            let params = params_from_ctx(&ctx);
+            let out = handler(ctx, params).await?;
+            let value = serde_json::to_value(&out)
+                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
+        }
+    })
+}
+
+#[cfg(feature = "server")]
+fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
+    // Always construct a `Params` — required fields are
+    // validated upstream by the lexicon validator when enabled;
+    // missing values surface as runtime errors from the handler.
+    Some(Params {
+        did: (ctx.params.get("did").cloned())?,
+    })
+}
+

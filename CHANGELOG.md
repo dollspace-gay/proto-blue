@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- Server codegen: typed `register(server, handler) -> XrpcServer` helper
+  emitted per query/procedure in `proto-blue-api` behind the new
+  `server` feature, with automatic params/input decoding and output
+  serialization (#44).
+
 ## [0.2.1] - 2026-04-19
 
 ### Changed
@@ -19,6 +25,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2026-04-18
 
 ### Added
+- xrpc server: body size limits, handler cancellation, paramsParseLoose (#52)
+- Streaming/subscription server in proto-blue-xrpc (#35)
+- Writable Repo + RepoStorage trait (proto-blue-repo) (#38)
+- OAuth infrastructure: identity/resource metadata/loopback/private_key_jwt/stores/refresh-lock (#42)
+- Full rate limiter (token bucket, keyed, combined) in proto-blue-xrpc (#37)
+- Client codegen: AtpBaseClient + namespace tree + record helpers (#43)
+- Agent surface: proxy, labelers, preferences, profile, account lifecycle (#40)
+- repo: streaming CAR + MST lazy loading + traversal helpers (#51)
+- Crypto helpers: multibase codec, random, sha256Hex, verifySignatureUtf8, plugin registry (#49)
+- common: port obfuscate.ts + expose jitter + minor flow helpers (#50)
+- Syntax helpers: isValidTld, normalizeHandle, NSID.create, isValidUri, AT-URI search/fragment (#48)
+- WebSocketKeepAlive: getUrl callback, reconnect events, active heartbeat (#47)
+- Top-level moderation API: moderate_post/profile + embed walker (#41)
+- Session lifecycle: events + persistence callback + auto-refresh (proto-blue-api) (#39)
+- Lexicon validation + cancellation + payload limits in proto-blue-xrpc (#36)
+- Lexicon XRPC validators + default-value substitution + blob validator (#46)
+- Add LegacyBlobRef variant to proto-blue-lex-data (#32)
 - Migrate proto-blue-oauth and proto-blue-api to FetchHandler (#29)
 - WebSocket abstraction for firehose (web-sys WebSocket on wasm) (#27)
 - Pluggable DID/handle resolver (replace hickory-resolver default on wasm) (#26)
@@ -59,6 +82,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Build a robust AT Protocol SDK for Rust (translated from TypeScript SDK) (#1)
 
 ### Fixed
+- Typed BlobRef / CidLink / record $type in codegen (#45)
+- Replace stale-refresh TODO in DidResolver with background refresh (#34)
+- Verify CID-for-bytes on CAR read (proto-blue-repo) (#33)
+- Wire up lex-json strict mode + typed BlobRef validation (#31)
+- Enforce DAG-CBOR canonical-form on decode (lex-cbor) (#30)
 - WS: add random jitter to reconnect backoff (#18)
 - AT-URI regex uses global case-insensitive flag (defense-in-depth) (#3)
 - normalize_datetime has broken month/day rollover on timezone offsets (#2)

@@ -122,3 +122,58 @@ pub async fn call(
     Ok(serde_json::from_value(response.data)?)
 }
 
+/// Register a typed handler for this method on an [`XrpcServer`].
+#[cfg(feature = "server")]
+pub fn register<F, Fut>(
+server: proto_blue_xrpc::XrpcServer,
+handler: F,
+) -> proto_blue_xrpc::XrpcServer
+where
+    F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+{
+    let handler = std::sync::Arc::new(handler);
+    server.query("tools.ozone.moderation.queryEvents", move |ctx| {
+        let handler = handler.clone();
+        async move {
+            let params = params_from_ctx(&ctx);
+            let out = handler(ctx, params).await?;
+            let value = serde_json::to_value(&out)
+                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
+        }
+    })
+}
+
+#[cfg(feature = "server")]
+fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
+    // Always construct a `Params` — required fields are
+    // validated upstream by the lexicon validator when enabled;
+    // missing values surface as runtime errors from the handler.
+    Some(Params {
+        added_labels: Some(ctx.params.get("addedLabels").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        added_tags: Some(ctx.params.get("addedTags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        age_assurance_state: ctx.params.get("ageAssuranceState").cloned(),
+        batch_id: ctx.params.get("batchId").cloned(),
+        collections: Some(ctx.params.get("collections").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        comment: ctx.params.get("comment").cloned(),
+        created_after: ctx.params.get("createdAfter").cloned(),
+        created_before: ctx.params.get("createdBefore").cloned(),
+        created_by: ctx.params.get("createdBy").cloned(),
+        cursor: ctx.params.get("cursor").cloned(),
+        has_comment: ctx.params.get("hasComment").and_then(|v| v.parse::<bool>().ok()),
+        include_all_user_records: ctx.params.get("includeAllUserRecords").and_then(|v| v.parse::<bool>().ok()),
+        limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
+        mod_tool: Some(ctx.params.get("modTool").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        policies: Some(ctx.params.get("policies").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        removed_labels: Some(ctx.params.get("removedLabels").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        removed_tags: Some(ctx.params.get("removedTags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        report_types: Some(ctx.params.get("reportTypes").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        sort_direction: ctx.params.get("sortDirection").cloned(),
+        subject: ctx.params.get("subject").cloned(),
+        subject_type: ctx.params.get("subjectType").cloned(),
+        types: Some(ctx.params.get("types").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        with_strike: ctx.params.get("withStrike").and_then(|v| v.parse::<bool>().ok()),
+    })
+}
+

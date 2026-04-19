@@ -1,0 +1,34 @@
+[
+  {
+    "timestamp": "2026-04-18T21:34:32.380255897+00:00",
+    "old_local_id": -1,
+    "old_display": "L1",
+    "new_display_id": 17,
+    "title": "WS: CBOR streaming frame encode/decode",
+    "agent_id": "nGvb"
+  },
+  {
+    "timestamp": "2026-04-18T21:34:32.380255897+00:00",
+    "old_local_id": -2,
+    "old_display": "L2",
+    "new_display_id": 18,
+    "title": "WS: add random jitter to reconnect backoff",
+    "agent_id": "nGvb"
+  },
+  {
+    "timestamp": "2026-04-18T21:34:32.380255897+00:00",
+    "old_local_id": -3,
+    "old_display": "L3",
+    "new_display_id": 19,
+    "title": "Syntax: AtUri class-like API (setters, make, relative, searchParams)",
+    "agent_id": "nGvb"
+  },
+  {
+    "timestamp": "2026-04-18T21:34:32.380255897+00:00",
+    "old_local_id": -4,
+    "old_display": "L4",
+    "new_display_id": 20,
+    "title": "Crypto: optional private-key export gating",
+    "agent_id": "nGvb"
+  }
+]

@@ -32,3 +32,23 @@ pub async fn call(
     Ok(response.data)
 }
 
+/// Register a typed handler for this procedure on an [`XrpcServer`].
+#[cfg(feature = "server")]
+pub fn register<F, Fut>(
+server: proto_blue_xrpc::XrpcServer,
+handler: F,
+) -> proto_blue_xrpc::XrpcServer
+where
+    F: Fn(proto_blue_xrpc::HandlerContext) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+{
+    let handler = std::sync::Arc::new(handler);
+    server.procedure("com.atproto.server.requestEmailConfirmation", move |ctx| {
+        let handler = handler.clone();
+        async move {
+            let out = handler(ctx).await?;
+            Ok::<_, proto_blue_xrpc::XrpcServerError>(out)
+        }
+    })
+}
+

@@ -27,6 +27,9 @@ chrono = { workspace = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }
+axum = { workspace = true, features = ["ws"] }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time"] }
+reqwest = { workspace = true, features = ["json"] }
 
 [features]
 # Native default: reqwest HTTP transport via proto-blue-xrpc.
@@ -37,3 +40,7 @@ fetch-reqwest = ["proto-blue-xrpc/fetch-reqwest"]
 
 # Browser `fetch()`-backed HTTP for wasm32-unknown-unknown.
 fetch-web = ["proto-blue-xrpc/fetch-web"]
+
+# Enable the generated server-side `register()` helpers. Pulls in the
+# native axum-based `XrpcServer` via `proto-blue-xrpc/server`.
+server = ["proto-blue-xrpc/server"]

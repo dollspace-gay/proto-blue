@@ -161,3 +161,71 @@ pub async fn call(
     Ok(serde_json::from_value(response.data)?)
 }
 
+/// Register a typed handler for this method on an [`XrpcServer`].
+#[cfg(feature = "server")]
+pub fn register<F, Fut>(
+server: proto_blue_xrpc::XrpcServer,
+handler: F,
+) -> proto_blue_xrpc::XrpcServer
+where
+    F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+{
+    let handler = std::sync::Arc::new(handler);
+    server.query("tools.ozone.moderation.queryStatuses", move |ctx| {
+        let handler = handler.clone();
+        async move {
+            let params = params_from_ctx(&ctx);
+            let out = handler(ctx, params).await?;
+            let value = serde_json::to_value(&out)
+                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
+        }
+    })
+}
+
+#[cfg(feature = "server")]
+fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
+    // Always construct a `Params` — required fields are
+    // validated upstream by the lexicon validator when enabled;
+    // missing values surface as runtime errors from the handler.
+    Some(Params {
+        age_assurance_state: ctx.params.get("ageAssuranceState").cloned(),
+        appealed: ctx.params.get("appealed").and_then(|v| v.parse::<bool>().ok()),
+        collections: Some(ctx.params.get("collections").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        comment: ctx.params.get("comment").cloned(),
+        cursor: ctx.params.get("cursor").cloned(),
+        exclude_tags: Some(ctx.params.get("excludeTags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        hosting_deleted_after: ctx.params.get("hostingDeletedAfter").cloned(),
+        hosting_deleted_before: ctx.params.get("hostingDeletedBefore").cloned(),
+        hosting_statuses: Some(ctx.params.get("hostingStatuses").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        hosting_updated_after: ctx.params.get("hostingUpdatedAfter").cloned(),
+        hosting_updated_before: ctx.params.get("hostingUpdatedBefore").cloned(),
+        ignore_subjects: Some(ctx.params.get("ignoreSubjects").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        include_all_user_records: ctx.params.get("includeAllUserRecords").and_then(|v| v.parse::<bool>().ok()),
+        include_muted: ctx.params.get("includeMuted").and_then(|v| v.parse::<bool>().ok()),
+        last_reviewed_by: ctx.params.get("lastReviewedBy").cloned(),
+        limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
+        min_account_suspend_count: ctx.params.get("minAccountSuspendCount").and_then(|v| v.parse::<i64>().ok()),
+        min_priority_score: ctx.params.get("minPriorityScore").and_then(|v| v.parse::<i64>().ok()),
+        min_reported_records_count: ctx.params.get("minReportedRecordsCount").and_then(|v| v.parse::<i64>().ok()),
+        min_strike_count: ctx.params.get("minStrikeCount").and_then(|v| v.parse::<i64>().ok()),
+        min_takendown_records_count: ctx.params.get("minTakendownRecordsCount").and_then(|v| v.parse::<i64>().ok()),
+        only_muted: ctx.params.get("onlyMuted").and_then(|v| v.parse::<bool>().ok()),
+        queue_count: ctx.params.get("queueCount").and_then(|v| v.parse::<i64>().ok()),
+        queue_index: ctx.params.get("queueIndex").and_then(|v| v.parse::<i64>().ok()),
+        queue_seed: ctx.params.get("queueSeed").cloned(),
+        reported_after: ctx.params.get("reportedAfter").cloned(),
+        reported_before: ctx.params.get("reportedBefore").cloned(),
+        review_state: ctx.params.get("reviewState").cloned(),
+        reviewed_after: ctx.params.get("reviewedAfter").cloned(),
+        reviewed_before: ctx.params.get("reviewedBefore").cloned(),
+        sort_direction: ctx.params.get("sortDirection").cloned(),
+        sort_field: ctx.params.get("sortField").cloned(),
+        subject: ctx.params.get("subject").cloned(),
+        subject_type: ctx.params.get("subjectType").cloned(),
+        tags: Some(ctx.params.get("tags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        takendown: ctx.params.get("takendown").and_then(|v| v.parse::<bool>().ok()),
+    })
+}
+
