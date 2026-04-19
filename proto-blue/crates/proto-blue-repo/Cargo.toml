@@ -18,7 +18,7 @@ proto-blue-lex-data = { workspace = true }
 proto-blue-lex-cbor = { workspace = true }
 proto-blue-ws = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
 unsigned-varint = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }

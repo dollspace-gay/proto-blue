@@ -22,6 +22,6 @@ reqwest = { workspace = true }
 regex = { workspace = true }
 once_cell = { workspace = true }
 unicode-segmentation = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 thiserror = { workspace = true }
 chrono = { workspace = true }

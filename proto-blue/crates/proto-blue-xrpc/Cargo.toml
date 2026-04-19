@@ -16,7 +16,7 @@ reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 url = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 axum = { workspace = true }

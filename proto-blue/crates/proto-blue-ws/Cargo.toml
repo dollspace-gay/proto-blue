@@ -15,7 +15,7 @@ proto-blue-common = { workspace = true }
 proto-blue-lex-data = { workspace = true }
 proto-blue-lex-cbor = { workspace = true }
 tokio-tungstenite = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "net", "time"] }
 futures = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
