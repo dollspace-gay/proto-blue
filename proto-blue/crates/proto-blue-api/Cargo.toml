@@ -15,7 +15,7 @@ proto-blue-common = { workspace = true }
 proto-blue-syntax = { workspace = true }
 proto-blue-lexicon = { workspace = true }
 proto-blue-lex-data = { workspace = true }
-proto-blue-xrpc = { workspace = true }
+proto-blue-xrpc = { workspace = true, default-features = false }
 serde = { workspace = true }
 serde_json = { workspace = true }
 regex = { workspace = true }

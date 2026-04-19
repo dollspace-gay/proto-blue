@@ -19,14 +19,16 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "time"] }
 
-# DNS-based handle resolution. Native-only (hickory-resolver uses OS
-# sockets). Off on wasm32 by default; the HTTPS `.well-known` path still
-# works everywhere.
-hickory-resolver = { workspace = true, optional = true }
-
 # Used by the DID-cache background-refresh path on wasm32. Optional;
 # only pulled in when `fetch-web` is active.
 wasm-bindgen-futures = { version = "0.4", optional = true }
+
+# DNS-based handle resolution. Native-only (hickory-resolver uses OS
+# sockets and is not wasm-compatible). Target-gating the dep means
+# enabling the `dns` feature on wasm is a no-op rather than a build
+# break, which keeps the native-default feature set wasm-safe.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+hickory-resolver = { workspace = true, optional = true }
 
 [dev-dependencies]
 async-trait = { workspace = true }

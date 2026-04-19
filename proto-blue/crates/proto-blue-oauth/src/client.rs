@@ -72,7 +72,7 @@ impl OAuthClient {
     /// With the `fetch-reqwest` feature (default on native), a fresh
     /// `reqwest::Client` is constructed internally. Otherwise the caller
     /// must use [`Self::with_fetch_handler`].
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(client_metadata: OAuthClientMetadata) -> Self {
         Self::with_fetch_handler(
@@ -85,7 +85,7 @@ impl OAuthClient {
     ///
     /// Back-compat constructor — wraps the client in a
     /// [`proto_blue_common::fetch::ReqwestFetcher`].
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn with_http_client(client_metadata: OAuthClientMetadata, http: reqwest::Client) -> Self {
         Self::with_fetch_handler(
@@ -130,7 +130,7 @@ impl OAuthClient {
     /// client ID into implicit [`OAuthClientMetadata`] via
     /// [`crate::loopback::loopback_client_metadata`] and configures a
     /// native-reqwest fetch handler.
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     pub fn new_loopback(client_id: &str) -> Result<Self, OAuthError> {
         let metadata = crate::loopback::loopback_client_metadata(client_id)?;
         Ok(Self::new(metadata))
@@ -589,7 +589,7 @@ impl OAuthClient {
             });
         }
 
-        let token_set = TokenSet::from_response(&server_metadata.issuer, None, &token_response);
+        let token_set = TokenSet::from_response(&server_metadata.issuer, &token_response);
         Ok(token_set)
     }
 
@@ -717,7 +717,7 @@ impl OAuthClient {
                     .post_form(token_endpoint, &body, Some(&dpop_proof))
                     .await?;
                 let token_response = parse_token_response(resp)?;
-                let mut new_ts = TokenSet::from_response(
+                let mut new_ts = TokenSet::from_response_with_aud(
                     &server_metadata.issuer,
                     token_set.aud.as_deref(),
                     &token_response,
@@ -732,7 +732,7 @@ impl OAuthClient {
         }
 
         let token_response = parse_token_response(resp)?;
-        let mut new_ts = TokenSet::from_response(
+        let mut new_ts = TokenSet::from_response_with_aud(
             &server_metadata.issuer,
             token_set.aud.as_deref(),
             &token_response,
@@ -999,7 +999,7 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[test]
     fn create_oauth_client() {
         let client = OAuthClient::new(test_client_metadata());

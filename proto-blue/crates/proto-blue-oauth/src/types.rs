@@ -143,9 +143,26 @@ pub struct TokenSet {
 }
 
 impl TokenSet {
-    /// Create from a token response. `aud` is the PDS URL the client
-    /// discovered during identity resolution.
-    pub fn from_response(issuer: &str, aud: Option<&str>, response: &OAuthTokenResponse) -> Self {
+    /// Create from a token response.
+    ///
+    /// Back-compat signature: `aud` is left `None`. Callers that want
+    /// to bind the token to a resource-server URL (for DPoP `htu`)
+    /// should use [`Self::from_response_with_aud`].
+    pub fn from_response(issuer: &str, response: &OAuthTokenResponse) -> Self {
+        Self::from_response_with_aud(issuer, None, response)
+    }
+
+    /// Create from a token response, recording `aud` (the PDS URL
+    /// discovered during identity resolution) on the returned
+    /// `TokenSet`. Used by [`OAuthClient::callback_with_iss_and_aud`]
+    /// to bind subsequent DPoP proofs to the resource server.
+    ///
+    /// [`OAuthClient::callback_with_iss_and_aud`]: crate::OAuthClient::callback_with_iss_and_aud
+    pub fn from_response_with_aud(
+        issuer: &str,
+        aud: Option<&str>,
+        response: &OAuthTokenResponse,
+    ) -> Self {
         let expires_at = response.expires_in.map(|secs| {
             let dt = chrono::Utc::now() + chrono::Duration::seconds(secs as i64);
             dt.to_rfc3339()
@@ -282,7 +299,7 @@ mod tests {
             expires_in: Some(3600),
             sub: Some("did:plc:test".into()),
         };
-        let ts = TokenSet::from_response(
+        let ts = TokenSet::from_response_with_aud(
             "https://bsky.social",
             Some("https://pds.example.com"),
             &resp,
@@ -304,7 +321,7 @@ mod tests {
             expires_in: None,
             sub: None,
         };
-        let ts = TokenSet::from_response("https://bsky.social", None, &resp);
+        let ts = TokenSet::from_response_with_aud("https://bsky.social", None, &resp);
         assert!(ts.aud.is_none());
         assert_eq!(ts.aud_or_issuer(), "https://bsky.social");
     }

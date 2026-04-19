@@ -14,22 +14,22 @@ use proto_blue_common::fetch::{FetchHandler, HttpRequest};
 
 use crate::error::IdentityError;
 
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use futures::future::{self, Either};
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use hickory_resolver::TokioResolver;
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use hickory_resolver::config::{NameServerConfigGroup, ResolverConfig};
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use std::future::Future;
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use std::net::IpAddr;
 
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 const SUBDOMAIN: &str = "_atproto";
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 const PREFIX: &str = "did=";
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 const DNS_PORT: u16 = 53;
 
 /// Resolver for AT Protocol handles to DIDs.
@@ -46,14 +46,14 @@ pub struct HandleResolver {
     fetcher: Arc<dyn FetchHandler>,
     /// Optional backup DNS nameservers. Tried (each in turn) if the
     /// system resolver fails or returns no matching TXT record.
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     pub(crate) backup_nameservers: Vec<IpAddr>,
 }
 
 impl HandleResolver {
     /// Create a new handle resolver with only the system DNS resolver (on
     /// native) and the default fetch backend.
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(timeout_ms: u64) -> Self {
         Self::with_fetch_handler(
@@ -67,7 +67,7 @@ impl HandleResolver {
     /// `backup_nameservers` are IP addresses (e.g. `8.8.8.8`, `1.1.1.1`)
     /// that will be consulted in order if the system resolver fails or
     /// returns no matching TXT record. Port 53 / UDP is assumed.
-    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn with_backup_nameservers(timeout_ms: u64, backup_nameservers: Vec<IpAddr>) -> Self {
         Self {
@@ -82,13 +82,13 @@ impl HandleResolver {
         Self {
             timeout: Duration::from_millis(timeout_ms),
             fetcher,
-            #[cfg(feature = "dns")]
+            #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
             backup_nameservers: Vec::new(),
         }
     }
 
     /// Set backup DNS nameservers (native-only).
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     pub fn set_backup_nameservers(&mut self, nameservers: Vec<IpAddr>) {
         self.backup_nameservers = nameservers;
     }
@@ -102,13 +102,16 @@ impl HandleResolver {
     /// either returns `None` first, we wait for the other before
     /// reporting `None`. On wasm (no DNS), only the HTTPS path runs.
     pub async fn resolve(&self, handle: &str) -> Result<Option<String>, IdentityError> {
-        #[cfg(feature = "dns")]
+        #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
         {
             let dns_fut = self.resolve_dns(handle);
             let http_fut = self.resolve_http(handle);
             Ok(race_first_some(dns_fut, http_fut).await)
         }
-        #[cfg(not(feature = "dns"))]
+        // Any build without a native DNS resolver (the `dns` feature
+        // off, or wasm where `hickory-resolver` is target-gated out)
+        // falls back to the HTTPS `.well-known/atproto-did` path.
+        #[cfg(not(all(feature = "dns", not(target_arch = "wasm32"))))]
         {
             Ok(self.resolve_http(handle).await)
         }
@@ -119,7 +122,7 @@ impl HandleResolver {
     /// Tries the system resolver first. If that returns no TXT match
     /// (either via a hard error or an empty/multiple-record response),
     /// each configured backup nameserver is consulted in order.
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn resolve_dns(&self, handle: &str) -> Option<String> {
         let name = format!("{SUBDOMAIN}.{handle}");
 
@@ -136,14 +139,14 @@ impl HandleResolver {
 
     /// DNS TXT lookup via the system resolver (`/etc/resolv.conf` on
     /// Unix, registry on Windows).
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn dns_lookup_system(&self, name: &str) -> Option<String> {
         let resolver = TokioResolver::builder_tokio().ok()?.build();
         self.run_txt_lookup(&resolver, name).await
     }
 
     /// DNS TXT lookup via a specific nameserver IP.
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn dns_lookup_via(&self, name: &str, ns: IpAddr) -> Option<String> {
         let group = NameServerConfigGroup::from_ips_clear(
             &[ns],
@@ -161,7 +164,7 @@ impl HandleResolver {
 
     /// Run a TXT lookup against the given resolver with our configured
     /// timeout, extracting exactly-one `did=...` entry.
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn run_txt_lookup(&self, resolver: &TokioResolver, name: &str) -> Option<String> {
         let lookup = tokio::time::timeout(self.timeout, resolver.txt_lookup(name))
             .await
@@ -219,7 +222,7 @@ impl HandleResolver {
 /// is: as soon as *either* future yields `Some`, we return it and drop the
 /// other future (no waste). Only if the first to finish is `None` do we
 /// block on the second.
-#[cfg(feature = "dns")]
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 async fn race_first_some<T, A, B>(a: A, b: B) -> Option<T>
 where
     A: Future<Output = Option<T>>,
@@ -243,7 +246,7 @@ where
 mod tests {
     use super::*;
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     #[test]
     fn dns_name_construction() {
         let handle = "alice.bsky.social";
@@ -258,7 +261,7 @@ mod tests {
         assert_eq!(url, "https://alice.bsky.social/.well-known/atproto-did");
     }
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     #[test]
     fn parse_dns_result_valid() {
         let txt = "did=did:plc:abc123";
@@ -284,13 +287,13 @@ mod tests {
 
     // ── race_first_some ──────────────────────────────────────────────
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn delayed<T: Send + 'static>(ms: u64, v: Option<T>) -> Option<T> {
         tokio::time::sleep(Duration::from_millis(ms)).await;
         v
     }
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     #[tokio::test]
     async fn race_returns_fast_some_without_waiting_for_slow() {
         let t = std::time::Instant::now();
@@ -308,7 +311,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     #[tokio::test]
     async fn race_returns_fast_some_regardless_of_arg_order() {
         let t = std::time::Instant::now();
@@ -321,7 +324,7 @@ mod tests {
         assert!(t.elapsed() < Duration::from_millis(200));
     }
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     #[tokio::test]
     async fn race_waits_for_other_when_fast_is_none() {
         // Fast branch returns None; we must still wait for the slow one's
@@ -334,7 +337,7 @@ mod tests {
         assert_eq!(got.as_deref(), Some("eventual"));
     }
 
-    #[cfg(feature = "dns")]
+    #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     #[tokio::test]
     async fn race_returns_none_when_both_are_none() {
         let got = race_first_some(

@@ -47,7 +47,7 @@ impl DidResolver {
     /// With the `fetch-reqwest` feature (default on native), a fresh
     /// `reqwest::Client` is constructed internally. Otherwise the caller
     /// must use [`Self::with_fetch_handler`].
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Arc<dyn DidCache>>) -> Self {
         Self::with_fetch_handler(
@@ -172,6 +172,15 @@ impl DidResolver {
     /// from in-flight set. Failures drop the stale entry in place so
     /// the next reader will either see the refreshed doc or fall
     /// through to the expired path and fetch synchronously.
+    ///
+    /// Only called from [`Self::spawn_background_refresh`], whose
+    /// spawn-backends (`tokio::spawn` on native, `wasm_bindgen_futures::spawn_local`
+    /// when `fetch-web` is on) themselves gate out wasm-without-fetch-
+    /// web; match those cfgs here so the method isn't flagged unused.
+    #[cfg(any(
+        not(target_arch = "wasm32"),
+        all(target_arch = "wasm32", feature = "fetch-web"),
+    ))]
     async fn perform_refresh(&self, did: String) {
         // Best-effort: ignore errors. The next resolve call will retry.
         let result = self.resolve_no_cache(&did).await;

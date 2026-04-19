@@ -27,20 +27,24 @@ proto-blue-repo = { workspace = true }
 # the user having to opt into different features per target.
 
 # ── Native backends ────────────────────────────────────────────────────
+# `default-features = false` is mandatory on every subcrate: on wasm32
+# we swap backends entirely, and leaving a subcrate's native defaults
+# on leaks `tokio/net`, `tokio/rt-multi-thread`, or `reqwest` into the
+# wasm build and breaks `cargo build --target wasm32-unknown-unknown`.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-proto-blue-xrpc = { workspace = true, optional = true, features = ["server", "fetch-reqwest"] }
-proto-blue-ws = { workspace = true, optional = true, features = ["tungstenite"] }
-proto-blue-identity = { workspace = true, optional = true, features = ["dns", "fetch-reqwest"] }
-proto-blue-api = { workspace = true, optional = true, features = ["fetch-reqwest", "server"] }
-proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-reqwest", "identity-resolver"] }
+proto-blue-xrpc = { workspace = true, optional = true, default-features = false, features = ["server", "fetch-reqwest"] }
+proto-blue-ws = { workspace = true, optional = true, default-features = false, features = ["tungstenite"] }
+proto-blue-identity = { workspace = true, optional = true, default-features = false, features = ["dns", "fetch-reqwest"] }
+proto-blue-api = { workspace = true, optional = true, default-features = false, features = ["fetch-reqwest", "server"] }
+proto-blue-oauth = { workspace = true, optional = true, default-features = false, features = ["fetch-reqwest", "identity-resolver"] }
 
 # ── Wasm backends ──────────────────────────────────────────────────────
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-proto-blue-xrpc = { workspace = true, optional = true, features = ["fetch-web"] }
-proto-blue-ws = { workspace = true, optional = true, features = ["gloo-ws"] }
-proto-blue-identity = { workspace = true, optional = true, features = ["fetch-web"] }
-proto-blue-api = { workspace = true, optional = true, features = ["fetch-web"] }
-proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-web", "identity-resolver"] }
+proto-blue-xrpc = { workspace = true, optional = true, default-features = false, features = ["fetch-web"] }
+proto-blue-ws = { workspace = true, optional = true, default-features = false, features = ["gloo-ws"] }
+proto-blue-identity = { workspace = true, optional = true, default-features = false, features = ["fetch-web"] }
+proto-blue-api = { workspace = true, optional = true, default-features = false, features = ["fetch-web"] }
+proto-blue-oauth = { workspace = true, optional = true, default-features = false, features = ["fetch-web", "identity-resolver"] }
 
 [features]
 # Default to the full SDK — same API surface as before. On wasm32 the

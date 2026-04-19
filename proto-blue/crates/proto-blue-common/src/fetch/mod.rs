@@ -38,13 +38,16 @@ use std::collections::BTreeMap;
 use async_trait::async_trait;
 use thiserror::Error;
 
-#[cfg(feature = "fetch-reqwest")]
+// `reqwest_impl` is native-only — the `reqwest` dep is gated behind
+// `cfg(not(target_arch = "wasm32"))` in Cargo.toml, so enabling
+// `fetch-reqwest` on wasm must be a no-op rather than a compile error.
+#[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
 pub mod reqwest_impl;
 
 #[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
 pub mod web_impl;
 
-#[cfg(feature = "fetch-reqwest")]
+#[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
 pub use reqwest_impl::ReqwestFetcher;
 
 #[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]

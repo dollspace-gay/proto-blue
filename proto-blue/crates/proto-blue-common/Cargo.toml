@@ -28,10 +28,17 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 
-# Optional backends for the `FetchHandler` trait.
-reqwest = { workspace = true, optional = true }
+# Optional backends for the `FetchHandler` trait. `reqwest` is
+# native-only: it pulls in hyper + tokio features (`rt-multi-thread`,
+# `net`) that don't compile on wasm. Gating it behind
+# `cfg(not(target_arch = "wasm32"))` lets the `fetch-reqwest` feature
+# stay quietly enabled on wasm builds (no effect) instead of breaking
+# them.
 gloo-net = { version = "0.6", features = ["http"], optional = true }
 js-sys = { version = "0.3", optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { workspace = true, optional = true }
 
 [features]
 # No features on by default — pure subset only. Consumers opt into a
@@ -40,8 +47,12 @@ js-sys = { version = "0.3", optional = true }
 # on themselves.
 default = []
 
-# `ReqwestFetcher` — native `reqwest`-backed fetch handler.
-fetch-reqwest = ["dep:reqwest", "tokio/rt-multi-thread", "tokio/time", "tokio/io-util"]
+# `ReqwestFetcher` — native `reqwest`-backed fetch handler. The tokio
+# feature activations are deliberately NOT listed here because
+# `tokio/rt-multi-thread` doesn't exist on wasm; reqwest/hyper pull in
+# the tokio features they need on their own when they're actually
+# built (i.e. on native targets).
+fetch-reqwest = ["dep:reqwest"]
 
 # `WebFetcher` — browser-fetch handler for `wasm32-unknown-unknown`.
 fetch-web = ["dep:gloo-net", "dep:js-sys"]

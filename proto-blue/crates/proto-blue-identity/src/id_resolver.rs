@@ -25,7 +25,7 @@ impl IdResolver {
     ///
     /// Requires `fetch-reqwest` + `dns` (both default on native). For
     /// wasm, use [`Self::with_fetch_handler`].
-    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(opts: IdentityResolverOpts, cache: Option<Arc<dyn DidCache>>) -> Self {
         // Parse backup nameserver strings into IP addresses; silently
@@ -110,7 +110,7 @@ impl IdResolver {
     }
 }
 
-#[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+#[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
 impl Default for IdResolver {
     fn default() -> Self {
         Self::new(IdentityResolverOpts::default(), None)
@@ -133,13 +133,13 @@ mod tests {
     use super::*;
     use proto_blue_common::parse_did_document;
 
-    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
     #[test]
     fn create_default_resolver() {
         let _resolver = IdResolver::default();
     }
 
-    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
     #[test]
     fn create_with_options() {
         let opts = IdentityResolverOpts {
@@ -150,7 +150,7 @@ mod tests {
         let _resolver = IdResolver::new(opts, None);
     }
 
-    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
     #[test]
     fn backup_nameservers_are_threaded_through_opts() {
         let opts = IdentityResolverOpts {

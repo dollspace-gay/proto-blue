@@ -37,7 +37,7 @@ pub struct OAuthSession {
 impl OAuthSession {
     /// Create a new session from a token set and `DPoP` key, using the
     /// crate's default native fetch handler (`reqwest`).
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn new(token_set: TokenSet, dpop_key: DpopKey, dpop_nonces: DpopNonceCache) -> Self {
         Self::with_fetch_handler(
@@ -52,7 +52,7 @@ impl OAuthSession {
     ///
     /// Back-compat constructor — wraps the client in a
     /// [`proto_blue_common::fetch::ReqwestFetcher`].
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[must_use]
     pub fn with_http_client(
         token_set: TokenSet,
@@ -286,7 +286,7 @@ mod tests {
         assert!(parse_http_method("FOO").is_err());
     }
 
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[test]
     fn session_token_management() {
         let ts = TokenSet {
@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(ts.access_token, "access-123");
     }
 
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[test]
     fn session_update_tokens() {
         let ts = TokenSet {
@@ -341,7 +341,7 @@ mod tests {
         assert!(session.token_set().refresh_token.is_some());
     }
 
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     #[test]
     fn session_expired_detection() {
         let ts = TokenSet {

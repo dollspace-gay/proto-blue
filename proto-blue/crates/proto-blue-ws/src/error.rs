@@ -50,7 +50,7 @@ impl DisconnectError {
 #[derive(Debug, thiserror::Error)]
 pub enum WsError {
     /// Tungstenite (native) transport error.
-    #[cfg(feature = "tungstenite")]
+    #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
     #[error("WebSocket error: {0}")]
     WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
 
@@ -76,7 +76,7 @@ pub enum WsError {
 /// Check if an error is likely a network error that we should reconnect for.
 pub const fn is_reconnectable(err: &WsError) -> bool {
     match err {
-        #[cfg(feature = "tungstenite")]
+        #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
         WsError::WebSocket(e) => {
             matches!(
                 e,

@@ -23,23 +23,32 @@ thiserror = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
 
-# Server-side reqwest access (the `with_client` constructor takes a
-# `reqwest::Client` directly). Optional, gated behind `fetch-reqwest`.
-reqwest = { workspace = true, optional = true }
-
 # Native runtime — the server and some tests need more tokio features
 # than the minimal set. Layered per-feature below.
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 
-# Optional native server.
+# `reqwest` and `axum` are native-only: both pull in tokio with
+# features (`net`, `rt-multi-thread`) that fail to compile on wasm.
+# Gating them behind `cfg(not(target_arch = "wasm32"))` means the
+# `fetch-reqwest` / `server` features can stay on by default without
+# breaking wasm consumers — cargo simply drops these deps on wasm.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+reqwest = { workspace = true, optional = true }
 axum = { workspace = true, optional = true }
 
 [features]
-# Default: full native stack (server + reqwest client), matching pre-refactor behaviour.
-default = ["server", "fetch-reqwest"]
+# Default: reqwest HTTP client only. The axum-based inbound `server`
+# is NOT in `default` because it pulls in `tokio/net` +
+# `tokio/rt-multi-thread`, which fail to compile on wasm32. Direct
+# callers who want the server opt in via `features = ["server"]`; the
+# umbrella `proto-blue` crate opts in on native via its own
+# target-conditional dep spec.
+default = ["fetch-reqwest"]
 
 # Axum-based inbound XRPC server (including subscription / WebSocket
-# streams). Native-only.
+# streams). Native-only — enabling on wasm fails to compile because
+# the required tokio features (`net`, `rt-multi-thread`) are not
+# supported on wasm.
 server = ["dep:axum", "axum/ws", "tokio/net", "tokio/io-util", "tokio/rt-multi-thread", "tokio/time"]
 
 # Enable the reqwest-backed `FetchHandler` (`ReqwestFetcher`) from

@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-04-19
+
+### Fixed
+- **wasm32 build**: default-feature chains through `proto-blue` and
+  its subcrates no longer leak native-only tokio features (`net`,
+  `rt-multi-thread`) into wasm builds. Offenders were
+  `proto-blue-common/fetch-reqwest` explicitly enabling
+  `tokio/rt-multi-thread`, and `reqwest`/`axum`/`tokio-tungstenite`/
+  `hickory-resolver` being unconditional deps. All four are now
+  target-gated behind `cfg(not(target_arch = "wasm32"))`; their
+  associated features compile as no-ops on wasm instead of failing.
+  Downstream consumers can now depend on the umbrella `proto-blue`
+  crate or any subcrate with default features on either target
+  without needing to override feature sets. (Reported via downstream
+  CI: "Only features sync,macros,io-util,rt,time are supported on
+  wasm.")
+- **`TokenSet::from_response` back-compat**: restored the original
+  two-arg signature `(issuer, response)` so existing callers
+  upgrading from 0.2.1 don't see a compile break. The new
+  audience-aware form is now `TokenSet::from_response_with_aud(issuer,
+  aud, response)`.
+
 ### Added
 - Server codegen: typed `register(server, handler) -> XrpcServer` helper
   emitted per query/procedure in `proto-blue-api` behind the new

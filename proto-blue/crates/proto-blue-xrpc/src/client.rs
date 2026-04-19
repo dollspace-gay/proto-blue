@@ -43,7 +43,14 @@ impl XrpcClient {
     /// fresh `reqwest::Client`. With only `fetch-web`, it uses
     /// [`web_fetch::WebFetcher`]. If neither feature is enabled, callers
     /// must construct the client via [`Self::with_fetch_handler`].
-    #[cfg(any(feature = "fetch-reqwest", feature = "fetch-web"))]
+    ///
+    /// The `fetch-reqwest` path is native-only — enabling
+    /// `fetch-reqwest` on wasm is a no-op (the dep is target-gated in
+    /// `Cargo.toml`), so on wasm this constructor requires `fetch-web`.
+    #[cfg(any(
+        all(feature = "fetch-reqwest", not(target_arch = "wasm32")),
+        all(feature = "fetch-web", target_arch = "wasm32"),
+    ))]
     pub fn new(service: impl AsRef<str>) -> Result<Self, Error> {
         Self::with_fetch_handler(service, Arc::new(default_fetcher()))
     }
@@ -71,7 +78,7 @@ impl XrpcClient {
     /// Create a new XRPC client that wraps a user-supplied `reqwest::Client`.
     ///
     /// Feature-gated behind `fetch-reqwest`.
-    #[cfg(feature = "fetch-reqwest")]
+    #[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
     pub fn with_client(service: impl AsRef<str>, client: reqwest::Client) -> Result<Self, Error> {
         Self::with_fetch_handler(
             service,
@@ -330,16 +337,16 @@ impl XrpcClient {
 ///
 /// Prefers `fetch-reqwest` when available. On wasm-only builds, falls back
 /// to `fetch-web`.
-#[cfg(feature = "fetch-reqwest")]
+#[cfg(all(feature = "fetch-reqwest", not(target_arch = "wasm32")))]
 fn default_fetcher() -> proto_blue_common::fetch::ReqwestFetcher {
     proto_blue_common::fetch::ReqwestFetcher::new()
 }
 
-#[cfg(all(
-    feature = "fetch-web",
-    not(feature = "fetch-reqwest"),
-    target_arch = "wasm32"
-))]
+// On wasm, `fetch-reqwest`'s reqwest dep is target-gated out, so even
+// when both features are on we need the web fetcher. This arm covers
+// that case too — the other `default_fetcher` arm is explicitly
+// restricted to non-wasm via its own cfg.
+#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
 fn default_fetcher() -> proto_blue_common::fetch::WebFetcher {
     proto_blue_common::fetch::WebFetcher::new()
 }
