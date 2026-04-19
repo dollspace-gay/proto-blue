@@ -37,10 +37,14 @@ proto-blue-common = { version = "0.2.1", path = "crates/proto-blue-common" }
 proto-blue-lexicon = { version = "0.2.1", path = "crates/proto-blue-lexicon" }
 proto-blue-repo = { version = "0.2.1", path = "crates/proto-blue-repo", default-features = false }
 proto-blue-xrpc = { version = "0.2.1", path = "crates/proto-blue-xrpc", default-features = false }
-proto-blue-ws = { version = "0.2.1", path = "crates/proto-blue-ws" }
-proto-blue-identity = { version = "0.2.1", path = "crates/proto-blue-identity" }
-proto-blue-api = { version = "0.2.1", path = "crates/proto-blue-api" }
-proto-blue-oauth = { version = "0.2.1", path = "crates/proto-blue-oauth" }
+# Network-layer subcrates: workspace deps default to features-off so the
+# target-conditional tables in `crates/proto-blue/Cargo.toml` can pick the
+# right backend per target. Standalone users of each subcrate still get
+# sensible defaults via `cargo add` (each crate's own `default` feature).
+proto-blue-ws = { version = "0.2.1", path = "crates/proto-blue-ws", default-features = false }
+proto-blue-identity = { version = "0.2.1", path = "crates/proto-blue-identity", default-features = false }
+proto-blue-api = { version = "0.2.1", path = "crates/proto-blue-api", default-features = false }
+proto-blue-oauth = { version = "0.2.1", path = "crates/proto-blue-oauth", default-features = false }
 
 # External dependencies
 serde = { version = "1", features = ["derive"] }

@@ -21,36 +21,52 @@ proto-blue-common = { workspace = true }
 proto-blue-lexicon = { workspace = true }
 proto-blue-repo = { workspace = true }
 
-# Network-dependent crates — gated behind cargo features.
-proto-blue-xrpc = { workspace = true, optional = true }
-proto-blue-ws = { workspace = true, optional = true }
-proto-blue-identity = { workspace = true, optional = true }
-proto-blue-api = { workspace = true, optional = true }
-proto-blue-oauth = { workspace = true, optional = true }
+# Network-dependent crates are listed under target-conditional sections
+# below so that each target automatically picks the appropriate backend
+# (reqwest / tungstenite / hickory on native, gloo-net on wasm) without
+# the user having to opt into different features per target.
+
+# ── Native backends ────────────────────────────────────────────────────
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+proto-blue-xrpc = { workspace = true, optional = true, features = ["server", "fetch-reqwest"] }
+proto-blue-ws = { workspace = true, optional = true, features = ["tungstenite"] }
+proto-blue-identity = { workspace = true, optional = true, features = ["dns", "fetch-reqwest"] }
+proto-blue-api = { workspace = true, optional = true, features = ["fetch-reqwest"] }
+proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-reqwest"] }
+
+# ── Wasm backends ──────────────────────────────────────────────────────
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+proto-blue-xrpc = { workspace = true, optional = true, features = ["fetch-web"] }
+proto-blue-ws = { workspace = true, optional = true, features = ["gloo-ws"] }
+proto-blue-identity = { workspace = true, optional = true, features = ["fetch-web"] }
+proto-blue-api = { workspace = true, optional = true, features = ["fetch-web"] }
+proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-web"] }
 
 [features]
-# Default to the full native SDK — existing users get the same API they
-# had before. Downstreams that need wasm-compatibility should set
-# `default-features = false` and opt into the pure subset.
+# Default to the full SDK — same API surface as before. On wasm32 the
+# target-conditional dependency table above automatically swaps in the
+# browser-native backends, so `full` builds cleanly on every target.
 default = ["full"]
 
-# Everything. Matches the pre-0.2.2 surface.
+# Everything. Pick the right backend per target (reqwest/tungstenite/dns
+# on native, gloo-net on wasm).
 full = ["net", "ws", "resolver", "oauth", "api"]
 
-# XRPC HTTP client / server (native reqwest transport + axum server).
-net = ["dep:proto-blue-xrpc", "proto-blue-xrpc/server", "proto-blue-xrpc/fetch-reqwest"]
+# XRPC HTTP client (native also includes the axum server).
+net = ["dep:proto-blue-xrpc"]
 
 # Live firehose WebSocket (`ws` and `repo::Firehose`).
 ws = ["dep:proto-blue-ws", "proto-blue-repo/firehose-client"]
 
-# DID / handle resolution (depends on HTTP; defaults to native reqwest + DNS).
+# DID / handle resolution. Native includes DNS handle resolution; on
+# wasm only the HTTPS `.well-known` path runs.
 resolver = ["dep:proto-blue-identity", "net"]
 
-# OAuth 2.0 client (defaults to native reqwest transport).
-oauth = ["dep:proto-blue-oauth", "proto-blue-oauth/fetch-reqwest"]
+# OAuth 2.0 client.
+oauth = ["dep:proto-blue-oauth", "resolver"]
 
-# High-level agent (defaults to native reqwest transport via xrpc).
-api = ["dep:proto-blue-api", "proto-blue-api/fetch-reqwest", "net"]
+# High-level agent.
+api = ["dep:proto-blue-api", "net"]
 
 [dev-dependencies]
 serde_json = { workspace = true }

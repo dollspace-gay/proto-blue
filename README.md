@@ -288,31 +288,45 @@ cargo build --workspace --release
 
 ## WASM support
 
-The pure-Rust subset of proto-blue compiles for `wasm32-unknown-unknown`.
-Depend on it with default features off and opt into only the protocol-level
-functionality you need:
+proto-blue compiles for `wasm32-unknown-unknown` out of the box — the
+top-level crate picks the right HTTP/WebSocket backend per target
+automatically (reqwest + tungstenite + hickory on native, `fetch()` +
+browser `WebSocket` via gloo-net on wasm).
 
 ```toml
 [dependencies]
+proto-blue = "0.2"
+```
+
+No additional configuration is needed: building for `wasm32-unknown-unknown`
+drops reqwest / hickory / tokio-tungstenite and swaps in the browser
+equivalents. A reduced-feature build works the same way:
+
+```toml
+[dependencies]
+# Pure subset only (no network) — smallest footprint.
 proto-blue = { version = "0.2", default-features = false }
 ```
 
 ### Feature matrix
 
-| Feature    | Re-exports                                                             | wasm32  |
-|------------|------------------------------------------------------------------------|---------|
+| Feature    | Re-exports                                                             | wasm32 |
+|------------|------------------------------------------------------------------------|--------|
 | *(none)*   | `syntax`, `crypto`, `lex_data`, `lex_cbor`, `lex_json`, `common`, `lexicon`, `repo` | ✅ |
-| `net`      | `xrpc` (browser fetch via `proto-blue-xrpc/fetch-web`)                  | ✅       |
-| `ws`       | `ws`, enables `repo::Firehose` (browser WebSocket via `proto-blue-ws/gloo-ws`) | ✅ |
-| `resolver` | `identity` (browser fetch via `proto-blue-identity/fetch-web`, no DNS)  | ✅       |
-| `oauth`    | `oauth` (browser fetch via `proto-blue-oauth/fetch-web`)                | ✅       |
-| `api`      | `api` (browser fetch via `proto-blue-api/fetch-web`)                   | ✅       |
-| `full`     | everything — **default**                                               | ❌       |
+| `net`      | `xrpc` — `fetch()` on wasm, reqwest on native                          | ✅ |
+| `ws`       | `ws` + `repo::Firehose` — browser `WebSocket` on wasm, tungstenite on native | ✅ |
+| `resolver` | `identity` — HTTPS `.well-known` only on wasm (no DNS), full DNS + HTTP on native | ✅ |
+| `oauth`    | `oauth` — browser fetch on wasm, reqwest on native                     | ✅ |
+| `api`      | `api` — browser fetch on wasm, reqwest on native                       | ✅ |
+| `full`     | everything — **default**                                               | ✅ |
 
-The pure subset is regression-gated in CI by `cargo check --target wasm32-unknown-unknown`.
-For the wasm-enabled network features, use the backend-specific feature on the
-subcrate — e.g. `proto-blue-xrpc = { default-features = false, features = ["fetch-web"] }`.
-Each crate defaults to its native backend (`reqwest`, `tungstenite`) on native targets.
+CI regression-gates `cargo check --target wasm32-unknown-unknown -p proto-blue`
+(full default features) plus per-crate wasm checks.
+
+Callers who want to wire up a custom backend (mock transport, custom TLS, etc.)
+can use the `with_fetch_handler` / `with_connector` constructors on `XrpcClient`,
+`DidResolver`, `HandleResolver`, `IdResolver`, `OAuthClient`, `OAuthSession`,
+and `WebSocketKeepAlive`.
 
 ## License
 

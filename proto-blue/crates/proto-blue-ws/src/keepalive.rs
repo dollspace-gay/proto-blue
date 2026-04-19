@@ -48,15 +48,26 @@ pub struct WebSocketKeepAlive {
 impl WebSocketKeepAlive {
     /// Create a new keep-alive client using the crate's default connector.
     ///
-    /// On native with `tungstenite` (default), this uses
-    /// [`crate::transport::TungsteniteConnector`]. Without that feature
-    /// callers must use [`Self::with_connector`].
+    /// Picks the right backend per target: `TungsteniteConnector` on
+    /// native (feature `tungstenite`), `GlooWsConnector` on
+    /// `wasm32-unknown-unknown` (feature `gloo-ws`). With neither feature
+    /// enabled, callers must use [`Self::with_connector`].
     #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
     pub fn new(url: impl Into<String>, opts: WebSocketKeepAliveOpts) -> Self {
         Self::with_connector(
             url,
             opts,
             Arc::new(crate::transport::TungsteniteConnector::new()),
+        )
+    }
+
+    /// Browser variant of [`Self::new`].
+    #[cfg(all(feature = "gloo-ws", target_arch = "wasm32"))]
+    pub fn new(url: impl Into<String>, opts: WebSocketKeepAliveOpts) -> Self {
+        Self::with_connector(
+            url,
+            opts,
+            Arc::new(crate::transport::GlooWsConnector::new()),
         )
     }
 

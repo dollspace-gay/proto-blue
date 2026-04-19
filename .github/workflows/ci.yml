@@ -74,6 +74,10 @@ jobs:
       # `fetch-web` feature (gloo-net).
       - name: Check proto-blue-xrpc (fetch-web)
         run: cargo check --target wasm32-unknown-unknown -p proto-blue-xrpc --no-default-features --features fetch-web
+      # The top-level proto-blue with the full feature set compiles for
+      # wasm32: target-conditional deps pick gloo-net/gloo-ws automatically.
+      - name: Check proto-blue (default features, wasm32)
+        run: cargo check --target wasm32-unknown-unknown -p proto-blue
       # Identity resolution — DNS is native-only, so wasm uses the HTTPS
       # .well-known fallback via the same fetch-web backend.
       - name: Check proto-blue-identity (fetch-web, no DNS)
