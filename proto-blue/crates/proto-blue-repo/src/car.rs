@@ -90,13 +90,20 @@ pub fn read_car(data: &[u8]) -> Result<(Vec<Cid>, BlockMap), RepoError> {
 pub fn read_car_opts(data: &[u8], opts: ReadCarOpts) -> Result<(Vec<Cid>, BlockMap), RepoError> {
     let mut pos = 0;
 
-    // Read header
+    // Read header. `checked_add` guards against adversarial lengths
+    // that would overflow `usize` — the plain `pos + header_len`
+    // would panic in debug builds and wrap silently in release. The
+    // bound must also not exceed `data.len()` (the "header extends
+    // beyond data" case).
     let header_len = read_varint(data, &mut pos)? as usize;
-    if pos + header_len > data.len() {
+    let header_end = pos
+        .checked_add(header_len)
+        .ok_or_else(|| RepoError::Car("Header length overflows usize".into()))?;
+    if header_end > data.len() {
         return Err(RepoError::Car("Header extends beyond data".into()));
     }
-    let header_bytes = &data[pos..pos + header_len];
-    pos += header_len;
+    let header_bytes = &data[pos..header_end];
+    pos = header_end;
 
     let header_value = proto_blue_lex_cbor::decode(header_bytes)?;
     let header_map = header_value
@@ -120,12 +127,15 @@ pub fn read_car_opts(data: &[u8], opts: ReadCarOpts) -> Result<(Vec<Cid>, BlockM
     let mut blocks = BlockMap::new();
     while pos < data.len() {
         let block_len = read_varint(data, &mut pos)? as usize;
-        if pos + block_len > data.len() {
+        let block_end = pos
+            .checked_add(block_len)
+            .ok_or_else(|| RepoError::Car("Block length overflows usize".into()))?;
+        if block_end > data.len() {
             return Err(RepoError::Car("Block extends beyond data".into()));
         }
 
-        let block_data = &data[pos..pos + block_len];
-        pos += block_len;
+        let block_data = &data[pos..block_end];
+        pos = block_end;
 
         // Parse CID from the front of block_data
         let (cid, cid_len) = parse_cid_from_bytes(block_data)?;
@@ -208,10 +218,13 @@ fn parse_cid_from_bytes(data: &[u8]) -> Result<(Cid, usize), RepoError> {
     // Multihash: hash function varint + digest size varint + digest bytes
     let _hash_fn = read_varint_from_slice(data, &mut pos)?;
     let digest_size = read_varint_from_slice(data, &mut pos)? as usize;
-    if pos + digest_size > data.len() {
+    let digest_end = pos
+        .checked_add(digest_size)
+        .ok_or_else(|| RepoError::Car("CID digest length overflows usize".into()))?;
+    if digest_end > data.len() {
         return Err(RepoError::Car("CID digest extends beyond data".into()));
     }
-    pos += digest_size;
+    pos = digest_end;
 
     let cid =
         Cid::from_bytes(&data[..pos]).map_err(|e| RepoError::Car(format!("Invalid CID: {e}")))?;
@@ -400,5 +413,31 @@ mod tests {
 
         assert_eq!(roots.len(), 1);
         assert_eq!(decoded.len(), 10);
+    }
+
+    /// Regression for the fuzz-found integer overflow on adversarial
+    /// header lengths. The original bounds check was `pos + header_len
+    /// > data.len()`, which panics in debug when `pos + header_len`
+    /// overflows `usize`. Replaced with `checked_add`; this input is
+    /// the shrunk libFuzzer reproducer that hit the panic.
+    #[test]
+    fn car_rejects_overflowing_header_length() {
+        // A single varint encoding `usize::MAX` followed by no bytes.
+        // The 10-byte continuation varint `0xFF,0xFF,...,0x01` decodes
+        // to 2^63 on 64-bit (first bit of the tenth byte). Any value
+        // large enough that `pos + header_len` overflows is sufficient
+        // — we just want to exercise the checked_add arm.
+        let adversarial: Vec<u8> = vec![0xff; 10]
+            .into_iter()
+            .chain(std::iter::once(0x01))
+            .collect();
+        let err = read_car(&adversarial).unwrap_err();
+        // Acceptable outcomes: any RepoError (varint overflow, usize
+        // overflow in the bounds check, or "extends beyond data").
+        // The important property is: no panic.
+        assert!(
+            matches!(err, RepoError::Car(_)),
+            "expected a Car error, got {err:?}"
+        );
     }
 }

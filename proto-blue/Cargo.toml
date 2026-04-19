@@ -17,6 +17,9 @@ members = [
     "crates/proto-blue",
     "examples",
 ]
+# `fuzz/` has its own separate workspace so `cargo-fuzz`'s custom
+# rustc flags don't poison the main workspace build.
+exclude = ["fuzz"]
 resolver = "2"
 
 [workspace.package]

@@ -1,0 +1,72 @@
+name: Fuzz
+
+# Time-bounded libFuzzer sweep across every target. Rare enough to find
+# crashes on a given PR that we keep it non-blocking; the real signal
+# is continuous-mode nightly runs over a growing shared corpus.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'proto-blue/crates/proto-blue-lex-cbor/**'
+      - 'proto-blue/crates/proto-blue-lex-json/**'
+      - 'proto-blue/crates/proto-blue-repo/**'
+      - 'proto-blue/crates/proto-blue-syntax/**'
+      - 'proto-blue/fuzz/**'
+  schedule:
+    # Nightly deeper sweep (30min total across 9 targets = ~3min/target).
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: proto-blue/fuzz
+
+jobs:
+  fuzz:
+    name: Fuzz ${{ matrix.target }}
+    # Non-blocking: findings are triaged rather than failing the PR.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - lex_cbor_decode
+          - lex_cbor_canonical
+          - lex_json_strict
+          - car_parse
+          - at_uri_parse
+          - handle_parse
+          - nsid_parse
+          - did_parse
+          - tid_parse
+    steps:
+      - uses: actions/checkout@v4
+      # libFuzzer harnesses require nightly sanitizer support.
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue/fuzz
+          key: fuzz-${{ matrix.target }}
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz --locked
+      # Short on PRs, longer on scheduled runs.
+      - name: Fuzz (PR: 60s, scheduled: 180s)
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            BUDGET=180
+          else
+            BUDGET=60
+          fi
+          cargo +nightly fuzz run ${{ matrix.target }} -- \
+            -max_total_time=$BUDGET -max_len=8192
+      - name: Upload reproducers on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes-${{ matrix.target }}
+          path: proto-blue/fuzz/artifacts/${{ matrix.target }}/
+          if-no-files-found: ignore

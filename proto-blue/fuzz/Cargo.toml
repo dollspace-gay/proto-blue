@@ -1,0 +1,90 @@
+[package]
+name = "proto-blue-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+proto-blue-lex-cbor = { path = "../crates/proto-blue-lex-cbor" }
+proto-blue-lex-json = { path = "../crates/proto-blue-lex-json" }
+proto-blue-lex-data = { path = "../crates/proto-blue-lex-data" }
+proto-blue-syntax   = { path = "../crates/proto-blue-syntax" }
+proto-blue-repo     = { path = "../crates/proto-blue-repo", default-features = false }
+
+# Fuzz targets run outside the workspace; exclude to avoid picking up
+# workspace lint levels or dev-deps we don't want in a fuzz profile.
+[workspace]
+members = ["."]
+
+# libFuzzer runs the harness tight-loop; a release profile with overflow
+# checks off and debug info on mirrors cargo-fuzz's own default.
+[profile.release]
+debug = 1
+
+# Harnesses. Each `name` matches a file under `fuzz_targets/`.
+[[bin]]
+name = "lex_cbor_decode"
+path = "fuzz_targets/lex_cbor_decode.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lex_cbor_canonical"
+path = "fuzz_targets/lex_cbor_canonical.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lex_json_strict"
+path = "fuzz_targets/lex_json_strict.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "car_parse"
+path = "fuzz_targets/car_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "at_uri_parse"
+path = "fuzz_targets/at_uri_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "handle_parse"
+path = "fuzz_targets/handle_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "nsid_parse"
+path = "fuzz_targets/nsid_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "did_parse"
+path = "fuzz_targets/did_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tid_parse"
+path = "fuzz_targets/tid_parse.rs"
+test = false
+doc = false
+bench = false

@@ -1,0 +1,7 @@
+# libFuzzer generates these at runtime; they shouldn't land in the
+# repo. The `corpus/` seed inputs are checked in on purpose (if any),
+# but crash reproducers and target build outputs are ephemeral.
+target/
+corpus/
+artifacts/
+Cargo.lock
