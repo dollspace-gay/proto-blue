@@ -37,5 +37,8 @@
 mod conversion;
 mod error;
 
-pub use conversion::{json_to_lex, lex_parse, lex_stringify, lex_to_json};
+pub use conversion::{
+    LexParseOptions, json_to_lex, json_to_lex_with, lex_parse, lex_parse_json_bytes,
+    lex_parse_json_bytes_with, lex_parse_with, lex_stringify, lex_to_json,
+};
 pub use error::JsonError;

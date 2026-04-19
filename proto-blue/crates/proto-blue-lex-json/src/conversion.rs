@@ -4,6 +4,19 @@
 //! - CIDs are encoded as `{"$link": "bafy..."}`
 //! - Byte arrays are encoded as `{"$bytes": "<base64>"}`
 //! - Blob refs are `{"$type": "blob", "ref": {"$link": "..."}, "mimeType": "...", "size": N}`
+//!
+//! Parsing has two modes controlled by [`LexParseOptions`]:
+//!
+//! - **Lenient (default)** — malformed `$link`/`$bytes`/unsafe-integer
+//!   values silently fall back to plain maps / strings / truncated
+//!   integers. Matches pre-0.2.2 behaviour and TS default.
+//! - **Strict** — each malformed case returns the matching
+//!   [`JsonError`] variant. Mirrors TS `LexParseOptions { strict: true }`.
+//!
+//! Safe-integer bound: the AT Data Model allows i64 on the wire, but
+//! JS safe integers top out at `2^53 - 1`. Strict mode enforces the
+//! tighter JS bound so that Rust-to-TS round-trips never silently
+//! corrupt large values.
 
 use std::collections::BTreeMap;
 
@@ -21,71 +34,258 @@ const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::GeneralPur
         .with_decode_padding_mode(base64::engine::DecodePaddingMode::Indifferent),
 );
 
+/// Upper bound on `$link` string length (matches TS implementation). A
+/// CID string longer than this is treated as malformed even before
+/// attempting to parse it — protects against adversarial input.
+const MAX_LINK_LEN: usize = 2048;
+
+/// Largest JS-safe integer, `2^53 - 1`. Strict mode rejects integers
+/// outside `[-MAX, MAX]` so that round-trips through a TypeScript
+/// consumer don't silently corrupt.
+const JS_SAFE_INTEGER_MAX: i64 = (1i64 << 53) - 1;
+
+/// Options for parsing JSON into a `LexValue`.
+///
+/// The default is lenient; set `strict: true` to mirror TS
+/// `LexParseOptions { strict: true }` behaviour.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct LexParseOptions {
+    /// When `true`, return [`JsonError`] for malformed `$link`,
+    /// `$bytes`, non-safe-integer numbers, malformed blob refs, and
+    /// `__proto__` keys. When `false` (default), fall back to a plain
+    /// map / string / truncated integer.
+    pub strict: bool,
+}
+
+impl LexParseOptions {
+    /// Strict mode — rejects every TS-strict violation.
+    pub fn strict() -> Self {
+        LexParseOptions { strict: true }
+    }
+}
+
 /// Serialize a LexValue to a JSON string.
 pub fn lex_stringify(value: &LexValue) -> String {
     let json = lex_to_json(value);
     serde_json::to_string(&json).expect("LexValue should always serialize to valid JSON")
 }
 
-/// Parse a JSON string to a LexValue.
+/// Parse a JSON string to a LexValue (lenient).
 pub fn lex_parse(input: &str) -> Result<LexValue, JsonError> {
-    let json: JsonValue = serde_json::from_str(input)?;
-    Ok(json_to_lex(&json))
+    lex_parse_with(input, LexParseOptions::default())
 }
 
-/// Convert a JSON value to a LexValue.
+/// Parse a JSON string to a LexValue with caller-supplied options.
+pub fn lex_parse_with(input: &str, opts: LexParseOptions) -> Result<LexValue, JsonError> {
+    let json: JsonValue = serde_json::from_str(input)?;
+    json_to_lex_with(&json, opts)
+}
+
+/// Parse a UTF-8 byte slice containing JSON into a LexValue (lenient).
+///
+/// Mirrors TS `lexParseJsonBytes`.
+pub fn lex_parse_json_bytes(bytes: &[u8]) -> Result<LexValue, JsonError> {
+    lex_parse_json_bytes_with(bytes, LexParseOptions::default())
+}
+
+/// Parse a UTF-8 byte slice containing JSON into a LexValue with
+/// caller-supplied options.
+pub fn lex_parse_json_bytes_with(
+    bytes: &[u8],
+    opts: LexParseOptions,
+) -> Result<LexValue, JsonError> {
+    let json: JsonValue = serde_json::from_slice(bytes)?;
+    json_to_lex_with(&json, opts)
+}
+
+/// Convert a JSON value to a LexValue (lenient — never fails).
 ///
 /// Recognizes special object patterns:
 /// - `{"$link": "..."}` (exactly one key) → `LexValue::Cid`
 /// - `{"$bytes": "..."}` (exactly one key) → `LexValue::Bytes`
 /// - Objects with `$type`, `$link`, or `$bytes` alongside other keys are kept as maps
 pub fn json_to_lex(json: &JsonValue) -> LexValue {
-    match json {
-        JsonValue::Null => LexValue::Null,
-        JsonValue::Bool(b) => LexValue::Bool(*b),
-        JsonValue::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                LexValue::Integer(i)
-            } else if let Some(f) = n.as_f64() {
-                // Try to convert float to integer if it's exact
-                if f.fract() == 0.0 && f >= i64::MIN as f64 && f <= i64::MAX as f64 {
-                    LexValue::Integer(f as i64)
-                } else {
-                    // AT Data Model doesn't support floats, but we preserve as integer
-                    // truncation for compatibility
-                    LexValue::Integer(f as i64)
-                }
-            } else {
-                LexValue::Null
-            }
-        }
-        JsonValue::String(s) => LexValue::String(s.clone()),
-        JsonValue::Array(arr) => LexValue::Array(arr.iter().map(json_to_lex).collect()),
-        JsonValue::Object(obj) => {
-            // Check for $link (CID) — must have exactly one key
-            if obj.len() == 1 {
-                if let Some(JsonValue::String(link)) = obj.get("$link") {
-                    if let Ok(cid) = link.parse::<Cid>() {
-                        return LexValue::Cid(cid);
-                    }
-                }
-                if let Some(JsonValue::String(b64)) = obj.get("$bytes") {
-                    if let Ok(bytes) = BASE64_ENGINE.decode(b64) {
-                        return LexValue::Bytes(bytes);
-                    }
-                }
-            }
+    // Lenient mode never errors — this unwrap is infallible by
+    // construction (every `strict`-gated error path returns a plain
+    // value instead in lenient mode).
+    json_to_lex_with(json, LexParseOptions::default())
+        .expect("json_to_lex in lenient mode is infallible")
+}
 
-            // Regular object — convert recursively
-            let mut map = BTreeMap::new();
-            for (key, value) in obj {
-                if key == "__proto__" {
-                    continue; // Prevent prototype pollution
-                }
-                map.insert(key.clone(), json_to_lex(value));
-            }
-            LexValue::Map(map)
+/// Convert a JSON value to a LexValue with caller-supplied options.
+///
+/// In strict mode, returns [`JsonError`] for every TS-strict
+/// violation; in lenient mode, falls back to plain maps / strings /
+/// truncated integers (matching pre-0.2.2 behaviour).
+pub fn json_to_lex_with(json: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
+    match json {
+        JsonValue::Null => Ok(LexValue::Null),
+        JsonValue::Bool(b) => Ok(LexValue::Bool(*b)),
+        JsonValue::Number(n) => convert_number(n, opts),
+        JsonValue::String(s) => Ok(LexValue::String(s.clone())),
+        JsonValue::Array(arr) => {
+            let items: Result<Vec<_>, _> =
+                arr.iter().map(|v| json_to_lex_with(v, opts)).collect();
+            Ok(LexValue::Array(items?))
         }
+        JsonValue::Object(obj) => convert_object(obj, opts),
+    }
+}
+
+/// Convert a JSON number honoring the strict safe-integer bound.
+fn convert_number(n: &serde_json::Number, opts: LexParseOptions) -> Result<LexValue, JsonError> {
+    if let Some(i) = n.as_i64() {
+        if opts.strict && !(-JS_SAFE_INTEGER_MAX..=JS_SAFE_INTEGER_MAX).contains(&i) {
+            return Err(JsonError::UnsafeInteger(n.to_string()));
+        }
+        return Ok(LexValue::Integer(i));
+    }
+    if let Some(f) = n.as_f64() {
+        // Non-integer floats are data-model violations. In strict mode
+        // we return an error; in lenient mode we truncate for back-
+        // compat with pre-0.2.2 behaviour (which also truncated).
+        if f.is_nan() || f.is_infinite() {
+            return Err(JsonError::UnsafeInteger(n.to_string()));
+        }
+        if f.fract() != 0.0 {
+            if opts.strict {
+                return Err(JsonError::UnsafeInteger(n.to_string()));
+            }
+            return Ok(LexValue::Integer(f as i64));
+        }
+        // Whole-valued float. Still check range.
+        if f < i64::MIN as f64 || f > i64::MAX as f64 {
+            return Err(JsonError::UnsafeInteger(n.to_string()));
+        }
+        let as_i = f as i64;
+        if opts.strict && !(-JS_SAFE_INTEGER_MAX..=JS_SAFE_INTEGER_MAX).contains(&as_i) {
+            return Err(JsonError::UnsafeInteger(n.to_string()));
+        }
+        return Ok(LexValue::Integer(as_i));
+    }
+    // u64 outside i64 range — serde_json accepts these.
+    Err(JsonError::UnsafeInteger(n.to_string()))
+}
+
+/// Convert a JSON object, handling `$link` / `$bytes` single-key
+/// wrappers and honouring the strict mode for malformed variants.
+fn convert_object(
+    obj: &serde_json::Map<String, JsonValue>,
+    opts: LexParseOptions,
+) -> Result<LexValue, JsonError> {
+    // Single-key `$link` → CID
+    if obj.len() == 1 {
+        if let Some(link_val) = obj.get("$link") {
+            return convert_link(link_val, opts);
+        }
+        if let Some(bytes_val) = obj.get("$bytes") {
+            return convert_bytes(bytes_val, opts);
+        }
+    }
+
+    // Regular object — convert recursively.
+    let mut map = BTreeMap::new();
+    for (key, value) in obj {
+        if key == "__proto__" {
+            if opts.strict {
+                return Err(JsonError::ProtoPollution);
+            }
+            continue; // lenient: prevent prototype pollution silently
+        }
+        map.insert(key.clone(), json_to_lex_with(value, opts)?);
+    }
+    Ok(LexValue::Map(map))
+}
+
+/// Interpret a single-key `{"$link": x}` object.
+fn convert_link(link_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
+    // $link MUST be a string.
+    let s = match link_val {
+        JsonValue::String(s) => s,
+        _ => {
+            if opts.strict {
+                return Err(JsonError::InvalidLink(format!(
+                    "expected string, got {}",
+                    json_shape(link_val),
+                )));
+            }
+            // Lenient fallback: emit as plain map.
+            return Ok(LexValue::Map(make_single_key_map("$link", link_val)));
+        }
+    };
+
+    if s.len() > MAX_LINK_LEN {
+        if opts.strict {
+            return Err(JsonError::InvalidLink(format!(
+                "length {} exceeds max {MAX_LINK_LEN}",
+                s.len(),
+            )));
+        }
+        return Ok(LexValue::Map(make_single_key_map(
+            "$link",
+            &JsonValue::String(s.clone()),
+        )));
+    }
+
+    match s.parse::<Cid>() {
+        Ok(cid) => Ok(LexValue::Cid(cid)),
+        Err(e) => {
+            if opts.strict {
+                return Err(JsonError::InvalidCid(e.to_string()));
+            }
+            Ok(LexValue::Map(make_single_key_map(
+                "$link",
+                &JsonValue::String(s.clone()),
+            )))
+        }
+    }
+}
+
+/// Interpret a single-key `{"$bytes": x}` object.
+fn convert_bytes(bytes_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
+    let s = match bytes_val {
+        JsonValue::String(s) => s,
+        _ => {
+            if opts.strict {
+                return Err(JsonError::InvalidBytes(format!(
+                    "expected string, got {}",
+                    json_shape(bytes_val),
+                )));
+            }
+            return Ok(LexValue::Map(make_single_key_map("$bytes", bytes_val)));
+        }
+    };
+
+    match BASE64_ENGINE.decode(s) {
+        Ok(bytes) => Ok(LexValue::Bytes(bytes)),
+        Err(e) => {
+            if opts.strict {
+                return Err(JsonError::InvalidBytes(e.to_string()));
+            }
+            Ok(LexValue::Map(make_single_key_map(
+                "$bytes",
+                &JsonValue::String(s.clone()),
+            )))
+        }
+    }
+}
+
+/// One-key map helper for lenient-mode fallbacks.
+fn make_single_key_map(key: &str, value: &JsonValue) -> BTreeMap<String, LexValue> {
+    let mut map = BTreeMap::new();
+    map.insert(key.to_string(), json_to_lex(value));
+    map
+}
+
+/// Human-readable shape for error messages.
+fn json_shape(v: &JsonValue) -> &'static str {
+    match v {
+        JsonValue::Null => "null",
+        JsonValue::Bool(_) => "boolean",
+        JsonValue::Number(_) => "number",
+        JsonValue::String(_) => "string",
+        JsonValue::Array(_) => "array",
+        JsonValue::Object(_) => "object",
     }
 }
 
@@ -192,7 +392,6 @@ mod tests {
             JsonValue::Object(obj) => {
                 assert_eq!(obj.len(), 1);
                 assert!(obj.contains_key("$bytes"));
-                // Verify base64 encoding (no padding)
                 let b64 = obj["$bytes"].as_str().unwrap();
                 assert!(!b64.contains('='), "Should not have padding");
                 let decoded_bytes = BASE64_ENGINE.decode(b64).unwrap();
@@ -201,14 +400,12 @@ mod tests {
             _ => panic!("Bytes should encode as object"),
         }
 
-        // Roundtrip
         let decoded = json_to_lex(&json);
         assert_eq!(decoded, lex);
     }
 
     #[test]
     fn link_with_extra_keys_stays_as_map() {
-        // {"$link": "bafy...", "another": "bad value"} should NOT be parsed as CID
         let json_str = r#"{"$link": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a", "another": "bad value"}"#;
         let json: JsonValue = serde_json::from_str(json_str).unwrap();
         let lex = json_to_lex(&json);
@@ -273,7 +470,6 @@ mod tests {
 
     #[test]
     fn blob_ref_preserved_as_map() {
-        // Blob refs have $type, ref, mimeType, size — not a special single-key pattern
         let json_str = r#"{"$type": "blob", "ref": {"$link": "bafkreiccldh766hwcnuxnf2wh6jgzepf2nlu2lvcllt63eww5p6chi4ity"}, "mimeType": "image/jpeg", "size": 10000}"#;
         let json: JsonValue = serde_json::from_str(json_str).unwrap();
         let lex = json_to_lex(&json);
@@ -281,7 +477,6 @@ mod tests {
         match &lex {
             LexValue::Map(map) => {
                 assert_eq!(map.get("$type").unwrap().as_str(), Some("blob"));
-                // The ref field should be a CID (parsed from the $link pattern)
                 assert!(map.get("ref").unwrap().as_cid().is_some());
                 assert_eq!(map.get("mimeType").unwrap().as_str(), Some("image/jpeg"));
                 assert_eq!(map.get("size").unwrap().as_integer(), Some(10000));
@@ -305,7 +500,6 @@ mod tests {
 
     #[test]
     fn ipld_test_vector_roundtrip() {
-        // From the TS test suite "ipld" vector
         let json_str = r#"{"a":{"$link":"bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"},"b":{"$bytes":"nFERjvLLiw9qm45JrqH9QTzyC2Lu1Xb4ne6+sBrCzI0"},"c":{"$type":"blob","ref":{"$link":"bafkreiccldh766hwcnuxnf2wh6jgzepf2nlu2lvcllt63eww5p6chi4ity"},"mimeType":"image/jpeg","size":10000}}"#;
 
         let lex = lex_parse(json_str).unwrap();
@@ -313,7 +507,6 @@ mod tests {
         let lex2 = lex_parse(&back).unwrap();
         assert_eq!(lex, lex2);
 
-        // Verify specific types
         let map = lex.as_map().unwrap();
         assert!(map["a"].as_cid().is_some(), "a should be a CID");
         assert!(map["b"].as_bytes().is_some(), "b should be bytes");
@@ -322,10 +515,113 @@ mod tests {
 
     #[test]
     fn poorly_formatted_not_parsed_as_special() {
-        // CID string values (not in $link wrapper) stay as strings
         let json_str = r#"{"a": "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"}"#;
         let lex = lex_parse(json_str).unwrap();
         let map = lex.as_map().unwrap();
         assert!(map["a"].as_str().is_some(), "Should be a string, not a CID");
+    }
+
+    // ── Strict-mode rejection tests ────────────────────────────────────
+
+    #[test]
+    fn strict_rejects_non_safe_integer() {
+        let input = format!(r#"{}"#, i64::MAX);
+        let err =
+            lex_parse_with(&input, LexParseOptions::strict()).unwrap_err();
+        assert!(matches!(err, JsonError::UnsafeInteger(_)));
+
+        // Lenient still accepts.
+        let v = lex_parse(&input).unwrap();
+        assert!(matches!(v, LexValue::Integer(_)));
+    }
+
+    #[test]
+    fn strict_rejects_non_integer_float() {
+        let input = "1.5";
+        let err =
+            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        assert!(matches!(err, JsonError::UnsafeInteger(_)));
+
+        let v = lex_parse(input).unwrap();
+        assert_eq!(v, LexValue::Integer(1));
+    }
+
+    #[test]
+    fn strict_rejects_malformed_link() {
+        let input = r#"{"$link":"not-a-valid-cid"}"#;
+        let err =
+            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        assert!(matches!(err, JsonError::InvalidCid(_)));
+
+        // Lenient keeps as map.
+        let v = lex_parse(input).unwrap();
+        assert!(matches!(v, LexValue::Map(_)));
+    }
+
+    #[test]
+    fn strict_rejects_link_exceeding_cap() {
+        let long = "z".repeat(MAX_LINK_LEN + 1);
+        let input = format!(r#"{{"$link":"{long}"}}"#);
+        let err =
+            lex_parse_with(&input, LexParseOptions::strict()).unwrap_err();
+        assert!(
+            matches!(&err, JsonError::InvalidLink(msg) if msg.contains("exceeds max")),
+            "unexpected: {err:?}",
+        );
+    }
+
+    #[test]
+    fn strict_rejects_non_string_link() {
+        let input = r#"{"$link":42}"#;
+        let err =
+            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        assert!(matches!(err, JsonError::InvalidLink(_)));
+    }
+
+    #[test]
+    fn strict_rejects_malformed_bytes() {
+        let input = r#"{"$bytes":"!!!not valid base64!!!"}"#;
+        let err =
+            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        assert!(matches!(err, JsonError::InvalidBytes(_)));
+
+        // Lenient keeps as map.
+        let v = lex_parse(input).unwrap();
+        assert!(matches!(v, LexValue::Map(_)));
+    }
+
+    #[test]
+    fn strict_rejects_proto_pollution() {
+        let input = r#"{"__proto__":{"polluted":true}}"#;
+        let err =
+            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        assert!(matches!(err, JsonError::ProtoPollution));
+
+        // Lenient drops the key silently.
+        let v = lex_parse(input).unwrap();
+        let map = v.as_map().unwrap();
+        assert!(!map.contains_key("__proto__"));
+    }
+
+    #[test]
+    fn strict_accepts_canonical_input() {
+        let cid = Cid::for_cbor(b"test");
+        let mut m = BTreeMap::new();
+        m.insert("cid".to_string(), LexValue::Cid(cid));
+        m.insert("n".to_string(), LexValue::Integer(42));
+        m.insert("b".to_string(), LexValue::Bytes(vec![1, 2, 3]));
+        let val = LexValue::Map(m);
+
+        let input = lex_stringify(&val);
+        let parsed = lex_parse_with(&input, LexParseOptions::strict()).unwrap();
+        assert_eq!(parsed, val);
+    }
+
+    #[test]
+    fn lex_parse_json_bytes_entry_point() {
+        let bytes = br#"{"x":1}"#;
+        let v = lex_parse_json_bytes(bytes).unwrap();
+        let map = v.as_map().unwrap();
+        assert_eq!(map["x"], LexValue::Integer(1));
     }
 }
