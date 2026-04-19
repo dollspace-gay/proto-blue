@@ -36,6 +36,7 @@ mod error;
 mod k256_impl;
 mod keypair;
 mod p256_impl;
+mod random;
 mod sha;
 
 pub use did_key::{
@@ -46,4 +47,5 @@ pub use error::CryptoError;
 pub use k256_impl::{K256Keypair, compress_pubkey as k256_compress_pubkey};
 pub use keypair::{ExportableKeypair, Keypair, SealedKeypair, Signer, Verifier};
 pub use p256_impl::{P256Keypair, compress_pubkey as p256_compress_pubkey};
-pub use sha::sha256;
+pub use random::{StrEncoding, random_bytes, random_int_from_seed, random_str};
+pub use sha::{sha256, sha256_hex};

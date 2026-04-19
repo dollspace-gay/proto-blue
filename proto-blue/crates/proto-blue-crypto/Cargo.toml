@@ -16,13 +16,14 @@ k256 = { workspace = true }
 sha2 = { workspace = true }
 bs58 = { workspace = true }
 rand = { workspace = true }
+rand_chacha = "0.3"
+base64 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
 proptest = { workspace = true }
-base64 = { workspace = true }
 
 # Browser entropy — k256/p256/rand transitively depend on getrandom, which
 # refuses to compile for wasm32-unknown-unknown without an explicit backend.
