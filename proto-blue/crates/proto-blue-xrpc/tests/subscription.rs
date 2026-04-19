@@ -193,6 +193,43 @@ async fn subscription_client_disconnect_ends_pump() {
 }
 
 #[tokio::test]
+async fn body_limit_rejects_oversized_procedure_bodies() {
+    use reqwest::Client;
+
+    // 256-byte body limit; handler should never run for oversized
+    // input because axum rejects upstream.
+    let server = XrpcServer::new()
+        .procedure(
+            "com.example.upload",
+            |_ctx| async { Ok::<_, XrpcServerError>(serde_json::json!({"ok": true})) },
+        )
+        .with_body_limit(256);
+
+    let (_, http_url) = spawn_server(server.into_router()).await;
+
+    // 4 KB body → 413 Payload Too Large.
+    let big = vec![b'x'; 4096];
+    let resp = Client::new()
+        .post(format!("{http_url}/xrpc/com.example.upload"))
+        .header("content-type", "application/octet-stream")
+        .body(big)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 413);
+
+    // Tiny body → 200 OK.
+    let resp = Client::new()
+        .post(format!("{http_url}/xrpc/com.example.upload"))
+        .header("content-type", "application/json")
+        .body(b"{}".to_vec())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), 200);
+}
+
+#[tokio::test]
 async fn subscription_get_without_upgrade_header_returns_invalid_request() {
     use reqwest::Client;
 

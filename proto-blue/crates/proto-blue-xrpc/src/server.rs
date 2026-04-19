@@ -222,6 +222,10 @@ pub struct XrpcServer {
     auth: Option<Arc<dyn AuthVerifier>>,
     rate_limiter: Option<Arc<dyn RateLimiter>>,
     global_rate_limit_key: Option<String>,
+    /// Maximum request body size in bytes. `None` = axum's default
+    /// (currently 2 MiB). Applied to all non-subscription routes via
+    /// `axum::extract::DefaultBodyLimit`.
+    body_limit: Option<usize>,
 }
 
 impl Default for XrpcServer {
@@ -237,7 +241,32 @@ impl XrpcServer {
             auth: None,
             rate_limiter: None,
             global_rate_limit_key: None,
+            body_limit: None,
         }
+    }
+
+    /// Configure the maximum request body size for procedure calls.
+    ///
+    /// Oversized bodies are rejected with a 413 Payload Too Large
+    /// response before any handler runs — protects against memory
+    /// exhaustion from pathological uploads / JSON / blobs. Applied
+    /// via `axum::extract::DefaultBodyLimit::max(bytes)`.
+    ///
+    /// Default (when unset) is axum's 2 MiB limit. Pass
+    /// `usize::MAX` via [`with_disabled_body_limit`](Self::with_disabled_body_limit)
+    /// if you genuinely want no limit.
+    pub fn with_body_limit(mut self, bytes: usize) -> Self {
+        self.body_limit = Some(bytes);
+        self
+    }
+
+    /// Remove the body-size limit entirely. Only sensible for
+    /// trusted deployments behind an ingress that enforces its own
+    /// limits. Equivalent to
+    /// `axum::extract::DefaultBodyLimit::disable()`.
+    pub fn with_disabled_body_limit(mut self) -> Self {
+        self.body_limit = Some(usize::MAX);
+        self
     }
 
     /// Register a GET handler at `/xrpc/<nsid>`.
@@ -371,7 +400,8 @@ impl XrpcServer {
             global_rate_limit_key: self.global_rate_limit_key,
         });
 
-        Router::new()
+        let body_limit = self.body_limit;
+        let mut router = Router::new()
             // axum ≥ 0.8 uses `{name}` for path capture groups (the
             // older `:name` syntax now panics).
             //
@@ -383,7 +413,17 @@ impl XrpcServer {
                 "/xrpc/{nsid}",
                 get(handle_get).post(handle_procedure),
             )
-            .with_state(state)
+            .with_state(state);
+
+        // Apply the body-size policy. DefaultBodyLimit::max(usize::MAX)
+        // is effectively "no limit" so we don't need to branch on the
+        // `with_disabled_body_limit` path specially.
+        if let Some(limit) = body_limit {
+            use axum::extract::DefaultBodyLimit;
+            router = router.layer(DefaultBodyLimit::max(limit));
+        }
+
+        router
     }
 }
 
