@@ -16,7 +16,7 @@ proto-blue-crypto = { workspace = true }
 proto-blue-lexicon = { workspace = true }
 proto-blue-lex-data = { workspace = true }
 proto-blue-lex-cbor = { workspace = true }
-proto-blue-ws = { workspace = true }
+proto-blue-ws = { workspace = true, optional = true }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
 unsigned-varint = { workspace = true }
@@ -24,6 +24,13 @@ futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+
+[features]
+default = ["firehose-client"]
+# Pulls in the live firehose WebSocket client (`Firehose`).
+# Off for wasm builds — on wasm, consumers should use the abstractions
+# from #27 (WebSocketTransport) instead of the native tungstenite impl.
+firehose-client = ["dep:proto-blue-ws"]
 
 [dev-dependencies]
 proptest = { workspace = true }

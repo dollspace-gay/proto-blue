@@ -28,3 +28,9 @@ url = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }
+
+# Browser entropy — `rand` pulls in getrandom 0.2, which refuses to compile
+# for wasm32-unknown-unknown without an explicit backend. The `js` feature
+# routes it through `crypto.getRandomValues()`.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }

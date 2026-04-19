@@ -11,6 +11,7 @@ keywords = ["atproto", "bluesky", "sdk", "decentralized", "social"]
 categories = ["api-bindings", "web-programming::http-client"]
 
 [dependencies]
+# Pure crates — always compiled, wasm-compatible.
 proto-blue-syntax = { workspace = true }
 proto-blue-crypto = { workspace = true }
 proto-blue-lex-data = { workspace = true }
@@ -19,12 +20,42 @@ proto-blue-lex-json = { workspace = true }
 proto-blue-common = { workspace = true }
 proto-blue-lexicon = { workspace = true }
 proto-blue-repo = { workspace = true }
-proto-blue-xrpc = { workspace = true }
-proto-blue-ws = { workspace = true }
-proto-blue-identity = { workspace = true }
-proto-blue-api = { workspace = true }
-proto-blue-oauth = { workspace = true }
+
+# Network-dependent crates — gated behind cargo features.
+proto-blue-xrpc = { workspace = true, optional = true }
+proto-blue-ws = { workspace = true, optional = true }
+proto-blue-identity = { workspace = true, optional = true }
+proto-blue-api = { workspace = true, optional = true }
+proto-blue-oauth = { workspace = true, optional = true }
+
+[features]
+# Default to the full native SDK — existing users get the same API they
+# had before. Downstreams that need wasm-compatibility should set
+# `default-features = false` and opt into the pure subset.
+default = ["full"]
+
+# Everything. Matches the pre-0.2.2 surface.
+full = ["net", "ws", "resolver", "oauth", "api"]
+
+# XRPC HTTP client / server.
+net = ["dep:proto-blue-xrpc"]
+
+# Live firehose WebSocket (`ws` and `repo::Firehose`).
+ws = ["dep:proto-blue-ws", "proto-blue-repo/firehose-client"]
+
+# DID / handle resolution (depends on HTTP).
+resolver = ["dep:proto-blue-identity", "net"]
+
+# OAuth 2.0 client (depends on HTTP + identity).
+oauth = ["dep:proto-blue-oauth", "resolver"]
+
+# High-level agent (depends on HTTP).
+api = ["dep:proto-blue-api", "net"]
 
 [dev-dependencies]
 serde_json = { workspace = true }
 proptest = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

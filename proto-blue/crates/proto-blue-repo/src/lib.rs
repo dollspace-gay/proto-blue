@@ -39,6 +39,7 @@ pub mod commit;
 pub mod data_diff;
 pub mod error;
 pub mod firehose;
+#[cfg(feature = "firehose-client")]
 pub mod firehose_client;
 pub mod mst;
 pub mod proofs;
@@ -56,6 +57,7 @@ pub use firehose::{
     AccountEvent, CommitEvent, FirehoseEvent, IdentityEvent, InfoEvent, RepoOp, RepoOpAction,
     SyncEvent, decode_event,
 };
+#[cfg(feature = "firehose-client")]
 pub use firehose_client::Firehose;
 pub use mst::{Leaf, MstNode, NodeEntry};
 pub use proofs::{
