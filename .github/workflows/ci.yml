@@ -78,6 +78,9 @@ jobs:
       # .well-known fallback via the same fetch-web backend.
       - name: Check proto-blue-identity (fetch-web, no DNS)
         run: cargo check --target wasm32-unknown-unknown -p proto-blue-identity --no-default-features --features fetch-web
+      # WebSocket client — gloo-ws backs the browser's native WebSocket.
+      - name: Check proto-blue-ws (gloo-ws)
+        run: cargo check --target wasm32-unknown-unknown -p proto-blue-ws --no-default-features --features gloo-ws
 
   docs:
     name: Build docs (all-features)

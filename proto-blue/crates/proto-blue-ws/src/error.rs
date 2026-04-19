@@ -47,8 +47,16 @@ impl DisconnectError {
 /// Errors that can occur during WebSocket operations.
 #[derive(Debug, thiserror::Error)]
 pub enum WsError {
+    /// Tungstenite (native) transport error.
+    #[cfg(feature = "tungstenite")]
     #[error("WebSocket error: {0}")]
     WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
+
+    /// Transport-level error from a non-tungstenite backend (e.g. the
+    /// browser `WebSocket` on wasm). Carries a backend-provided message;
+    /// treated as reconnectable by the keep-alive loop.
+    #[error("transport error: {0}")]
+    Transport(String),
 
     #[error("Disconnect: {0}")]
     Disconnect(#[from] DisconnectError),
@@ -66,6 +74,7 @@ pub enum WsError {
 /// Check if an error is likely a network error that we should reconnect for.
 pub fn is_reconnectable(err: &WsError) -> bool {
     match err {
+        #[cfg(feature = "tungstenite")]
         WsError::WebSocket(e) => {
             matches!(
                 e,
@@ -74,6 +83,7 @@ pub fn is_reconnectable(err: &WsError) -> bool {
                     | tokio_tungstenite::tungstenite::Error::Io(_)
             )
         }
+        WsError::Transport(_) => true,
         WsError::ConnectionClosed => true,
         WsError::Disconnect(_) => false,
         WsError::NotConnected => false,

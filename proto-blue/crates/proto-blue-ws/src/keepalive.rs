@@ -1,17 +1,17 @@
 //! WebSocket keep-alive client with auto-reconnection and heartbeat.
+//!
+//! Wraps a [`WebSocketConnector`] with exponential-backoff reconnection
+//! and a read-side heartbeat timeout. The same reconnection state machine
+//! runs on native (`TungsteniteConnector`) and in the browser
+//! (`GlooWsConnector`).
 
+use std::sync::Arc;
 use std::time::Duration;
 
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
-use tokio::net::TcpStream;
-use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 use tracing::{debug, warn};
 
 use crate::error::{WsError, is_reconnectable};
-
-type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+use crate::transport::{WebSocketConnector, WebSocketTransport, WsFrame};
 
 /// Options for the WebSocket keep-alive client.
 #[derive(Debug, Clone)]
@@ -33,36 +33,53 @@ impl Default for WebSocketKeepAliveOpts {
 
 /// WebSocket client with automatic reconnection and ping/pong heartbeat.
 ///
-/// Connects to a WebSocket URL, automatically reconnects on network failure
-/// with exponential backoff, and uses ping/pong to detect dead connections.
+/// Connects via the supplied [`WebSocketConnector`], automatically
+/// reconnects on network failure with exponential backoff, and uses a
+/// read-side timeout (3 × heartbeat interval) to detect dead connections.
 pub struct WebSocketKeepAlive {
     url: String,
     opts: WebSocketKeepAliveOpts,
+    connector: Arc<dyn WebSocketConnector>,
     reconnects: u32,
     initial_setup: bool,
-    writer: Option<SplitSink<WsStream, Message>>,
-    reader: Option<SplitStream<WsStream>>,
+    transport: Option<Box<dyn WebSocketTransport>>,
 }
 
 impl WebSocketKeepAlive {
-    /// Create a new WebSocket keep-alive client.
+    /// Create a new keep-alive client using the crate's default connector.
+    ///
+    /// On native with `tungstenite` (default), this uses
+    /// [`crate::transport::TungsteniteConnector`]. Without that feature
+    /// callers must use [`Self::with_connector`].
+    #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
     pub fn new(url: impl Into<String>, opts: WebSocketKeepAliveOpts) -> Self {
+        Self::with_connector(
+            url,
+            opts,
+            Arc::new(crate::transport::TungsteniteConnector::new()),
+        )
+    }
+
+    /// Create a new keep-alive client with a user-supplied connector.
+    pub fn with_connector(
+        url: impl Into<String>,
+        opts: WebSocketKeepAliveOpts,
+        connector: Arc<dyn WebSocketConnector>,
+    ) -> Self {
         WebSocketKeepAlive {
             url: url.into(),
             opts,
+            connector,
             reconnects: 0,
             initial_setup: true,
-            writer: None,
-            reader: None,
+            transport: None,
         }
     }
 
     /// Connect to the WebSocket server.
     pub async fn connect(&mut self) -> Result<(), WsError> {
-        let (ws_stream, _) = connect_async(&self.url).await?;
-        let (writer, reader) = ws_stream.split();
-        self.writer = Some(writer);
-        self.reader = Some(reader);
+        let transport = self.connector.connect(&self.url).await?;
+        self.transport = Some(transport);
         self.initial_setup = false;
         self.reconnects = 0;
         debug!("WebSocket connected to {}", self.url);
@@ -74,8 +91,8 @@ impl WebSocketKeepAlive {
     /// Returns `None` when the connection is cleanly closed.
     pub async fn recv(&mut self) -> Result<Option<Vec<u8>>, WsError> {
         loop {
-            // Connect if not connected
-            if self.reader.is_none() {
+            // Connect if not connected.
+            if self.transport.is_none() {
                 let delay = self.reconnect_delay();
                 if delay > Duration::ZERO {
                     debug!("Reconnecting in {:?}...", delay);
@@ -95,46 +112,38 @@ impl WebSocketKeepAlive {
                 }
             }
 
-            let reader = self.reader.as_mut().unwrap();
+            let transport = self.transport.as_mut().unwrap();
 
-            // Set up heartbeat timeout
             let heartbeat_duration = Duration::from_millis(self.opts.heartbeat_interval_ms);
 
-            match tokio::time::timeout(heartbeat_duration * 3, reader.next()).await {
-                Ok(Some(Ok(msg))) => {
-                    match msg {
-                        Message::Binary(data) => return Ok(Some(data.to_vec())),
-                        Message::Text(text) => return Ok(Some(text.as_bytes().to_vec())),
-                        Message::Ping(_) => {
-                            // Pong is handled automatically by tungstenite
-                            continue;
-                        }
-                        Message::Pong(_) => continue,
-                        Message::Close(_) => {
-                            debug!("WebSocket closed by server");
-                            self.disconnect().await;
-                            return Ok(None);
-                        }
-                        Message::Frame(_) => continue,
+            match tokio::time::timeout(heartbeat_duration * 3, transport.recv()).await {
+                Ok(Ok(Some(frame))) => match frame {
+                    WsFrame::Binary(data) => return Ok(Some(data)),
+                    WsFrame::Text(text) => return Ok(Some(text.into_bytes())),
+                    // Heartbeats are informational — skip and keep reading.
+                    WsFrame::Ping(_) | WsFrame::Pong(_) => continue,
+                    WsFrame::Close { .. } => {
+                        debug!("WebSocket closed by server");
+                        self.disconnect().await;
+                        return Ok(None);
                     }
+                },
+                Ok(Ok(None)) => {
+                    // Peer cleanly ended the stream.
+                    self.disconnect().await;
+                    return Ok(None);
                 }
-                Ok(Some(Err(e))) => {
-                    let ws_err = WsError::WebSocket(e);
-                    if is_reconnectable(&ws_err) {
-                        warn!("WebSocket error: {}, reconnecting...", ws_err);
+                Ok(Err(e)) => {
+                    if is_reconnectable(&e) {
+                        warn!("WebSocket error: {}, reconnecting...", e);
                         self.disconnect().await;
                         self.reconnects += 1;
                         continue;
                     }
-                    return Err(ws_err);
-                }
-                Ok(None) => {
-                    // Stream ended
-                    self.disconnect().await;
-                    return Ok(None);
+                    return Err(e);
                 }
                 Err(_) => {
-                    // Heartbeat timeout — connection is dead
+                    // Heartbeat timeout — connection is dead.
                     warn!("Heartbeat timeout, reconnecting...");
                     self.disconnect().await;
                     self.reconnects += 1;
@@ -144,35 +153,28 @@ impl WebSocketKeepAlive {
         }
     }
 
-    /// Send a message on the WebSocket.
+    /// Send a binary message on the WebSocket.
     pub async fn send(&mut self, data: &[u8]) -> Result<(), WsError> {
-        let writer = self.writer.as_mut().ok_or(WsError::NotConnected)?;
-        writer
-            .send(Message::Binary(data.to_vec().into()))
-            .await
-            .map_err(WsError::WebSocket)
+        let transport = self.transport.as_mut().ok_or(WsError::NotConnected)?;
+        transport.send(WsFrame::Binary(data.to_vec())).await
     }
 
     /// Send a ping message.
     pub async fn ping(&mut self) -> Result<(), WsError> {
-        let writer = self.writer.as_mut().ok_or(WsError::NotConnected)?;
-        writer
-            .send(Message::Ping(vec![].into()))
-            .await
-            .map_err(WsError::WebSocket)
+        let transport = self.transport.as_mut().ok_or(WsError::NotConnected)?;
+        transport.send(WsFrame::Ping(Vec::new())).await
     }
 
     /// Check if the WebSocket is currently connected.
     pub fn is_connected(&self) -> bool {
-        self.reader.is_some()
+        self.transport.is_some()
     }
 
     /// Disconnect and clean up.
     async fn disconnect(&mut self) {
-        if let Some(mut writer) = self.writer.take() {
-            let _ = writer.close().await;
+        if let Some(mut t) = self.transport.take() {
+            let _ = t.close().await;
         }
-        self.reader = None;
     }
 
     /// Calculate the reconnect delay with exponential backoff and jitter.
@@ -205,7 +207,7 @@ impl WebSocketKeepAlive {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "tungstenite", not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
 

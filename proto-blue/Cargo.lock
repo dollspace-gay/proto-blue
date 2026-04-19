@@ -1849,7 +1849,9 @@ dependencies = [
 name = "proto-blue-ws"
 version = "0.2.1"
 dependencies = [
+ "async-trait",
  "futures",
+ "gloo-net",
  "proto-blue-common",
  "proto-blue-lex-cbor",
  "proto-blue-lex-data",

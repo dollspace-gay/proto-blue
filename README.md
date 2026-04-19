@@ -302,16 +302,17 @@ proto-blue = { version = "0.2", default-features = false }
 | Feature    | Re-exports                                                             | wasm32  |
 |------------|------------------------------------------------------------------------|---------|
 | *(none)*   | `syntax`, `crypto`, `lex_data`, `lex_cbor`, `lex_json`, `common`, `lexicon`, `repo` | ✅ |
-| `net`      | `xrpc`                                                                 | 🚧 (#25) |
-| `ws`       | `ws`, enables `repo::Firehose`                                          | 🚧 (#27) |
-| `resolver` | `identity`                                                             | 🚧 (#26) |
+| `net`      | `xrpc` (browser fetch via `proto-blue-xrpc/fetch-web`)                  | ✅       |
+| `ws`       | `ws`, enables `repo::Firehose` (browser WebSocket via `proto-blue-ws/gloo-ws`) | ✅ |
+| `resolver` | `identity` (browser fetch via `proto-blue-identity/fetch-web`, no DNS)  | ✅       |
 | `oauth`    | `oauth`                                                                | 🚧       |
 | `api`      | `api`                                                                  | 🚧       |
 | `full`     | everything — **default**                                               | ❌       |
 
 The pure subset is regression-gated in CI by `cargo check --target wasm32-unknown-unknown`.
-Network-backed features (`net`, `ws`, `resolver`, `oauth`, `api`) still pull in reqwest / hickory
-/ tokio-tungstenite and are native-only today; wasm backends for each are tracked separately.
+For the wasm-enabled network features, use the backend-specific feature on the
+subcrate — e.g. `proto-blue-xrpc = { default-features = false, features = ["fetch-web"] }`.
+Each crate defaults to its native backend (`reqwest`, `tungstenite`) on native targets.
 
 ## License
 

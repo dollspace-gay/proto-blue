@@ -14,9 +14,27 @@ categories = ["web-programming", "network-programming"]
 proto-blue-common = { workspace = true }
 proto-blue-lex-data = { workspace = true }
 proto-blue-lex-cbor = { workspace = true }
-tokio-tungstenite = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt", "net", "time"] }
 futures = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 rand = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "time"] }
+
+# Native WS backend.
+tokio-tungstenite = { workspace = true, optional = true }
+
+# Browser WS backend.
+gloo-net = { version = "0.6", features = ["websocket"], optional = true }
+
+[features]
+# Default: native tungstenite backend. Matches pre-refactor behaviour.
+default = ["tungstenite"]
+
+# `tokio-tungstenite`-backed connector. Native only; pulls in TCP socket
+# support and `native-tls`.
+tungstenite = ["dep:tokio-tungstenite", "tokio/net"]
+
+# `gloo-net`-backed WebSocket connector for `wasm32-unknown-unknown`.
+# Uses the browser's native `WebSocket` via `wasm-bindgen`.
+gloo-ws = ["dep:gloo-net"]
