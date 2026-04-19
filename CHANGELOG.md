@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-04-19
+
+### Fixed
+- **`WebSocketTransport: Send + Sync`** (#5, via @skydeval):
+  `WebSocketKeepAlive::connect(&mut self)` holds `&self` across
+  `resolve_url(&self).await`, which downstream spawning on a
+  work-stealing tokio runtime requires to propagate `Sync` through
+  `dyn WebSocketTransport`. The native supertrait was only `Send`,
+  blocking that use case. Concrete `TungsteniteTransport` was
+  already `Send + Sync` (wraps `tokio-tungstenite`), so widening the
+  trait bound has no impact on existing impls.
+
 ## [0.2.4] - 2026-04-19
 
 ### Fixed
