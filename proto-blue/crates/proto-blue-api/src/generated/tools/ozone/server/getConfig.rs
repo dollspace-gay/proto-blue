@@ -22,6 +22,34 @@ pub struct Output {
     pub viewer: Option<ViewerConfig>,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    CallError::Xrpc(err)
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let response = match client.query("tools.ozone.server.getConfig", None, opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceConfig {

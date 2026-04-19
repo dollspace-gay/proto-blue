@@ -19,3 +19,48 @@ pub struct Output {
     pub message: crate::chat::bsky::convo::defs::MessageView,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    /// Indicates that the message has been deleted and reactions can no longer be added/removed.
+    #[error("ReactionMessageDeleted")]
+    ReactionMessageDeleted,
+    /// Indicates that the message has the maximum number of reactions allowed for a single user, and the requested reaction wasn't yet present. If it was already present, the request will not fail since it is idempotent.
+    #[error("ReactionLimitReached")]
+    ReactionLimitReached,
+    /// Indicates the value for the reaction is not acceptable. In general, this means it is not an emoji.
+    #[error("ReactionInvalidValue")]
+    ReactionInvalidValue,
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    match err.error.as_deref() {
+        Some("ReactionMessageDeleted") => CallError::ReactionMessageDeleted,
+        Some("ReactionLimitReached") => CallError::ReactionLimitReached,
+        Some("ReactionInvalidValue") => CallError::ReactionInvalidValue,
+        _ => CallError::Xrpc(err),
+    }
+}
+
+/// Execute the procedure.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    input: &Input,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;
+    let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);
+    let response = match client.procedure("chat.bsky.convo.addReaction", qp_ref, Some(body), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

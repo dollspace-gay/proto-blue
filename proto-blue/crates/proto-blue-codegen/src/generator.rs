@@ -255,17 +255,20 @@ impl<'a> Generator<'a> {
             out.push_str(&format!("/// XRPC Query: {nsid}\n"));
         }
 
-        if let Some(params) = &query.parameters {
-            if !params.properties.is_empty() {
-                self.generate_params(out, nsid, params);
-            }
+        if let Some(params) = &query.parameters
+            && !params.properties.is_empty()
+        {
+            self.generate_params(out, nsid, params);
         }
 
-        if let Some(output) = &query.output {
-            if let Some(schema) = &output.schema {
-                self.generate_body_schema(out, nsid, "Output", schema);
-            }
+        if let Some(output) = &query.output
+            && let Some(schema) = &output.schema
+        {
+            self.generate_body_schema(out, nsid, "Output", schema);
         }
+
+        self.generate_errors(out, &query.errors);
+        self.generate_query_call_fn(out, nsid, query);
     }
 
     /// Generate a procedure (POST endpoint).
@@ -290,23 +293,249 @@ impl<'a> Generator<'a> {
             out.push_str(&format!("/// XRPC Procedure: {nsid}\n"));
         }
 
-        if let Some(params) = &proc.parameters {
-            if !params.properties.is_empty() {
-                self.generate_params(out, nsid, params);
+        if let Some(params) = &proc.parameters
+            && !params.properties.is_empty()
+        {
+            self.generate_params(out, nsid, params);
+        }
+
+        if let Some(input) = &proc.input
+            && let Some(schema) = &input.schema
+        {
+            self.generate_body_schema(out, nsid, "Input", schema);
+        }
+
+        if let Some(output) = &proc.output
+            && let Some(schema) = &output.schema
+        {
+            self.generate_body_schema(out, nsid, "Output", schema);
+        }
+
+        self.generate_errors(out, &proc.errors);
+        self.generate_procedure_call_fn(out, nsid, proc);
+    }
+
+    /// Emit a per-method error enum from the `errors` array on the def.
+    ///
+    /// The enum captures each `def.errors[].name` as a variant so
+    /// callers can `match` against well-known codes, with a catch-all
+    /// `Xrpc(XrpcError)` for anything the lexicon doesn't enumerate
+    /// plus `Fetch`/`Json` transports.
+    fn generate_errors(&self, out: &mut String, errors: &[LexXrpcError]) {
+        // Always emit the error enum — even when `errors` is empty
+        // we want a consistent `CallError` type per method so the
+        // `call` signature is uniform.
+        out.push_str("/// Errors a `call()` on this method can return.\n");
+        out.push_str("#[derive(Debug, thiserror::Error)]\n");
+        out.push_str("pub enum CallError {\n");
+        for e in errors {
+            if let Some(desc) = &e.description {
+                let clean = desc.replace('\n', " ");
+                out.push_str(&format!("    /// {clean}\n"));
+            }
+            let variant = to_pascal_case(&e.name);
+            out.push_str(&format!("    #[error(\"{}\")]\n", e.name));
+            out.push_str(&format!("    {variant},\n"));
+        }
+        out.push_str("    #[error(\"{0}\")]\n");
+        out.push_str("    Xrpc(proto_blue_xrpc::XrpcError),\n");
+        out.push_str("    #[error(transparent)]\n");
+        out.push_str("    Transport(#[from] proto_blue_xrpc::Error),\n");
+        out.push_str("    #[error(transparent)]\n");
+        out.push_str("    Json(#[from] serde_json::Error),\n");
+        out.push_str("}\n\n");
+
+        // Mapper from a raw XrpcError to the specific CallError variant
+        // when the error `name` matches one of the enumerated codes;
+        // otherwise wraps as `CallError::Xrpc(err)`. Emitted as a
+        // single `match` on `err.error.as_deref()` to avoid clippy's
+        // `single_match` warning when there's only one enumerated
+        // variant.
+        out.push_str("fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {\n");
+        if errors.is_empty() {
+            out.push_str("    CallError::Xrpc(err)\n");
+        } else {
+            out.push_str("    match err.error.as_deref() {\n");
+            for e in errors {
+                let variant = to_pascal_case(&e.name);
+                out.push_str(&format!(
+                    "        Some(\"{}\") => CallError::{variant},\n",
+                    e.name,
+                ));
+            }
+            out.push_str("        _ => CallError::Xrpc(err),\n");
+            out.push_str("    }\n");
+        }
+        out.push_str("}\n\n");
+    }
+
+    /// Emit the `call()` helper for a query.
+    fn generate_query_call_fn(&self, out: &mut String, nsid: &str, query: &LexXrpcQuery) {
+        let has_params = query
+            .parameters
+            .as_ref()
+            .is_some_and(|p| !p.properties.is_empty());
+        let has_output = query.output.as_ref().is_some_and(|o| o.schema.is_some());
+
+        // Emit `to_query_params` translator when we have params.
+        if has_params
+            && let Some(params) = &query.parameters
+        {
+            self.generate_to_query_params(out, params);
+        }
+
+        out.push_str("/// Execute the query.\n");
+        out.push_str("pub async fn call(\n");
+        out.push_str("    client: &proto_blue_xrpc::XrpcClient,\n");
+        if has_params {
+            out.push_str("    params: Option<&Params>,\n");
+        }
+        out.push_str("    opts: Option<&proto_blue_xrpc::CallOptions>,\n");
+        if has_output {
+            out.push_str(") -> Result<Output, CallError> {\n");
+        } else {
+            out.push_str(") -> Result<serde_json::Value, CallError> {\n");
+        }
+        if has_params {
+            out.push_str("    let qp = params.map(to_query_params);\n");
+            out.push_str(&format!(
+                "    let response = match client.query(\"{nsid}\", qp.as_ref(), opts).await {{\n",
+            ));
+        } else {
+            out.push_str(&format!(
+                "    let response = match client.query(\"{nsid}\", None, opts).await {{\n",
+            ));
+        }
+        out.push_str("        Ok(r) => r,\n");
+        out.push_str("        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),\n");
+        out.push_str("        Err(e) => return Err(CallError::Transport(e)),\n");
+        out.push_str("    };\n");
+        if has_output {
+            out.push_str("    Ok(serde_json::from_value(response.data)?)\n");
+        } else {
+            out.push_str("    Ok(response.data)\n");
+        }
+        out.push_str("}\n\n");
+    }
+
+    /// Emit the `call()` helper for a procedure.
+    fn generate_procedure_call_fn(
+        &self,
+        out: &mut String,
+        nsid: &str,
+        proc: &LexXrpcProcedure,
+    ) {
+        let has_params = proc
+            .parameters
+            .as_ref()
+            .is_some_and(|p| !p.properties.is_empty());
+        let has_input = proc.input.as_ref().is_some_and(|i| i.schema.is_some());
+        let has_output = proc.output.as_ref().is_some_and(|o| o.schema.is_some());
+
+        if has_params
+            && let Some(params) = &proc.parameters
+        {
+            self.generate_to_query_params(out, params);
+        }
+
+        out.push_str("/// Execute the procedure.\n");
+        out.push_str("pub async fn call(\n");
+        out.push_str("    client: &proto_blue_xrpc::XrpcClient,\n");
+        if has_params {
+            out.push_str("    params: Option<&Params>,\n");
+        }
+        if has_input {
+            out.push_str("    input: &Input,\n");
+        }
+        out.push_str("    opts: Option<&proto_blue_xrpc::CallOptions>,\n");
+        if has_output {
+            out.push_str(") -> Result<Output, CallError> {\n");
+        } else {
+            out.push_str(") -> Result<serde_json::Value, CallError> {\n");
+        }
+        if has_params {
+            out.push_str("    let qp = params.map(to_query_params);\n");
+            out.push_str("    let qp_ref = qp.as_ref();\n");
+        } else {
+            out.push_str("    let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;\n");
+        }
+        if has_input {
+            out.push_str("    let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);\n");
+            out.push_str(&format!(
+                "    let response = match client.procedure(\"{nsid}\", qp_ref, Some(body), opts).await {{\n",
+            ));
+        } else {
+            out.push_str(&format!(
+                "    let response = match client.procedure(\"{nsid}\", qp_ref, None, opts).await {{\n",
+            ));
+        }
+        out.push_str("        Ok(r) => r,\n");
+        out.push_str("        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),\n");
+        out.push_str("        Err(e) => return Err(CallError::Transport(e)),\n");
+        out.push_str("    };\n");
+        if has_output {
+            out.push_str("    Ok(serde_json::from_value(response.data)?)\n");
+        } else {
+            out.push_str("    Ok(response.data)\n");
+        }
+        out.push_str("}\n\n");
+    }
+
+    /// Emit a helper that converts `&Params` into a `QueryParams` map.
+    ///
+    /// Skips fields whose value is `None` so `skip_serializing_if =
+    /// "Option::is_none"` semantics carry through to the wire.
+    fn generate_to_query_params(&self, out: &mut String, params: &LexXrpcParameters) {
+        out.push_str("fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {\n");
+        out.push_str("    let mut qp = proto_blue_xrpc::QueryParams::new();\n");
+
+        let mut prop_names: Vec<&String> = params.properties.keys().collect();
+        prop_names.sort();
+        let required: BTreeSet<&str> = params.required.iter().map(|s| s.as_str()).collect();
+
+        for prop_name in prop_names {
+            let prop = &params.properties[prop_name];
+            let field = to_snake_case(prop_name);
+            let is_required = required.contains(prop_name.as_str());
+            let key = prop_name;
+
+            let conv = match prop {
+                LexUserType::String(_) => {
+                    format!("proto_blue_xrpc::QueryValue::String({})", "v.clone()")
+                }
+                LexUserType::Integer(_) => {
+                    format!("proto_blue_xrpc::QueryValue::Integer({})", "*v")
+                }
+                LexUserType::Boolean(_) => {
+                    format!("proto_blue_xrpc::QueryValue::Boolean({})", "*v")
+                }
+                LexUserType::Array(arr) => match &*arr.items {
+                    LexUserType::String(_) => {
+                        "proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())".to_string()
+                    }
+                    LexUserType::Integer(_) => {
+                        "proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::Integer(*x)).collect())".to_string()
+                    }
+                    _ => {
+                        "proto_blue_xrpc::QueryValue::String(String::new())".to_string()
+                    }
+                },
+                _ => "proto_blue_xrpc::QueryValue::String(String::new())".to_string(),
+            };
+
+            if is_required {
+                out.push_str(&format!(
+                    "    {{ let v = &p.{field}; qp.insert(\"{key}\".to_string(), {conv}); }}\n",
+                ));
+            } else {
+                out.push_str(&format!(
+                    "    if let Some(v) = &p.{field} {{ qp.insert(\"{key}\".to_string(), {conv}); }}\n",
+                ));
             }
         }
 
-        if let Some(input) = &proc.input {
-            if let Some(schema) = &input.schema {
-                self.generate_body_schema(out, nsid, "Input", schema);
-            }
-        }
-
-        if let Some(output) = &proc.output {
-            if let Some(schema) = &output.schema {
-                self.generate_body_schema(out, nsid, "Output", schema);
-            }
-        }
+        out.push_str("    qp\n");
+        out.push_str("}\n\n");
     }
 
     /// Generate a subscription.

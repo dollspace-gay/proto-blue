@@ -22,3 +22,42 @@ pub struct Output {
     pub messages: Vec<serde_json::Value>,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    CallError::Xrpc(err)
+}
+
+fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
+    let mut qp = proto_blue_xrpc::QueryParams::new();
+    if let Some(v) = &p.after { qp.insert("after".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.before { qp.insert("before".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.convo_id { qp.insert("convoId".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    { let v = &p.message_id; qp.insert("messageId".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    qp
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    params: Option<&Params>,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp = params.map(to_query_params);
+    let response = match client.query("chat.bsky.moderation.getMessageContext", qp.as_ref(), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

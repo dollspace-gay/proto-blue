@@ -90,3 +90,74 @@ pub struct Output {
     pub subject_statuses: Vec<crate::tools::ozone::moderation::defs::SubjectStatusView>,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    CallError::Xrpc(err)
+}
+
+fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
+    let mut qp = proto_blue_xrpc::QueryParams::new();
+    if let Some(v) = &p.age_assurance_state { qp.insert("ageAssuranceState".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.appealed { qp.insert("appealed".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.collections { qp.insert("collections".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.comment { qp.insert("comment".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.cursor { qp.insert("cursor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.exclude_tags { qp.insert("excludeTags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.hosting_deleted_after { qp.insert("hostingDeletedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.hosting_deleted_before { qp.insert("hostingDeletedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.hosting_statuses { qp.insert("hostingStatuses".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.hosting_updated_after { qp.insert("hostingUpdatedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.hosting_updated_before { qp.insert("hostingUpdatedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.ignore_subjects { qp.insert("ignoreSubjects".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.include_all_user_records { qp.insert("includeAllUserRecords".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.include_muted { qp.insert("includeMuted".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.last_reviewed_by { qp.insert("lastReviewedBy".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.limit { qp.insert("limit".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.min_account_suspend_count { qp.insert("minAccountSuspendCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.min_priority_score { qp.insert("minPriorityScore".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.min_reported_records_count { qp.insert("minReportedRecordsCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.min_strike_count { qp.insert("minStrikeCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.min_takendown_records_count { qp.insert("minTakendownRecordsCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.only_muted { qp.insert("onlyMuted".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.queue_count { qp.insert("queueCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.queue_index { qp.insert("queueIndex".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.queue_seed { qp.insert("queueSeed".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.reported_after { qp.insert("reportedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.reported_before { qp.insert("reportedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.review_state { qp.insert("reviewState".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.reviewed_after { qp.insert("reviewedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.reviewed_before { qp.insert("reviewedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.sort_direction { qp.insert("sortDirection".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.sort_field { qp.insert("sortField".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.subject { qp.insert("subject".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.subject_type { qp.insert("subjectType".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.tags { qp.insert("tags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.takendown { qp.insert("takendown".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    qp
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    params: Option<&Params>,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp = params.map(to_query_params);
+    let response = match client.query("tools.ozone.moderation.queryStatuses", qp.as_ref(), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

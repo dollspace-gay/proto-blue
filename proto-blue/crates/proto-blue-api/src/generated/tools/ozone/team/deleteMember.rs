@@ -11,3 +11,44 @@ pub struct Input {
     pub did: String,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    /// The member being deleted does not exist
+    #[error("MemberNotFound")]
+    MemberNotFound,
+    /// You can not delete yourself from the team
+    #[error("CannotDeleteSelf")]
+    CannotDeleteSelf,
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    match err.error.as_deref() {
+        Some("MemberNotFound") => CallError::MemberNotFound,
+        Some("CannotDeleteSelf") => CallError::CannotDeleteSelf,
+        _ => CallError::Xrpc(err),
+    }
+}
+
+/// Execute the procedure.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    input: &Input,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<serde_json::Value, CallError> {
+    let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;
+    let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);
+    let response = match client.procedure("tools.ozone.team.deleteMember", qp_ref, Some(body), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(response.data)
+}
+

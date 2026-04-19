@@ -64,3 +64,61 @@ pub struct Output {
     pub events: Vec<crate::tools::ozone::moderation::defs::ModEventView>,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    CallError::Xrpc(err)
+}
+
+fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
+    let mut qp = proto_blue_xrpc::QueryParams::new();
+    if let Some(v) = &p.added_labels { qp.insert("addedLabels".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.added_tags { qp.insert("addedTags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.age_assurance_state { qp.insert("ageAssuranceState".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.batch_id { qp.insert("batchId".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.collections { qp.insert("collections".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.comment { qp.insert("comment".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.created_after { qp.insert("createdAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.created_before { qp.insert("createdBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.created_by { qp.insert("createdBy".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.cursor { qp.insert("cursor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.has_comment { qp.insert("hasComment".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.include_all_user_records { qp.insert("includeAllUserRecords".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.limit { qp.insert("limit".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.mod_tool { qp.insert("modTool".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.policies { qp.insert("policies".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.removed_labels { qp.insert("removedLabels".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.removed_tags { qp.insert("removedTags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.report_types { qp.insert("reportTypes".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.sort_direction { qp.insert("sortDirection".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.subject { qp.insert("subject".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.subject_type { qp.insert("subjectType".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.types { qp.insert("types".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.with_strike { qp.insert("withStrike".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    qp
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    params: Option<&Params>,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp = params.map(to_query_params);
+    let response = match client.query("tools.ozone.moderation.queryEvents", qp.as_ref(), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

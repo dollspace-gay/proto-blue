@@ -23,3 +23,34 @@ pub struct Output {
     pub sent: bool,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    CallError::Xrpc(err)
+}
+
+/// Execute the procedure.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    input: &Input,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;
+    let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);
+    let response = match client.procedure("com.atproto.admin.sendEmail", qp_ref, Some(body), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

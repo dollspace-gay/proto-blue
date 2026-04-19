@@ -16,3 +16,39 @@ pub struct Output {
     pub convo: crate::chat::bsky::convo::defs::ConvoView,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    CallError::Xrpc(err)
+}
+
+fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
+    let mut qp = proto_blue_xrpc::QueryParams::new();
+    { let v = &p.members; qp.insert("members".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    qp
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    params: Option<&Params>,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp = params.map(to_query_params);
+    let response = match client.query("chat.bsky.convo.getConvoForMembers", qp.as_ref(), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

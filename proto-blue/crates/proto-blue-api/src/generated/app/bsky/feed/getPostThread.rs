@@ -23,3 +23,46 @@ pub struct Output {
     pub threadgate: Option<crate::app::bsky::feed::defs::ThreadgateView>,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("NotFound")]
+    NotFound,
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    match err.error.as_deref() {
+        Some("NotFound") => CallError::NotFound,
+        _ => CallError::Xrpc(err),
+    }
+}
+
+fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
+    let mut qp = proto_blue_xrpc::QueryParams::new();
+    if let Some(v) = &p.depth { qp.insert("depth".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.parent_height { qp.insert("parentHeight".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    { let v = &p.uri; qp.insert("uri".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    qp
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    params: Option<&Params>,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp = params.map(to_query_params);
+    let response = match client.query("app.bsky.feed.getPostThread", qp.as_ref(), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+

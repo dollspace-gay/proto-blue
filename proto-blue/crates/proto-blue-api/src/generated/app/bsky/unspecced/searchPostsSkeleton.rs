@@ -45,3 +45,56 @@ pub struct Output {
     pub posts: Vec<crate::app::bsky::unspecced::defs::SkeletonSearchPost>,
 }
 
+/// Errors a `call()` on this method can return.
+#[derive(Debug, thiserror::Error)]
+pub enum CallError {
+    #[error("BadQueryString")]
+    BadQueryString,
+    #[error("{0}")]
+    Xrpc(proto_blue_xrpc::XrpcError),
+    #[error(transparent)]
+    Transport(#[from] proto_blue_xrpc::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
+    match err.error.as_deref() {
+        Some("BadQueryString") => CallError::BadQueryString,
+        _ => CallError::Xrpc(err),
+    }
+}
+
+fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
+    let mut qp = proto_blue_xrpc::QueryParams::new();
+    if let Some(v) = &p.author { qp.insert("author".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.cursor { qp.insert("cursor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.domain { qp.insert("domain".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.lang { qp.insert("lang".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.limit { qp.insert("limit".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
+    if let Some(v) = &p.mentions { qp.insert("mentions".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    { let v = &p.q; qp.insert("q".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.since { qp.insert("since".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.sort { qp.insert("sort".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.tag { qp.insert("tag".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    if let Some(v) = &p.until { qp.insert("until".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.url { qp.insert("url".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.viewer { qp.insert("viewer".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    qp
+}
+
+/// Execute the query.
+pub async fn call(
+    client: &proto_blue_xrpc::XrpcClient,
+    params: Option<&Params>,
+    opts: Option<&proto_blue_xrpc::CallOptions>,
+) -> Result<Output, CallError> {
+    let qp = params.map(to_query_params);
+    let response = match client.query("app.bsky.unspecced.searchPostsSkeleton", qp.as_ref(), opts).await {
+        Ok(r) => r,
+        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
+        Err(e) => return Err(CallError::Transport(e)),
+    };
+    Ok(serde_json::from_value(response.data)?)
+}
+
