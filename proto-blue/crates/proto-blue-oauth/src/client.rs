@@ -162,6 +162,83 @@ impl OAuthClient {
         Ok(metadata)
     }
 
+    /// Discover protected-resource metadata (RFC 9728) for a
+    /// resource URL (typically a PDS base URL like
+    /// `https://pds.example`).
+    ///
+    /// Fetches `{resource}/.well-known/oauth-protected-resource` and
+    /// enforces:
+    /// - HTTP success status
+    /// - JSON content-type
+    /// - the returned `resource` field matches the URL we fetched from
+    /// - `authorization_servers` has exactly one entry (atproto profile
+    ///   requirement)
+    ///
+    /// Returns the metadata on success; on validation failure
+    /// [`OAuthError::Other`] carries a description of which check failed.
+    pub async fn discover_resource(
+        &self,
+        resource_url: &str,
+    ) -> Result<crate::types::OAuthProtectedResourceMetadata, OAuthError> {
+        let url = format!(
+            "{}/.well-known/oauth-protected-resource",
+            resource_url.trim_end_matches('/')
+        );
+        let resp = self
+            .fetcher
+            .fetch(
+                proto_blue_common::fetch::HttpRequest::get(&url)
+                    .with_header("accept", "application/json"),
+            )
+            .await?;
+        if !resp.is_success() {
+            return Err(OAuthError::Other(format!(
+                "protected-resource discovery failed: HTTP {}",
+                resp.status,
+            )));
+        }
+        // Content-type validation — atproto requires strict JSON.
+        let ct = resp.header("content-type").unwrap_or("").to_ascii_lowercase();
+        if !ct.split(';').next().unwrap_or("").trim().eq("application/json") {
+            return Err(OAuthError::Other(format!(
+                "protected-resource metadata must be application/json, got {ct:?}",
+            )));
+        }
+        let metadata: crate::types::OAuthProtectedResourceMetadata =
+            serde_json::from_slice(&resp.body)?;
+
+        // `resource` self-reference check — protects against an
+        // attacker hosting a metadata doc that lies about which
+        // resource it describes.
+        let expected = resource_url.trim_end_matches('/');
+        let actual = metadata.resource.trim_end_matches('/');
+        if expected != actual {
+            return Err(OAuthError::Other(format!(
+                "protected-resource metadata `resource` mismatch: \
+                 document says {actual:?}, fetched from {expected:?}",
+            )));
+        }
+
+        // atproto profile: exactly one authorization_servers entry.
+        match metadata.authorization_servers.as_deref() {
+            Some([_]) => {}
+            Some(list) => {
+                return Err(OAuthError::Other(format!(
+                    "protected-resource metadata must list exactly one \
+                     authorization_server; got {}",
+                    list.len(),
+                )));
+            }
+            None => {
+                return Err(OAuthError::Other(
+                    "protected-resource metadata missing `authorization_servers`".into(),
+                ));
+            }
+        }
+
+        Ok(metadata)
+    }
+
     /// Discover authorization server metadata from an issuer URL.
     ///
     /// Fetches `{issuer}/.well-known/oauth-authorization-server` per RFC 8414.
@@ -307,6 +384,49 @@ impl OAuthClient {
         Ok(par)
     }
 
+    /// Handle the OAuth callback **with server-supplied `iss`
+    /// verification** (RFC 9207).
+    ///
+    /// When the AS advertises
+    /// `authorization_response_iss_parameter_supported: true`, the
+    /// callback URL carries `?iss=<issuer>`. This variant asserts
+    /// that the received `iss` equals the one we stored in
+    /// `auth_state` before accepting the code. Mitigates the "AS
+    /// confusion" attack class: an attacker who tricks the user into
+    /// returning to a callback issued by the wrong AS would otherwise
+    /// silently cause token exchange at the expected AS with a code
+    /// the attacker knows.
+    ///
+    /// Callers that haven't wired through the query `iss` can still
+    /// use [`Self::callback`], which skips this check.
+    pub async fn callback_with_iss(
+        &self,
+        code: &str,
+        iss: Option<&str>,
+        auth_state: &AuthState,
+        server_metadata: &OAuthServerMetadata,
+    ) -> Result<TokenSet, OAuthError> {
+        if server_metadata
+            .authorization_response_iss_parameter_supported
+            .unwrap_or(false)
+        {
+            let provided = iss.ok_or_else(|| {
+                OAuthError::Other(
+                    "authorization response is missing required `iss` parameter".into(),
+                )
+            })?;
+            let expected = server_metadata.issuer.trim_end_matches('/');
+            let actual = provided.trim_end_matches('/');
+            if expected != actual {
+                return Err(OAuthError::IssuerMismatch {
+                    expected: expected.to_string(),
+                    actual: actual.to_string(),
+                });
+            }
+        }
+        self.callback(code, auth_state, server_metadata).await
+    }
+
     /// Handle the OAuth callback, exchanging the authorization code for tokens.
     ///
     /// Parameters:
@@ -314,6 +434,10 @@ impl OAuthClient {
     /// - `state`: The state from the auth state store
     /// - `auth_state`: The stored `AuthState` from the `authorize()` call
     /// - `server_metadata`: The authorization server metadata
+    ///
+    /// Does **not** verify the `iss` query parameter; use
+    /// [`Self::callback_with_iss`] when the AS advertises
+    /// `authorization_response_iss_parameter_supported`.
     pub async fn callback(
         &self,
         code: &str,
@@ -382,15 +506,24 @@ impl OAuthClient {
             .post_form(token_endpoint, &body, Some(&dpop_proof))
             .await?;
 
-        // Handle DPoP nonce rotation
+        // Handle DPoP nonce rotation. Two things must both be true to
+        // retry:
+        //   1. Server sent a `DPoP-Nonce` header telling us which
+        //      nonce to use next time.
+        //   2. Server explicitly told us the last request was rejected
+        //      *because* of the missing/stale nonce (RFC 9449 §8.2).
+        //      We inspect the JSON body for `error == "use_dpop_nonce"`.
+        //      Previously the code retried on any 400 with a nonce
+        //      header, which looks similar but misidentifies genuine
+        //      400s (bad form data) as nonce-retry candidates and
+        //      silently double-fires the request.
         if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
             if let Ok(origin) = Url::parse(token_endpoint).map(|u| u.origin().ascii_serialization())
             {
                 self.dpop_nonces.set(&origin, &nonce_str);
             }
 
-            // If the server returned an error requiring a nonce, retry
-            if resp.status == 400 {
+            if is_use_dpop_nonce_error(&resp) {
                 let dpop_proof =
                     build_dpop_proof(dpop_key, "POST", token_endpoint, Some(&nonce_str), None)?;
                 let resp = self
@@ -435,14 +568,16 @@ impl OAuthClient {
             .post_form(token_endpoint, &body, Some(&dpop_proof))
             .await?;
 
-        // Handle DPoP nonce rotation
+        // Handle DPoP nonce rotation. Same discriminator logic as
+        // `exchange_code` — see the comment there for why we inspect
+        // the body instead of treating every 400 as a nonce retry.
         if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
             if let Ok(origin) = Url::parse(token_endpoint).map(|u| u.origin().ascii_serialization())
             {
                 self.dpop_nonces.set(&origin, &nonce_str);
             }
 
-            if resp.status == 400 {
+            if is_use_dpop_nonce_error(&resp) {
                 let dpop_proof =
                     build_dpop_proof(dpop_key, "POST", token_endpoint, Some(&nonce_str), None)?;
                 let resp = self
@@ -560,6 +695,108 @@ pub fn dpop_key_from_jwk(jwk: &serde_json::Value) -> Result<DpopKey, OAuthError>
         private_jwk: jwk.clone(),
         public_jwk,
     })
+}
+
+/// Validate an [`OAuthClientMetadata`] document against the atproto
+/// OAuth client-metadata profile. Returns `Ok(())` on success;
+/// `Err(OAuthError::Other)` on any policy violation.
+///
+/// Checks (subset of TS `validate-client-metadata.ts`):
+///
+/// - `redirect_uris` is non-empty.
+/// - `response_types` contains `"code"` (when present).
+/// - `grant_types` contains `"authorization_code"` (when present).
+/// - `scope` is either absent or includes the atproto-required
+///   `"atproto"` token (otherwise the AS will reject it).
+/// - `token_endpoint_auth_method`, if present, is a recognised value
+///   (`"none"`, `"private_key_jwt"`, `"client_secret_basic"`,
+///   `"client_secret_post"`).
+/// - `application_type`, if present, is `"web"` or `"native"`.
+///
+/// The full TS validator also cross-checks auth-method ↔
+/// signing-alg ↔ JWKS presence; that layer lives above the client
+/// metadata itself and is out of scope here.
+pub fn validate_client_metadata(meta: &OAuthClientMetadata) -> Result<(), OAuthError> {
+    if meta.redirect_uris.is_empty() {
+        return Err(OAuthError::Other(
+            "client metadata must declare at least one redirect_uri".into(),
+        ));
+    }
+
+    if let Some(response_types) = &meta.response_types
+        && !response_types.iter().any(|r| r == "code")
+    {
+        return Err(OAuthError::Other(
+            "client metadata `response_types` must include \"code\"".into(),
+        ));
+    }
+
+    if let Some(grant_types) = &meta.grant_types
+        && !grant_types.iter().any(|g| g == "authorization_code")
+    {
+        return Err(OAuthError::Other(
+            "client metadata `grant_types` must include \"authorization_code\"".into(),
+        ));
+    }
+
+    if let Some(scope) = &meta.scope
+        && !scope.split_whitespace().any(|s| s == "atproto")
+    {
+        return Err(OAuthError::Other(
+            "client metadata `scope` must include the \"atproto\" token".into(),
+        ));
+    }
+
+    if let Some(m) = &meta.token_endpoint_auth_method {
+        const VALID_METHODS: &[&str] = &[
+            "none",
+            "private_key_jwt",
+            "client_secret_basic",
+            "client_secret_post",
+        ];
+        if !VALID_METHODS.contains(&m.as_str()) {
+            return Err(OAuthError::Other(format!(
+                "unknown token_endpoint_auth_method: {m:?}",
+            )));
+        }
+    }
+
+    if let Some(app_type) = &meta.application_type
+        && !matches!(app_type.as_str(), "web" | "native")
+    {
+        return Err(OAuthError::Other(format!(
+            "application_type must be \"web\" or \"native\", got {app_type:?}",
+        )));
+    }
+
+    Ok(())
+}
+
+/// `true` if a 4xx response signals that the client must retry with
+/// the server-supplied DPoP nonce.
+///
+/// RFC 9449 §8.2: the authorization server returns
+/// `{"error":"use_dpop_nonce"}` (400 at AS token/PAR endpoints, 401
+/// at resource servers via `WWW-Authenticate: DPoP error="use_dpop_nonce"`).
+/// This function checks both forms so a single caller can use it
+/// regardless of where the response came from.
+fn is_use_dpop_nonce_error(resp: &HttpResponse) -> bool {
+    // AS form — JSON body on a 400.
+    if resp.status == 400
+        && let Ok(body) = std::str::from_utf8(&resp.body)
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(body)
+        && v.get("error").and_then(|e| e.as_str()) == Some("use_dpop_nonce")
+    {
+        return true;
+    }
+    // RS form — 401 with WWW-Authenticate carrying `error="use_dpop_nonce"`.
+    if resp.status == 401
+        && let Some(auth) = resp.header("www-authenticate")
+        && auth.contains("error=\"use_dpop_nonce\"")
+    {
+        return true;
+    }
+    false
 }
 
 /// Parse a token response, handling OAuth error responses.
@@ -687,5 +924,121 @@ mod tests {
         let form = [("grant_type", "authorization_code"), ("code", "abc=xyz&")];
         let encoded = encode_form(form.iter().copied());
         assert_eq!(encoded, "grant_type=authorization_code&code=abc%3Dxyz%26");
+    }
+
+    // ── is_use_dpop_nonce_error ─────────────────────────────────────
+
+    use proto_blue_common::fetch::{HttpHeaders, HttpResponse};
+
+    fn response(status: u16, body: &[u8], headers: &[(&str, &str)]) -> HttpResponse {
+        let mut h = HttpHeaders::new();
+        for (k, v) in headers {
+            h.insert(k.to_lowercase(), v.to_string());
+        }
+        HttpResponse {
+            status,
+            headers: h,
+            body: body.to_vec(),
+        }
+    }
+
+    #[test]
+    fn use_dpop_nonce_detects_as_400_json_body() {
+        let r = response(400, br#"{"error":"use_dpop_nonce"}"#, &[]);
+        assert!(is_use_dpop_nonce_error(&r));
+    }
+
+    #[test]
+    fn use_dpop_nonce_detects_rs_401_www_authenticate() {
+        let r = response(
+            401,
+            b"",
+            &[("www-authenticate", "DPoP error=\"use_dpop_nonce\"")],
+        );
+        assert!(is_use_dpop_nonce_error(&r));
+    }
+
+    #[test]
+    fn use_dpop_nonce_ignores_unrelated_400() {
+        // 400 with dpop-nonce header but NO use_dpop_nonce body —
+        // this used to false-positive under the old "any 400" logic.
+        let r = response(
+            400,
+            br#"{"error":"invalid_grant"}"#,
+            &[("dpop-nonce", "nonce-xyz")],
+        );
+        assert!(!is_use_dpop_nonce_error(&r));
+    }
+
+    #[test]
+    fn use_dpop_nonce_ignores_401_without_directive() {
+        let r = response(401, b"", &[("www-authenticate", "Bearer realm=\"x\"")]);
+        assert!(!is_use_dpop_nonce_error(&r));
+    }
+
+    #[test]
+    fn use_dpop_nonce_ignores_success_status() {
+        let r = response(200, br#"{"error":"use_dpop_nonce"}"#, &[]);
+        assert!(!is_use_dpop_nonce_error(&r));
+    }
+
+    // ── validate_client_metadata ────────────────────────────────────
+
+    fn valid_metadata() -> OAuthClientMetadata {
+        OAuthClientMetadata {
+            client_id: "https://example.com/client-metadata.json".into(),
+            redirect_uris: vec!["https://example.com/cb".into()],
+            response_types: Some(vec!["code".into()]),
+            grant_types: Some(vec!["authorization_code".into(), "refresh_token".into()]),
+            scope: Some("atproto transition:generic".into()),
+            token_endpoint_auth_method: Some("none".into()),
+            token_endpoint_auth_signing_alg: None,
+            application_type: Some("web".into()),
+            dpop_bound_access_tokens: Some(true),
+            client_name: None,
+            client_uri: None,
+            logo_uri: None,
+        }
+    }
+
+    #[test]
+    fn metadata_valid_accepts() {
+        assert!(validate_client_metadata(&valid_metadata()).is_ok());
+    }
+
+    #[test]
+    fn metadata_rejects_empty_redirect_uris() {
+        let mut m = valid_metadata();
+        m.redirect_uris.clear();
+        assert!(validate_client_metadata(&m).is_err());
+    }
+
+    #[test]
+    fn metadata_rejects_scope_missing_atproto() {
+        let mut m = valid_metadata();
+        m.scope = Some("transition:generic".into());
+        let err = validate_client_metadata(&m).unwrap_err().to_string();
+        assert!(err.contains("\"atproto\""));
+    }
+
+    #[test]
+    fn metadata_rejects_response_types_without_code() {
+        let mut m = valid_metadata();
+        m.response_types = Some(vec!["token".into()]);
+        assert!(validate_client_metadata(&m).is_err());
+    }
+
+    #[test]
+    fn metadata_rejects_unknown_application_type() {
+        let mut m = valid_metadata();
+        m.application_type = Some("desktop".into());
+        assert!(validate_client_metadata(&m).is_err());
+    }
+
+    #[test]
+    fn metadata_rejects_unknown_auth_method() {
+        let mut m = valid_metadata();
+        m.token_endpoint_auth_method = Some("weird".into());
+        assert!(validate_client_metadata(&m).is_err());
     }
 }

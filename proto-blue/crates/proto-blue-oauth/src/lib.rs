@@ -16,12 +16,13 @@ pub mod scope;
 pub mod session;
 pub mod types;
 
-pub use client::{DpopNonceCache, OAuthClient};
+pub use client::{DpopNonceCache, OAuthClient, validate_client_metadata};
 pub use dpop::{DpopAlg, DpopKey, build_dpop_proof};
 pub use error::OAuthError;
 pub use pkce::{PkceChallenge, generate_pkce, verify_pkce};
 pub use scope::{PermissionNamespace, Scope, ScopeError, ScopeSet};
 pub use session::OAuthSession;
 pub use types::{
-    AuthState, OAuthClientMetadata, OAuthServerMetadata, OAuthTokenResponse, ParResponse, TokenSet,
+    AuthState, OAuthClientMetadata, OAuthProtectedResourceMetadata, OAuthServerMetadata,
+    OAuthTokenResponse, ParResponse, TokenSet,
 };

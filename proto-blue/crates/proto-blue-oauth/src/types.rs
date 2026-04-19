@@ -2,6 +2,36 @@
 
 use serde::{Deserialize, Serialize};
 
+/// OAuth Protected Resource Metadata (RFC 9728).
+///
+/// A resource server publishes this at
+/// `<resource>/.well-known/oauth-protected-resource` so clients can
+/// learn which authorization servers are trusted to issue tokens for
+/// it. atproto PDSes serve this document to enable
+/// identity-to-authorization-server resolution.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct OAuthProtectedResourceMetadata {
+    /// The resource's canonical URL. MUST equal the URL it was
+    /// fetched from.
+    pub resource: String,
+    /// Authorization servers that this resource trusts. Per the
+    /// atproto profile, exactly one entry — the PDS's chosen AS.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization_servers: Option<Vec<String>>,
+    /// Supported bearer-token methods ("header", "body", "query"). At
+    /// protocol level only "header" is used.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bearer_methods_supported: Option<Vec<String>>,
+    /// JWKS URL if the resource publishes its own verifying keys.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jwks_uri: Option<String>,
+    /// Scopes the resource accepts. Filters what a client can ask
+    /// the AS for.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scopes_supported: Option<Vec<String>>,
+}
+
 /// OAuth client metadata (RFC 7591 Dynamic Client Registration).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
