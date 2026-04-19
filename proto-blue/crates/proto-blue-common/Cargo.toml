@@ -27,8 +27,27 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 
+# Optional backends for the `FetchHandler` trait.
+reqwest = { workspace = true, optional = true }
+gloo-net = { version = "0.6", features = ["http"], optional = true }
+js-sys = { version = "0.3", optional = true }
+
+[features]
+# No features on by default — pure subset only. Consumers opt into a
+# concrete `FetchHandler` implementation via `fetch-reqwest` (native) or
+# `fetch-web` (wasm). Crates that need HTTP by default should toggle these
+# on themselves.
+default = []
+
+# `ReqwestFetcher` — native `reqwest`-backed fetch handler.
+fetch-reqwest = ["dep:reqwest", "tokio/rt-multi-thread", "tokio/time", "tokio/io-util"]
+
+# `WebFetcher` — browser-fetch handler for `wasm32-unknown-unknown`.
+fetch-web = ["dep:gloo-net", "dep:js-sys"]
+
 [dev-dependencies]
 proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }
 
 # Browser entropy — `rand` pulls in getrandom 0.2, which refuses to compile
 # for wasm32-unknown-unknown without an explicit backend. The `js` feature

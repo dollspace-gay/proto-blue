@@ -13,10 +13,27 @@ categories = ["authentication", "web-programming"]
 [dependencies]
 proto-blue-common = { workspace = true }
 proto-blue-crypto = { workspace = true }
-reqwest = { workspace = true }
-hickory-resolver = { workspace = true }
-tokio = { workspace = true, features = ["macros", "rt", "time"] }
 futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "time"] }
+
+# DNS-based handle resolution. Native-only (hickory-resolver uses OS
+# sockets). Off on wasm32 by default; the HTTPS `.well-known` path still
+# works everywhere.
+hickory-resolver = { workspace = true, optional = true }
+
+[features]
+# Native default: DNS + reqwest fetch. Matches the pre-refactor behaviour.
+default = ["dns", "fetch-reqwest"]
+
+# DNS TXT-record handle resolution via hickory-resolver. Native-only;
+# leave off for wasm builds.
+dns = ["dep:hickory-resolver"]
+
+# Native HTTP transport (`reqwest`) for DID / HTTPS handle resolution.
+fetch-reqwest = ["proto-blue-common/fetch-reqwest"]
+
+# Browser HTTP transport (`fetch()` via gloo-net) for wasm32.
+fetch-web = ["proto-blue-common/fetch-web"]

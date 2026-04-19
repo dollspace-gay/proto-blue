@@ -6,9 +6,7 @@
 
 use async_trait::async_trait;
 
-use proto_blue_common::fetch::{
-    FetchError, FetchHandler, HttpHeaders, HttpRequest, HttpResponse,
-};
+use super::{FetchError, FetchHandler, HttpHeaders, HttpMethod, HttpRequest, HttpResponse};
 
 /// Ships a fresh `reqwest::Client` by default, or wraps a user-supplied one.
 #[derive(Debug, Clone)]
@@ -46,13 +44,13 @@ impl Default for ReqwestFetcher {
 impl FetchHandler for ReqwestFetcher {
     async fn fetch(&self, req: HttpRequest) -> Result<HttpResponse, FetchError> {
         let method = match req.method {
-            proto_blue_common::fetch::HttpMethod::Get => reqwest::Method::GET,
-            proto_blue_common::fetch::HttpMethod::Post => reqwest::Method::POST,
-            proto_blue_common::fetch::HttpMethod::Put => reqwest::Method::PUT,
-            proto_blue_common::fetch::HttpMethod::Delete => reqwest::Method::DELETE,
-            proto_blue_common::fetch::HttpMethod::Patch => reqwest::Method::PATCH,
-            proto_blue_common::fetch::HttpMethod::Head => reqwest::Method::HEAD,
-            proto_blue_common::fetch::HttpMethod::Options => reqwest::Method::OPTIONS,
+            HttpMethod::Get => reqwest::Method::GET,
+            HttpMethod::Post => reqwest::Method::POST,
+            HttpMethod::Put => reqwest::Method::PUT,
+            HttpMethod::Delete => reqwest::Method::DELETE,
+            HttpMethod::Patch => reqwest::Method::PATCH,
+            HttpMethod::Head => reqwest::Method::HEAD,
+            HttpMethod::Options => reqwest::Method::OPTIONS,
         };
 
         let mut builder = self.client.request(method, &req.url);
@@ -143,10 +141,6 @@ mod tests {
 
     #[tokio::test]
     async fn connection_refused_maps_to_network_error() {
-        // Bind, record the port, then immediately drop the listener so the
-        // OS returns "connection refused" on connect. Using a live-then-
-        // closed port is far more reliable than picking "port 1" which
-        // behaves differently across kernels and WSL.
         let port = {
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             listener.local_addr().unwrap().port()
@@ -171,7 +165,6 @@ mod tests {
     #[test]
     fn default_is_new() {
         let a = ReqwestFetcher::default();
-        // Just ensure it constructs — the reqwest::Client has no Eq.
         let _ = a.inner();
     }
 }

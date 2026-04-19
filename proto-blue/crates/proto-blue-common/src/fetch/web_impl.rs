@@ -7,9 +7,7 @@
 
 use async_trait::async_trait;
 
-use proto_blue_common::fetch::{
-    FetchError, FetchHandler, HttpHeaders, HttpMethod, HttpRequest, HttpResponse,
-};
+use super::{FetchError, FetchHandler, HttpHeaders, HttpMethod, HttpRequest, HttpResponse};
 
 /// Browser-fetch implementation of [`FetchHandler`].
 #[derive(Debug, Clone, Default)]
@@ -37,16 +35,12 @@ impl FetchHandler for WebFetcher {
             HttpMethod::Options => gloo_net::http::Method::OPTIONS,
         };
 
-        // `RequestBuilder` exposes the most flexible construction surface —
-        // arbitrary method, headers, and a binary body in one chain.
         let mut builder = gloo_net::http::RequestBuilder::new(&req.url).method(method);
         for (key, value) in &req.headers {
             builder = builder.header(key, value);
         }
 
         let request = if let Some(body) = req.body {
-            // `body()` on the `RequestBuilder` accepts anything convertible
-            // to `JsValue`; a `Uint8Array` is the natural fit for binary.
             let array = js_sys::Uint8Array::from(body.as_slice());
             builder
                 .body(array)

@@ -1,7 +1,9 @@
 //! DID resolution: did:plc and did:web methods.
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use proto_blue_common::fetch::{FetchHandler, HttpRequest};
 use proto_blue_common::{
     DidDocument, Service, VerificationMethod, get_did, get_handle, get_pds_endpoint,
     get_signing_key,
@@ -14,20 +16,47 @@ use crate::types::AtprotoData;
 const DEFAULT_PLC_URL: &str = "https://plc.directory";
 
 /// Combined DID resolver supporting did:plc and did:web methods.
+///
+/// HTTP transport is abstracted behind [`FetchHandler`] so the same code
+/// drives `reqwest` on native and `fetch()` on
+/// `wasm32-unknown-unknown`.
 pub struct DidResolver {
     plc_url: String,
     timeout: Duration,
-    client: reqwest::Client,
+    fetcher: Arc<dyn FetchHandler>,
     cache: Option<Box<dyn DidCache>>,
 }
 
 impl DidResolver {
-    /// Create a new DID resolver.
+    /// Create a new DID resolver using the crate's default fetch handler.
+    ///
+    /// With the `fetch-reqwest` feature (default on native), a fresh
+    /// `reqwest::Client` is constructed internally. Otherwise the caller
+    /// must use [`Self::with_fetch_handler`].
+    #[cfg(feature = "fetch-reqwest")]
     pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Box<dyn DidCache>>) -> Self {
+        Self::with_fetch_handler(
+            plc_url,
+            timeout_ms,
+            cache,
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
+        )
+    }
+
+    /// Create a new DID resolver with a user-supplied [`FetchHandler`].
+    ///
+    /// Primary entry point for wasm and for unit tests that want to mock
+    /// out the PLC directory / `did:web` hosts.
+    pub fn with_fetch_handler(
+        plc_url: Option<&str>,
+        timeout_ms: u64,
+        cache: Option<Box<dyn DidCache>>,
+        fetcher: Arc<dyn FetchHandler>,
+    ) -> Self {
         DidResolver {
             plc_url: plc_url.unwrap_or(DEFAULT_PLC_URL).to_string(),
             timeout: Duration::from_millis(timeout_ms),
-            client: reqwest::Client::new(),
+            fetcher,
             cache,
         }
     }
@@ -127,29 +156,41 @@ impl DidResolver {
         }
     }
 
+    /// Issue an HTTP GET via the configured fetcher, enforcing the
+    /// resolver's per-call timeout at the future boundary. The fetch trait
+    /// deliberately does not carry per-request timeout fields — keeping
+    /// the trait minimal means a single place (here) wraps every call.
+    async fn get_json(
+        &self,
+        url: &str,
+    ) -> Result<proto_blue_common::fetch::HttpResponse, IdentityError> {
+        let req = HttpRequest::get(url)
+            .with_header("accept", "application/did+ld+json,application/json");
+        let fut = self.fetcher.fetch(req);
+        match tokio::time::timeout(self.timeout, fut).await {
+            Ok(Ok(resp)) => Ok(resp),
+            Ok(Err(e)) => Err(IdentityError::Fetch(e)),
+            Err(_) => Err(IdentityError::Timeout),
+        }
+    }
+
     /// Resolve a did:plc DID via the PLC directory.
     async fn resolve_plc(&self, did: &str) -> Result<Option<DidDocument>, IdentityError> {
         let url = format!("{}/{}", self.plc_url, did);
-        let response = self
-            .client
-            .get(&url)
-            .header("accept", "application/did+ld+json,application/json")
-            .timeout(self.timeout)
-            .send()
-            .await?;
+        let response = self.get_json(&url).await?;
 
-        if response.status().as_u16() == 404 {
+        if response.status == 404 {
             return Ok(None);
         }
 
-        if !response.status().is_success() {
+        if !response.is_success() {
             return Err(IdentityError::Other(format!(
                 "PLC directory returned status {}",
-                response.status()
+                response.status
             )));
         }
 
-        let doc: DidDocument = response.json().await?;
+        let doc: DidDocument = serde_json::from_slice(&response.body)?;
         Ok(Some(doc))
     }
 
@@ -176,21 +217,16 @@ impl DidResolver {
 
         let url = format!("{scheme}://{hostname}/.well-known/did.json");
 
-        let response = self
-            .client
-            .get(&url)
-            .header("accept", "application/did+ld+json,application/json")
-            .timeout(self.timeout)
-            .send()
-            .await;
-
-        match response {
-            Ok(resp) if resp.status().is_success() => {
-                let doc: DidDocument = resp.json().await?;
-                Ok(Some(doc))
-            }
-            Ok(_) => Ok(None),
-            Err(_) => Ok(None),
+        // did:web intentionally swallows every non-success response (404,
+        // offline host, TLS error, timeout) and returns `None` — the
+        // spec treats "not found" as an expected outcome, not a hard
+        // error. Only JSON-shape failures get propagated.
+        match self.get_json(&url).await {
+            Ok(resp) if resp.is_success() => match serde_json::from_slice(&resp.body) {
+                Ok(doc) => Ok(Some(doc)),
+                Err(e) => Err(IdentityError::Json(e)),
+            },
+            _ => Ok(None),
         }
     }
 }

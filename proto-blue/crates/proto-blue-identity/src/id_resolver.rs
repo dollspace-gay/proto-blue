@@ -1,6 +1,9 @@
 //! Combined identity resolver for both DIDs and handles.
 
+use std::sync::Arc;
+
 use proto_blue_common::DidDocument;
+use proto_blue_common::fetch::FetchHandler;
 
 use crate::cache::DidCache;
 use crate::did::DidResolver;
@@ -17,7 +20,12 @@ pub struct IdResolver {
 }
 
 impl IdResolver {
-    /// Create a new IdResolver with the given options.
+    /// Create a new IdResolver with the given options, using the crate's
+    /// default native fetch handler (`reqwest`).
+    ///
+    /// Requires `fetch-reqwest` + `dns` (both default on native). For
+    /// wasm, use [`Self::with_fetch_handler`].
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
     pub fn new(opts: IdentityResolverOpts, cache: Option<Box<dyn DidCache>>) -> Self {
         // Parse backup nameserver strings into IP addresses; silently
         // drop entries that don't parse (they were a caller typo, not a
@@ -32,6 +40,27 @@ impl IdResolver {
         IdResolver {
             handle: HandleResolver::with_backup_nameservers(opts.timeout_ms, backups),
             did: DidResolver::new(opts.plc_url.as_deref(), opts.timeout_ms, cache),
+        }
+    }
+
+    /// Create a new IdResolver with a user-supplied [`FetchHandler`].
+    ///
+    /// This is the constructor for wasm builds (no DNS), for tests that
+    /// want to mock HTTP, and for callers that want to share a single
+    /// transport across multiple resolvers.
+    pub fn with_fetch_handler(
+        opts: IdentityResolverOpts,
+        cache: Option<Box<dyn DidCache>>,
+        fetcher: Arc<dyn FetchHandler>,
+    ) -> Self {
+        IdResolver {
+            handle: HandleResolver::with_fetch_handler(opts.timeout_ms, fetcher.clone()),
+            did: DidResolver::with_fetch_handler(
+                opts.plc_url.as_deref(),
+                opts.timeout_ms,
+                cache,
+                fetcher,
+            ),
         }
     }
 
@@ -80,6 +109,7 @@ impl IdResolver {
     }
 }
 
+#[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
 impl Default for IdResolver {
     fn default() -> Self {
         Self::new(IdentityResolverOpts::default(), None)
@@ -102,11 +132,13 @@ mod tests {
     use super::*;
     use proto_blue_common::parse_did_document;
 
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
     #[test]
     fn create_default_resolver() {
         let _resolver = IdResolver::default();
     }
 
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
     #[test]
     fn create_with_options() {
         let opts = IdentityResolverOpts {
@@ -117,6 +149,7 @@ mod tests {
         let _resolver = IdResolver::new(opts, None);
     }
 
+    #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
     #[test]
     fn backup_nameservers_are_threaded_through_opts() {
         let opts = IdentityResolverOpts {

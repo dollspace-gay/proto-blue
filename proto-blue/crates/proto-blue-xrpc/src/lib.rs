@@ -1,10 +1,11 @@
 //! AT Protocol XRPC HTTP client and (optional) server.
 //!
 //! - [`XrpcClient`] makes outbound XRPC query (GET) and procedure (POST)
-//!   calls against a remote service. Its HTTP transport is abstracted
-//!   behind the [`proto_blue_common::fetch::FetchHandler`] trait — see
-//!   [`reqwest_fetch::ReqwestFetcher`] (native default) and
-//!   [`web_fetch::WebFetcher`] (browser, `wasm32-unknown-unknown`).
+//!   calls against a remote service. HTTP transport is abstracted behind
+//!   [`proto_blue_common::fetch::FetchHandler`]; the reqwest-backed
+//!   [`proto_blue_common::fetch::ReqwestFetcher`] is the default on native
+//!   targets and the `gloo-net`-backed `WebFetcher` is available on
+//!   `wasm32-unknown-unknown`.
 //! - [`server::XrpcServer`] hosts inbound XRPC endpoints on an
 //!   [`axum::Router`]. Available on native targets behind the `server`
 //!   feature (default on).
@@ -12,12 +13,6 @@
 pub mod client;
 pub mod error;
 pub mod types;
-
-#[cfg(feature = "fetch-reqwest")]
-pub mod reqwest_fetch;
-
-#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
-pub mod web_fetch;
 
 #[cfg(feature = "server")]
 pub mod server;

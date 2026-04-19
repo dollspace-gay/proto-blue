@@ -18,21 +18,17 @@ serde_json = { workspace = true }
 url = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
-async-trait = { workspace = true }
 
-# Native runtime — only needed when the server or the reqwest fetch
-# backend is enabled. Tokio itself is wasm-safe with the features below,
-# but `server` and `fetch-reqwest` each request the tokio features they
-# actually need.
+# Server-side reqwest access (the `with_client` constructor takes a
+# `reqwest::Client` directly). Optional, gated behind `fetch-reqwest`.
+reqwest = { workspace = true, optional = true }
+
+# Native runtime — the server and some tests need more tokio features
+# than the minimal set. Layered per-feature below.
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 
-# Optional native backends.
-reqwest = { workspace = true, optional = true }
+# Optional native server.
 axum = { workspace = true, optional = true }
-
-# Optional wasm backend.
-gloo-net = { version = "0.6", features = ["http"], optional = true }
-js-sys = { version = "0.3", optional = true }
 
 [features]
 # Default: full native stack (server + reqwest client), matching pre-refactor behaviour.
@@ -41,13 +37,13 @@ default = ["server", "fetch-reqwest"]
 # Axum-based inbound XRPC server. Native-only.
 server = ["dep:axum", "tokio/net", "tokio/io-util", "tokio/rt-multi-thread", "tokio/time"]
 
-# reqwest-backed `FetchHandler` (`ReqwestFetcher`). Native / wasm32 compatible
-# (reqwest itself works on wasm, but usually `fetch-web` is preferred there).
-fetch-reqwest = ["dep:reqwest", "tokio/rt-multi-thread", "tokio/time", "tokio/io-util"]
+# Enable the reqwest-backed `FetchHandler` (`ReqwestFetcher`) from
+# `proto-blue-common`. Also exposes `XrpcClient::with_client` for callers
+# who want to pass their own `reqwest::Client`.
+fetch-reqwest = ["dep:reqwest", "proto-blue-common/fetch-reqwest"]
 
-# `gloo-net`-backed `FetchHandler` for `wasm32-unknown-unknown`. Uses the
-# browser's native `fetch()`.
-fetch-web = ["dep:gloo-net", "dep:js-sys"]
+# Enable the `gloo-net`-backed `FetchHandler` for wasm32.
+fetch-web = ["proto-blue-common/fetch-web"]
 
 [dev-dependencies]
 proptest = { workspace = true }

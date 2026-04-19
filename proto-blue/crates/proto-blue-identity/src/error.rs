@@ -33,8 +33,11 @@ pub enum IdentityError {
     #[error("Could not parse PDS endpoint from DID document: {0}")]
     MissingPds(String),
 
-    #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
+    /// Transport-level failure from the configured [`FetchHandler`].
+    ///
+    /// [`FetchHandler`]: proto_blue_common::fetch::FetchHandler
+    #[error("fetch error: {0}")]
+    Fetch(#[from] proto_blue_common::fetch::FetchError),
 
     #[error("DNS error: {0}")]
     Dns(String),

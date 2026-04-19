@@ -2,12 +2,12 @@
 //!
 //! The client is transport-agnostic: it constructs a
 //! [`proto_blue_common::fetch::HttpRequest`] and hands it off to a
-//! [`FetchHandler`]. Two implementations ship in this crate:
+//! [`FetchHandler`]. Two implementations ship in `proto-blue-common`:
 //!
-//! - [`reqwest_fetch::ReqwestFetcher`] (feature `fetch-reqwest`, default) —
-//!   native HTTP via `reqwest`.
-//! - [`web_fetch::WebFetcher`] (feature `fetch-web`) — browser `fetch()`
-//!   via `gloo-net`, for `wasm32-unknown-unknown`.
+//! - [`proto_blue_common::fetch::ReqwestFetcher`] (feature
+//!   `fetch-reqwest`, default) — native HTTP via `reqwest`.
+//! - [`proto_blue_common::fetch::WebFetcher`] (feature `fetch-web`) —
+//!   browser `fetch()` via `gloo-net`, for `wasm32-unknown-unknown`.
 //!
 //! Callers can also supply their own implementation, which is the primary
 //! seam for unit-testable mocks.
@@ -77,7 +77,7 @@ impl XrpcClient {
     ) -> Result<Self, Error> {
         Self::with_fetch_handler(
             service,
-            Arc::new(crate::reqwest_fetch::ReqwestFetcher::from_client(client)),
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::from_client(client)),
         )
     }
 
@@ -273,13 +273,13 @@ impl XrpcClient {
 /// Prefers `fetch-reqwest` when available. On wasm-only builds, falls back
 /// to `fetch-web`.
 #[cfg(feature = "fetch-reqwest")]
-fn default_fetcher() -> crate::reqwest_fetch::ReqwestFetcher {
-    crate::reqwest_fetch::ReqwestFetcher::new()
+fn default_fetcher() -> proto_blue_common::fetch::ReqwestFetcher {
+    proto_blue_common::fetch::ReqwestFetcher::new()
 }
 
-#[cfg(all(feature = "fetch-web", not(feature = "fetch-reqwest")))]
-fn default_fetcher() -> crate::web_fetch::WebFetcher {
-    crate::web_fetch::WebFetcher::new()
+#[cfg(all(feature = "fetch-web", not(feature = "fetch-reqwest"), target_arch = "wasm32"))]
+fn default_fetcher() -> proto_blue_common::fetch::WebFetcher {
+    proto_blue_common::fetch::WebFetcher::new()
 }
 
 /// HTTP method for XRPC calls.

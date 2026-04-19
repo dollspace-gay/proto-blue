@@ -2,18 +2,28 @@
 //!
 //! Mirrors the TypeScript SDK's `@atproto/xrpc` `FetchHandler` pattern: a
 //! small trait over a request/response pair that higher layers call instead
-//! of reaching for `reqwest` (or any other HTTP client) directly. Backends
-//! live in their home crates — `proto-blue-xrpc` ships a reqwest-backed
-//! implementation on native and a `gloo-net`-backed implementation on
-//! `wasm32-unknown-unknown`.
+//! of reaching for `reqwest` (or any other HTTP client) directly.
+//!
+//! # Backends
+//!
+//! Two implementations ship with this crate, feature-gated:
+//!
+//! - [`reqwest_impl::ReqwestFetcher`] (`fetch-reqwest`, default on native) —
+//!   backed by `reqwest`.
+//! - [`web_impl::WebFetcher`] (`fetch-web`, wasm32 only) — backed by
+//!   `gloo-net` which drives the browser's native `fetch()`.
+//!
+//! Callers can also supply their own implementation, which is the primary
+//! seam for unit-testable mocks.
 //!
 //! # Why a trait here, not in `proto-blue-xrpc`?
 //!
 //! Identity resolution (`proto-blue-identity`), OAuth metadata discovery
 //! (`proto-blue-oauth`), and XRPC calls (`proto-blue-xrpc`) all need to
-//! issue HTTP requests. Keeping the trait in `proto-blue-common` means a
-//! single shared abstraction all three can consume — and swap for a
-//! browser-native backend on wasm without each crate inventing its own.
+//! issue HTTP requests. Keeping the trait and the shared adapters in
+//! `proto-blue-common` means a single reusable abstraction all three can
+//! consume — and swap for a browser-native backend on wasm without each
+//! crate inventing its own.
 //!
 //! # Send bounds
 //!
@@ -27,6 +37,18 @@ use std::collections::BTreeMap;
 
 use async_trait::async_trait;
 use thiserror::Error;
+
+#[cfg(feature = "fetch-reqwest")]
+pub mod reqwest_impl;
+
+#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
+pub mod web_impl;
+
+#[cfg(feature = "fetch-reqwest")]
+pub use reqwest_impl::ReqwestFetcher;
+
+#[cfg(all(feature = "fetch-web", target_arch = "wasm32"))]
+pub use web_impl::WebFetcher;
 
 /// Ordered map of lowercase header names to values.
 ///
