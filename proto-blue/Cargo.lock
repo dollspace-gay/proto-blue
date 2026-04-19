@@ -1618,7 +1618,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proptest",
  "proto-blue-api",
@@ -1639,7 +1639,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-api"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -1661,7 +1661,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-codegen"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "clap",
  "proc-macro2",
@@ -1673,7 +1673,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-common"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "base64",
@@ -1700,7 +1700,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-crypto"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "base64",
  "bs58",
@@ -1737,7 +1737,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-identity"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -1753,7 +1753,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-lex-cbor"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "ciborium",
  "proptest",
@@ -1764,7 +1764,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-lex-data"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "multibase",
  "proptest",
@@ -1777,7 +1777,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-lex-json"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "base64",
  "proptest",
@@ -1788,7 +1788,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-lexicon"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "proptest",
  "proto-blue-common",
@@ -1801,7 +1801,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-oauth"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "base64",
@@ -1825,7 +1825,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-repo"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "futures",
  "proptest",
@@ -1846,7 +1846,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-syntax"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "chrono",
  "once_cell",
@@ -1859,7 +1859,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-ws"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -1876,7 +1876,7 @@ dependencies = [
 
 [[package]]
 name = "proto-blue-xrpc"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "async-trait",
  "axum",
