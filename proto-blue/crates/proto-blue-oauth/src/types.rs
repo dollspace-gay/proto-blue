@@ -134,11 +134,18 @@ pub struct TokenSet {
     pub token_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
+    /// Intended audience (PDS / resource-server URL) for this token.
+    /// Bound via DPoP `htu` claims on all resource-server requests.
+    /// `None` on legacy sessions that predate the field; `aud_or_issuer()`
+    /// falls back to `issuer` in that case.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aud: Option<String>,
 }
 
 impl TokenSet {
-    /// Create from a token response.
-    pub fn from_response(issuer: &str, response: &OAuthTokenResponse) -> Self {
+    /// Create from a token response. `aud` is the PDS URL the client
+    /// discovered during identity resolution.
+    pub fn from_response(issuer: &str, aud: Option<&str>, response: &OAuthTokenResponse) -> Self {
         let expires_at = response.expires_in.map(|secs| {
             let dt = chrono::Utc::now() + chrono::Duration::seconds(secs as i64);
             dt.to_rfc3339()
@@ -152,7 +159,14 @@ impl TokenSet {
             refresh_token: response.refresh_token.clone(),
             token_type: response.token_type.clone(),
             expires_at,
+            aud: aud.map(str::to_string),
         }
+    }
+
+    /// Audience URL for DPoP `htu` binding. Falls back to `issuer` for
+    /// legacy token sets that predate the `aud` field.
+    pub fn aud_or_issuer(&self) -> &str {
+        self.aud.as_deref().unwrap_or(&self.issuer)
     }
 
     /// Check if the token is expired or about to expire (within buffer seconds).
@@ -169,6 +183,20 @@ impl TokenSet {
             }
             None => false,
         }
+    }
+
+    /// Like `is_expired` but jitters the window by +[0, jitter_secs) so
+    /// a fleet of concurrent sessions doesn't stampede the /token
+    /// endpoint when their `expires_in` lands in the same second.
+    pub fn is_expired_jittered(&self, buffer_secs: i64, jitter_secs: u32) -> bool {
+        let jitter = if jitter_secs == 0 {
+            0
+        } else {
+            // `rand::random` returns a uniformly-distributed integer;
+            // keep it bounded and deterministic across platforms.
+            (rand::random::<u32>() % jitter_secs) as i64
+        };
+        self.is_expired(buffer_secs + jitter)
     }
 }
 
@@ -251,10 +279,31 @@ mod tests {
             expires_in: Some(3600),
             sub: Some("did:plc:test".into()),
         };
-        let ts = TokenSet::from_response("https://bsky.social", &resp);
+        let ts = TokenSet::from_response(
+            "https://bsky.social",
+            Some("https://pds.example.com"),
+            &resp,
+        );
         assert_eq!(ts.issuer, "https://bsky.social");
+        assert_eq!(ts.aud.as_deref(), Some("https://pds.example.com"));
+        assert_eq!(ts.aud_or_issuer(), "https://pds.example.com");
         assert_eq!(ts.sub, "did:plc:test");
         assert!(!ts.is_expired(0));
+    }
+
+    #[test]
+    fn token_set_aud_falls_back_to_issuer() {
+        let resp = OAuthTokenResponse {
+            access_token: "a".into(),
+            token_type: "DPoP".into(),
+            scope: None,
+            refresh_token: None,
+            expires_in: None,
+            sub: None,
+        };
+        let ts = TokenSet::from_response("https://bsky.social", None, &resp);
+        assert!(ts.aud.is_none());
+        assert_eq!(ts.aud_or_issuer(), "https://bsky.social");
     }
 
     #[test]
@@ -267,6 +316,7 @@ mod tests {
             refresh_token: None,
             token_type: "DPoP".into(),
             expires_at: Some("2020-01-01T00:00:00Z".into()),
+            aud: None,
         };
         assert!(ts.is_expired(0));
 

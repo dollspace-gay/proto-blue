@@ -25,6 +25,7 @@ chrono = { workspace = true }
 p256 = { workspace = true }
 k256 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "sync"] }
+async-trait = { workspace = true }
 
 # Back-compat constructors that accept a `reqwest::Client` directly.
 # Only required when the `fetch-reqwest` feature is on.

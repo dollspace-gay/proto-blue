@@ -561,6 +561,7 @@ async fn refresh_token_posts_correct_form_and_updates_set() {
         refresh_token: Some("rt-old".to_string()),
         token_type: "DPoP".to_string(),
         expires_at: Some("2099-01-01T00:00:00Z".to_string()),
+        aud: None,
     };
 
     let updated = client.refresh_token(&meta, &current, &dpop).await.unwrap();
@@ -615,6 +616,7 @@ async fn refresh_token_without_refresh_errors_without_request() {
         refresh_token: None,
         token_type: "DPoP".to_string(),
         expires_at: None,
+        aud: None,
     };
 
     let err = client
@@ -715,6 +717,7 @@ async fn session_refresh_updates_token_set_in_place() {
         refresh_token: Some("rt-old".to_string()),
         token_type: "DPoP".to_string(),
         expires_at: None,
+        aud: None,
     };
     let session = OAuthSession::new(current, dpop, DpopNonceCache::new());
 
@@ -725,4 +728,62 @@ async fn session_refresh_updates_token_set_in_place() {
         session.token_set().refresh_token.as_deref(),
         Some("rt-fresh")
     );
+}
+
+/// Concurrent `refresh()` calls share a single `/token` round-trip via
+/// the session's internal refresh lock. We prove this with a one-shot
+/// mock that only serves the first request — if the lock works, nine
+/// of ten concurrent refreshes short-circuit on the rotated-token
+/// check and never touch the network.
+#[tokio::test]
+async fn session_refresh_dedupes_concurrent_callers() {
+    let (token_base, _cap) = spawn_oneshot(Reply::json(
+        200,
+        br#"{
+          "access_token":"at-fresh",
+          "token_type":"DPoP",
+          "refresh_token":"rt-fresh",
+          "expires_in":3600,
+          "scope":"atproto",
+          "sub":"did:plc:abc"
+        }"#
+        .to_vec(),
+    ))
+    .await;
+    let token_endpoint = format!("{token_base}/token");
+
+    let client = std::sync::Arc::new(real_client("https://app.example.com/metadata.json"));
+    let meta = std::sync::Arc::new(server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        &token_endpoint,
+        None,
+        None,
+    ));
+    let dpop = DpopKey::generate().unwrap();
+    let current = TokenSet {
+        issuer: "https://as.example.com".to_string(),
+        sub: "did:plc:abc".to_string(),
+        scope: "atproto".to_string(),
+        access_token: "at-old".to_string(),
+        refresh_token: Some("rt-old".to_string()),
+        token_type: "DPoP".to_string(),
+        expires_at: None,
+        aud: None,
+    };
+    let session = std::sync::Arc::new(OAuthSession::new(current, dpop, DpopNonceCache::new()));
+
+    let mut handles = Vec::new();
+    for _ in 0..10 {
+        let s = session.clone();
+        let c = client.clone();
+        let m = meta.clone();
+        handles.push(tokio::spawn(async move { s.refresh(&c, &m).await }));
+    }
+
+    for h in handles {
+        h.await.unwrap().expect("refresh should not error");
+    }
+
+    assert_eq!(session.token_set().access_token, "at-fresh");
 }

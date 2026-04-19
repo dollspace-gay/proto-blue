@@ -14,6 +14,7 @@ pub mod error;
 pub mod pkce;
 pub mod scope;
 pub mod session;
+pub mod store;
 pub mod types;
 
 pub use client::{DpopNonceCache, OAuthClient, validate_client_metadata};
@@ -22,6 +23,7 @@ pub use error::OAuthError;
 pub use pkce::{PkceChallenge, generate_pkce, verify_pkce};
 pub use scope::{PermissionNamespace, Scope, ScopeError, ScopeSet};
 pub use session::OAuthSession;
+pub use store::{MemoryStore, SimpleStore};
 pub use types::{
     AuthState, OAuthClientMetadata, OAuthProtectedResourceMetadata, OAuthServerMetadata,
     OAuthTokenResponse, ParResponse, TokenSet,

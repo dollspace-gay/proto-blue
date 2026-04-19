@@ -427,6 +427,28 @@ impl OAuthClient {
         self.callback(code, auth_state, server_metadata).await
     }
 
+    /// Variant of [`Self::callback_with_iss`] that records the
+    /// resource-server (PDS) URL onto the returned [`TokenSet`] as
+    /// `aud`. Pass the PDS URL discovered during identity resolution;
+    /// DPoP proofs on subsequent resource-server requests bind `htu`
+    /// to that audience so a stolen token can't be replayed elsewhere.
+    pub async fn callback_with_iss_and_aud(
+        &self,
+        code: &str,
+        iss: Option<&str>,
+        aud: Option<&str>,
+        auth_state: &AuthState,
+        server_metadata: &OAuthServerMetadata,
+    ) -> Result<TokenSet, OAuthError> {
+        let mut ts = self
+            .callback_with_iss(code, iss, auth_state, server_metadata)
+            .await?;
+        if let Some(url) = aud {
+            ts.aud = Some(url.to_string());
+        }
+        Ok(ts)
+    }
+
     /// Handle the OAuth callback, exchanging the authorization code for tokens.
     ///
     /// Parameters:
@@ -467,7 +489,7 @@ impl OAuthClient {
             });
         }
 
-        let token_set = TokenSet::from_response(&server_metadata.issuer, &token_response);
+        let token_set = TokenSet::from_response(&server_metadata.issuer, None, &token_response);
         Ok(token_set)
     }
 
@@ -584,18 +606,30 @@ impl OAuthClient {
                     .post_form(token_endpoint, &body, Some(&dpop_proof))
                     .await?;
                 let token_response = parse_token_response(resp)?;
-                return Ok(TokenSet::from_response(
+                let mut new_ts = TokenSet::from_response(
                     &server_metadata.issuer,
+                    token_set.aud.as_deref(),
                     &token_response,
-                ));
+                );
+                // Preserve the refresh token on rotation-less
+                // responses (RFC 6749 §6 allows omitting it).
+                if new_ts.refresh_token.is_none() {
+                    new_ts.refresh_token = token_set.refresh_token.clone();
+                }
+                return Ok(new_ts);
             }
         }
 
         let token_response = parse_token_response(resp)?;
-        Ok(TokenSet::from_response(
+        let mut new_ts = TokenSet::from_response(
             &server_metadata.issuer,
+            token_set.aud.as_deref(),
             &token_response,
-        ))
+        );
+        if new_ts.refresh_token.is_none() {
+            new_ts.refresh_token = token_set.refresh_token.clone();
+        }
+        Ok(new_ts)
     }
 
     /// Revoke a token (access or refresh) at the revocation endpoint.

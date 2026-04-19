@@ -27,6 +27,11 @@ pub struct OAuthSession {
     fetcher: Arc<dyn FetchHandler>,
     /// DPoP nonce cache (shared with OAuthClient).
     dpop_nonces: DpopNonceCache,
+    /// Serializes concurrent `/token` refresh requests so N callers
+    /// that hit an expired access token at once share a single
+    /// round-trip. Held for the duration of the refresh; later callers
+    /// wake up to find the token already rotated.
+    refresh_lock: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl OAuthSession {
@@ -75,6 +80,7 @@ impl OAuthSession {
             dpop_key,
             fetcher,
             dpop_nonces,
+            refresh_lock: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
@@ -83,9 +89,17 @@ impl OAuthSession {
         self.token_set.lock().unwrap().sub.clone()
     }
 
-    /// Check if the current access token is expired.
+    /// Check if the current access token is expired, treating a token
+    /// within 10 seconds of expiry as already expired.
     pub fn is_expired(&self) -> bool {
         self.token_set.lock().unwrap().is_expired(10)
+    }
+
+    /// Like [`Self::is_expired`] but jitters the refresh window by
+    /// +[0, 30s) so a fleet of sessions with synchronized lifetimes
+    /// doesn't stampede the `/token` endpoint.
+    pub fn is_expired_jittered(&self) -> bool {
+        self.token_set.lock().unwrap().is_expired_jittered(10, 30)
     }
 
     /// Get a clone of the current token set.
@@ -99,12 +113,25 @@ impl OAuthSession {
     }
 
     /// Refresh the session's tokens using the OAuth client.
+    ///
+    /// Serialized by an internal mutex so N concurrent callers share a
+    /// single `/token` request: later callers block on the lock, then
+    /// observe that the access token has already rotated and return
+    /// immediately without hitting the network.
     pub async fn refresh(
         &self,
         oauth_client: &OAuthClient,
         server_metadata: &OAuthServerMetadata,
     ) -> Result<(), OAuthError> {
+        let before = self.token_set().access_token.clone();
+        let _guard = self.refresh_lock.lock().await;
         let current = self.token_set();
+        // Double-check after acquiring the lock: if another task just
+        // finished a refresh while we were blocked, the access token
+        // will have rotated. Skip the network round-trip in that case.
+        if current.access_token != before {
+            return Ok(());
+        }
         let new_token_set = oauth_client
             .refresh_token(server_metadata, &current, &self.dpop_key)
             .await?;
@@ -264,6 +291,7 @@ mod tests {
             refresh_token: Some("refresh-456".into()),
             token_type: "DPoP".into(),
             expires_at: Some("2099-01-01T00:00:00Z".into()),
+            aud: None,
         };
         let dpop_key = DpopKey::generate().unwrap();
         let session = OAuthSession::new(ts, dpop_key, DpopNonceCache::new());
@@ -286,6 +314,7 @@ mod tests {
             refresh_token: None,
             token_type: "DPoP".into(),
             expires_at: None,
+            aud: None,
         };
         let dpop_key = DpopKey::generate().unwrap();
         let session = OAuthSession::new(ts, dpop_key, DpopNonceCache::new());
@@ -298,6 +327,7 @@ mod tests {
             refresh_token: Some("refresh".into()),
             token_type: "DPoP".into(),
             expires_at: Some("2099-01-01T00:00:00Z".into()),
+            aud: None,
         };
         session.update_token_set(new_ts);
 
@@ -316,6 +346,7 @@ mod tests {
             refresh_token: None,
             token_type: "DPoP".into(),
             expires_at: Some("2020-01-01T00:00:00Z".into()),
+            aud: None,
         };
         let dpop_key = DpopKey::generate().unwrap();
         let session = OAuthSession::new(ts, dpop_key, DpopNonceCache::new());
