@@ -286,6 +286,33 @@ cargo build --workspace --release
 
 **Minimum Supported Rust Version:** 1.85 (edition 2024)
 
+## WASM support
+
+The pure-Rust subset of proto-blue compiles for `wasm32-unknown-unknown`.
+Depend on it with default features off and opt into only the protocol-level
+functionality you need:
+
+```toml
+[dependencies]
+proto-blue = { version = "0.2", default-features = false }
+```
+
+### Feature matrix
+
+| Feature    | Re-exports                                                             | wasm32  |
+|------------|------------------------------------------------------------------------|---------|
+| *(none)*   | `syntax`, `crypto`, `lex_data`, `lex_cbor`, `lex_json`, `common`, `lexicon`, `repo` | ✅ |
+| `net`      | `xrpc`                                                                 | 🚧 (#25) |
+| `ws`       | `ws`, enables `repo::Firehose`                                          | 🚧 (#27) |
+| `resolver` | `identity`                                                             | 🚧 (#26) |
+| `oauth`    | `oauth`                                                                | 🚧       |
+| `api`      | `api`                                                                  | 🚧       |
+| `full`     | everything — **default**                                               | ❌       |
+
+The pure subset is regression-gated in CI by `cargo check --target wasm32-unknown-unknown`.
+Network-backed features (`net`, `ws`, `resolver`, `oauth`, `api`) still pull in reqwest / hickory
+/ tokio-tungstenite and are native-only today; wasm backends for each are tracked separately.
+
 ## License
 
 Licensed under [MIT](proto-blue/LICENSE-MIT) or [Apache-2.0](proto-blue/LICENSE-APACHE).

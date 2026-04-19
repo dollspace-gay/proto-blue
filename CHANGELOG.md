@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] - 2026-04-18
 
 ### Added
+- Feature-gate top-level proto-blue re-exports for wasm builds (#24)
 - XRPC: implement server-side (router, validation, auth, rate-limit) (#16)
 - Syntax: AtUri class-like API (setters, make, relative, searchParams) (#19)
 - Repo: MST covering and commit proofs (#15)

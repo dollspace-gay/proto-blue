@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+defaults:
+  run:
+    working-directory: proto-blue
+
+jobs:
+  build-and-test:
+    name: Build & test (native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue
+      - name: Build
+        run: cargo build --workspace --all-targets
+      - name: Test
+        run: cargo test --workspace
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
+  wasm32:
+    name: Check wasm32 (pure subset)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue
+          key: wasm32
+      # The default-features=false check on the top-level crate exercises
+      # every pure subcrate at once (syntax, crypto, lex_data, lex_cbor,
+      # lex_json, common, lexicon, repo). If a future dependency drags a
+      # native-only crate into one of these, this check fails.
+      - name: Check proto-blue (default-features=false)
+        run: cargo check --target wasm32-unknown-unknown -p proto-blue --no-default-features
+      # Also exercise each pure crate on its own so a per-crate regression
+      # surfaces distinctly instead of hiding inside the aggregate check.
+      - name: Check pure subcrates
+        run: |
+          for crate in \
+            proto-blue-syntax \
+            proto-blue-crypto \
+            proto-blue-lex-data \
+            proto-blue-lex-cbor \
+            proto-blue-lex-json \
+            proto-blue-common \
+            proto-blue-lexicon \
+            proto-blue-repo; do
+            echo "::group::$crate"
+            cargo check --target wasm32-unknown-unknown -p "$crate" --no-default-features
+            echo "::endgroup::"
+          done
+
+  docs:
+    name: Build docs (all-features)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue
+          key: docs
+      - name: cargo doc
+        run: cargo doc --workspace --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
