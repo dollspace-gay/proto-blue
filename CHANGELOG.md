@@ -11,17 +11,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   emitted per query/procedure in `proto-blue-api` behind the new
   `server` feature, with automatic params/input decoding and output
   serialization (#44).
-- OAuth: `SimpleStore` trait + in-memory default for pluggable
-  state/session/nonce storage, `TokenSet.aud` for DPoP audience
-  binding, session refresh lock (shared `/token` request across
-  concurrent callers), `is_expired_jittered` for stampede avoidance,
-  loopback client ID parsing (`http://localhost[/?…]`) with implicit
-  metadata + `OAuthClient::new_loopback`, RFC 7523 `private_key_jwt`
-  client authentication via `ClientKey`/`ClientKeyset` with alg
-  negotiation, and end-to-end identity resolution
-  (handle/DID/PDS-URL → PDS → AS) behind the new `identity-resolver`
-  feature. `callback_verified` rejects AS-returned `sub` that
-  mismatches a pre-resolved DID. (#53)
+- OAuth general-purpose client surface: `SimpleStore` trait + in-memory
+  default for pluggable state/session/nonce storage, `TokenSet.aud`
+  for DPoP audience binding, session refresh lock (shared `/token`
+  request across concurrent callers), `is_expired_jittered` for
+  stampede avoidance, loopback client ID parsing
+  (`http://localhost[/?…]`) with implicit metadata +
+  `OAuthClient::new_loopback`, RFC 7523 `private_key_jwt` client
+  authentication via `ClientKey`/`ClientKeyset` with alg negotiation,
+  and end-to-end identity resolution (handle/DID/PDS-URL → PDS → AS)
+  behind the new `identity-resolver` feature. `callback_verified`
+  rejects AS-returned `sub` that mismatches a pre-resolved DID. (#53)
 
 ## [0.2.1] - 2026-04-19
 
