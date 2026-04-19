@@ -30,6 +30,7 @@ gloo-net = { version = "0.6", features = ["websocket"], optional = true }
 # instead of a build break.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio-tungstenite = { workspace = true, optional = true }
+rustls = { version = "0.23", default-features = false, features = ["ring"], optional = true }
 
 [features]
 # Default: native tungstenite backend. Matches pre-refactor behaviour.
@@ -40,6 +41,17 @@ default = ["tungstenite"]
 # only because the whole dep is native-only; we still list it so
 # enabling `tungstenite` on native produces the full feature set.
 tungstenite = ["dep:tokio-tungstenite"]
+
+# Rustls-based TLS for the tungstenite connector. When enabled,
+# `TungsteniteConnector::with_rustls_config` is available and lets
+# operators pass a custom `rustls::ClientConfig` (for adding internal
+# CA roots in self-hosted deployments, pinning, etc.). Webpki roots
+# are bundled so the default chain still validates public certs.
+rustls-tls = [
+    "dep:rustls",
+    "tungstenite",
+    "tokio-tungstenite?/rustls-tls-webpki-roots",
+]
 
 # `gloo-net`-backed WebSocket connector for `wasm32-unknown-unknown`.
 # Uses the browser's native `WebSocket` via `wasm-bindgen`.

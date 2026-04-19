@@ -61,6 +61,21 @@ pub struct WebSocketKeepAliveOpts {
     pub max_reconnect_seconds: u64,
     /// Heartbeat (ping) interval in milliseconds (default: 10000).
     pub heartbeat_interval_ms: u64,
+    /// Optional cap on consecutive failed reconnect attempts. When
+    /// the limit is exceeded, [`WebSocketKeepAlive::recv`] returns
+    /// [`WsError::ReconnectExhausted`] so a supervising caller can
+    /// fall over to an alternate URL (multi-relay failover) instead
+    /// of spinning forever on a dead endpoint. `None` preserves the
+    /// previous behaviour of retrying indefinitely.
+    pub max_reconnect_attempts: Option<u32>,
+    /// Optional override for the per-`recv` read deadline in
+    /// milliseconds. Defaults to `3 × heartbeat_interval_ms` — i.e.
+    /// three missed heartbeats trigger a reconnect. Set this to bound
+    /// silence on a TCP-accepting-then-dropping relay: e.g. a
+    /// firehose at ~1500 events/sec should never be silent for 60
+    /// seconds, so `Some(60_000)` forces a reconnect (and, with
+    /// `max_reconnect_attempts`, an outer failover) when it is.
+    pub per_recv_timeout_ms: Option<u64>,
 }
 
 impl Default for WebSocketKeepAliveOpts {
@@ -68,6 +83,8 @@ impl Default for WebSocketKeepAliveOpts {
         Self {
             max_reconnect_seconds: 64,
             heartbeat_interval_ms: 10_000,
+            max_reconnect_attempts: None,
+            per_recv_timeout_ms: None,
         }
     }
 }
@@ -207,10 +224,26 @@ impl WebSocketKeepAlive {
     /// Receive the next message, automatically reconnecting on failure.
     ///
     /// Returns `None` when the connection is cleanly closed.
+    ///
+    /// When `opts.max_reconnect_attempts` is set and the number of
+    /// consecutive failed reconnects exceeds it, returns
+    /// [`WsError::ReconnectExhausted`] so the caller can switch to a
+    /// fallback relay.
+    ///
+    /// When `opts.per_recv_timeout_ms` is set, each read is bounded
+    /// by that deadline instead of the default `3 × heartbeat_interval_ms`.
     pub async fn recv(&mut self) -> Result<Option<Vec<u8>>, WsError> {
         loop {
             // Connect if not connected.
             if self.transport.is_none() {
+                if let Some(limit) = self.opts.max_reconnect_attempts
+                    && self.reconnects >= limit
+                {
+                    let attempts = self.reconnects;
+                    debug!("reconnect attempts exhausted ({attempts}), bailing");
+                    return Err(WsError::ReconnectExhausted { attempts });
+                }
+
                 let delay = self.reconnect_delay();
                 if delay > Duration::ZERO {
                     debug!("Reconnecting in {:?}...", delay);
@@ -238,9 +271,12 @@ impl WebSocketKeepAlive {
 
             let transport = self.transport.as_mut().unwrap();
 
-            let heartbeat_duration = Duration::from_millis(self.opts.heartbeat_interval_ms);
+            let read_deadline = self.opts.per_recv_timeout_ms.map_or_else(
+                || Duration::from_millis(self.opts.heartbeat_interval_ms) * 3,
+                Duration::from_millis,
+            );
 
-            match tokio::time::timeout(heartbeat_duration * 3, transport.recv()).await {
+            match tokio::time::timeout(read_deadline, transport.recv()).await {
                 Ok(Ok(Some(frame))) => match frame {
                     WsFrame::Binary(data) => return Ok(Some(data)),
                     WsFrame::Text(text) => return Ok(Some(text.into_bytes())),
@@ -267,8 +303,13 @@ impl WebSocketKeepAlive {
                     return Err(e);
                 }
                 Err(_) => {
-                    // Heartbeat timeout — connection is dead.
-                    warn!("Heartbeat timeout, reconnecting...");
+                    // Read timed out — treat as a dead connection and
+                    // reconnect. When `per_recv_timeout_ms` is set,
+                    // this bounds silence on an accepted-then-dropped
+                    // relay; combined with `max_reconnect_attempts` it
+                    // surfaces as `ReconnectExhausted` after the cap
+                    // so the caller can fail over.
+                    warn!("recv timeout ({:?}), reconnecting...", read_deadline);
                     self.disconnect().await;
                     self.reconnects += 1;
                     continue;
@@ -610,6 +651,109 @@ mod tests {
         assert!(
             seen.is_empty(),
             "connect() alone should not fire the recv-loop error hook"
+        );
+    }
+
+    // ── max_reconnect_attempts / per_recv_timeout_ms (issue #3) ──────────
+
+    /// With `max_reconnect_attempts = Some(n)`, `recv` must surface
+    /// `ReconnectExhausted { attempts: n }` after n consecutive
+    /// connect failures instead of spinning forever. Lets a
+    /// supervising caller fall over to an alternate relay.
+    #[tokio::test]
+    async fn recv_bails_with_reconnect_exhausted_after_max_attempts() {
+        let connector = Arc::new(RecordingConnector {
+            urls: Arc::new(Mutex::new(Vec::new())),
+            // Fail every connect attempt — unbounded budget is fine
+            // because the cap below stops the loop first.
+            fail_first_n: Arc::new(AtomicUsize::new(usize::MAX)),
+        });
+
+        let opts = WebSocketKeepAliveOpts {
+            max_reconnect_seconds: 0,
+            heartbeat_interval_ms: 10_000,
+            max_reconnect_attempts: Some(3),
+            per_recv_timeout_ms: None,
+        };
+        let mut ws =
+            WebSocketKeepAlive::with_connector("wss://unreachable.example/", opts, connector);
+
+        let err = ws
+            .recv()
+            .await
+            .expect_err("expected ReconnectExhausted after retry cap");
+        match err {
+            WsError::ReconnectExhausted { attempts } => assert_eq!(attempts, 3),
+            other => panic!("expected ReconnectExhausted, got {other:?}"),
+        }
+    }
+
+    /// When `per_recv_timeout_ms` is set, a transport that never
+    /// emits a frame triggers a reconnect on the custom deadline
+    /// instead of waiting `3 × heartbeat_interval_ms`. Combined with
+    /// `max_reconnect_attempts = 0`, one timeout is enough to bail —
+    /// proving the timeout path fires.
+    #[tokio::test]
+    async fn recv_honors_per_recv_timeout_override() {
+        /// Transport that blocks forever on recv.
+        struct SilentTransport;
+        #[async_trait]
+        impl WebSocketTransport for SilentTransport {
+            async fn recv(&mut self) -> Result<Option<WsFrame>, WsError> {
+                std::future::pending().await
+            }
+            async fn send(&mut self, _frame: WsFrame) -> Result<(), WsError> {
+                Ok(())
+            }
+            async fn close(&mut self) -> Result<(), WsError> {
+                Ok(())
+            }
+        }
+
+        /// Connector that yields a SilentTransport exactly once, then
+        /// errors (so the retry-cap branch fires).
+        struct SilentThenError {
+            served: AtomicUsize,
+        }
+        #[async_trait]
+        impl WebSocketConnector for SilentThenError {
+            async fn connect(&self, _url: &str) -> Result<Box<dyn WebSocketTransport>, WsError> {
+                if self.served.fetch_add(1, Ordering::SeqCst) == 0 {
+                    Ok(Box::new(SilentTransport))
+                } else {
+                    Err(WsError::Transport("simulated failure".into()))
+                }
+            }
+        }
+
+        let connector = Arc::new(SilentThenError {
+            served: AtomicUsize::new(0),
+        });
+
+        let opts = WebSocketKeepAliveOpts {
+            max_reconnect_seconds: 0,
+            heartbeat_interval_ms: 10_000, // default timeout would be 30s
+            max_reconnect_attempts: Some(0),
+            per_recv_timeout_ms: Some(50), // force recv to time out fast
+        };
+        let mut ws = WebSocketKeepAlive::with_connector("wss://silent/", opts, connector);
+
+        let start = std::time::Instant::now();
+        let err = ws
+            .recv()
+            .await
+            .expect_err("expected exhaustion after timeout");
+        // Must time out on the 50ms override, not the 30s default.
+        // Give the event loop a generous budget (1s) to stay flake-
+        // resistant on busy CI.
+        assert!(
+            start.elapsed() < Duration::from_secs(1),
+            "per_recv_timeout_ms ignored — took {:?}",
+            start.elapsed()
+        );
+        assert!(
+            matches!(err, WsError::ReconnectExhausted { .. }),
+            "expected ReconnectExhausted after timeout, got {err:?}"
         );
     }
 }

@@ -69,6 +69,13 @@ pub enum WsError {
     #[error("Not connected")]
     NotConnected,
 
+    /// `WebSocketKeepAlive` exhausted its configured
+    /// `max_reconnect_attempts` bound. The outer supervisor can match
+    /// on this variant to switch to a fallback relay instead of
+    /// continuing the retry loop.
+    #[error("reconnect attempts exhausted after {attempts} tries")]
+    ReconnectExhausted { attempts: u32 },
+
     #[error("{0}")]
     Other(String),
 }
@@ -89,6 +96,10 @@ pub const fn is_reconnectable(err: &WsError) -> bool {
         WsError::ConnectionClosed => true,
         WsError::Disconnect(_) => false,
         WsError::NotConnected => false,
+        // `ReconnectExhausted` is terminal by construction — the
+        // caller asked us to stop retrying. Returning `false` prevents
+        // the keep-alive loop from re-entering itself on this error.
+        WsError::ReconnectExhausted { .. } => false,
         WsError::Other(_) => false,
     }
 }

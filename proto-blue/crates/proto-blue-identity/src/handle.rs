@@ -78,7 +78,11 @@ impl HandleResolver {
     /// `backup_nameservers` are IP addresses (e.g. `8.8.8.8`, `1.1.1.1`)
     /// that will be consulted in order if the system resolver fails or
     /// returns no matching TXT record. Port 53 / UDP is assumed.
-    #[cfg(all(feature = "fetch-reqwest", feature = "dns", not(target_arch = "wasm32")))]
+    #[cfg(all(
+        feature = "fetch-reqwest",
+        feature = "dns",
+        not(target_arch = "wasm32")
+    ))]
     #[must_use]
     pub fn with_backup_nameservers(timeout_ms: u64, backup_nameservers: Vec<IpAddr>) -> Self {
         Self {

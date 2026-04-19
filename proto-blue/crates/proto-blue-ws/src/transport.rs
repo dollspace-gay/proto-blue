@@ -85,9 +85,13 @@ pub trait WebSocketConnector {
 
 #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
 mod tungstenite_impl {
+    use std::sync::Arc;
+
     use futures::{SinkExt, StreamExt};
     use tokio::net::TcpStream;
     use tokio_tungstenite::tungstenite::Message;
+    #[cfg(feature = "rustls-tls")]
+    use tokio_tungstenite::tungstenite::client::IntoClientRequest;
     use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async};
 
     use super::{WebSocketConnector, WebSocketTransport, WsFrame};
@@ -97,13 +101,46 @@ mod tungstenite_impl {
     type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
     /// `tokio-tungstenite`-backed connector. Native only.
+    ///
+    /// Dials over the default `tokio-tungstenite` TLS stack
+    /// (`native-tls` on system roots) unless a custom
+    /// [`rustls::ClientConfig`] was installed via
+    /// [`Self::with_rustls_config`] — typically to add internal CA
+    /// roots for self-hosted atproto deployments.
     #[derive(Debug, Default, Clone)]
-    pub struct TungsteniteConnector;
+    pub struct TungsteniteConnector {
+        /// Optional pre-built rustls client config. When `Some`,
+        /// `connect` routes through
+        /// `tokio_tungstenite::connect_async_tls_with_config` with
+        /// `Connector::Rustls(config)` so the caller's roots /
+        /// verifier take effect.
+        #[cfg(feature = "rustls-tls")]
+        rustls_config: Option<Arc<rustls::ClientConfig>>,
+        // Keep the non-rustls build zero-sized. `Arc` is just to
+        // placate the cfg'd field above without another branch.
+        #[cfg(not(feature = "rustls-tls"))]
+        _marker: std::marker::PhantomData<Arc<()>>,
+    }
 
     impl TungsteniteConnector {
         #[must_use]
-        pub const fn new() -> Self {
-            Self
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        /// Install a custom [`rustls::ClientConfig`]. When set, every
+        /// subsequent `connect()` routes through
+        /// `tokio_tungstenite::connect_async_tls_with_config` using
+        /// this config — letting operators add internal CA roots
+        /// (common in self-hosted atproto deployments) or pin specific
+        /// certificates without touching the system trust store.
+        ///
+        /// Requires the `rustls-tls` feature.
+        #[cfg(feature = "rustls-tls")]
+        #[must_use]
+        pub fn with_rustls_config(mut self, config: Arc<rustls::ClientConfig>) -> Self {
+            self.rustls_config = Some(config);
+            self
         }
     }
 
@@ -154,6 +191,22 @@ mod tungstenite_impl {
     #[async_trait]
     impl WebSocketConnector for TungsteniteConnector {
         async fn connect(&self, url: &str) -> Result<Box<dyn WebSocketTransport>, WsError> {
+            #[cfg(feature = "rustls-tls")]
+            if let Some(config) = &self.rustls_config {
+                use tokio_tungstenite::Connector;
+                use tokio_tungstenite::connect_async_tls_with_config;
+
+                let request = url.into_client_request().map_err(WsError::WebSocket)?;
+                let connector = Connector::Rustls(config.clone());
+                let (stream, _) = connect_async_tls_with_config(
+                    request,
+                    /*config=*/ None,
+                    /*disable_nagle=*/ false,
+                    Some(connector),
+                )
+                .await?;
+                return Ok(Box::new(TungsteniteTransport { stream }));
+            }
             let (stream, _) = connect_async(url).await?;
             Ok(Box::new(TungsteniteTransport { stream }))
         }
@@ -298,5 +351,30 @@ mod tests {
             reason: Some("bye".into()),
         };
         assert!(format!("{f:?}").contains("1000"));
+    }
+
+    /// `with_rustls_config` installs a caller-supplied
+    /// `rustls::ClientConfig` on the connector. We can't drive a full
+    /// TLS handshake from a unit test cheaply, but we can at least
+    /// assert the builder wires the config through without panicking
+    /// and that the connector is `Clone` + `Debug` with it set.
+    #[cfg(all(
+        feature = "tungstenite",
+        feature = "rustls-tls",
+        not(target_arch = "wasm32")
+    ))]
+    #[test]
+    fn tungstenite_connector_with_rustls_config_builds() {
+        use std::sync::Arc;
+
+        // Empty root store — enough to construct a valid
+        // ClientConfig; we don't dial anything with it.
+        let roots = rustls::RootCertStore::empty();
+        let config = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        let connector = TungsteniteConnector::new().with_rustls_config(Arc::new(config));
+        let _clone = connector.clone();
+        assert!(format!("{connector:?}").contains("TungsteniteConnector"));
     }
 }
