@@ -12,8 +12,9 @@ pub mod validation;
 pub use error::{LexiconError, ValidationError, ValidationResult};
 pub use lexicons::Lexicons;
 pub use types::{
-    LexArray, LexBlob, LexBoolean, LexBytes, LexCidLink, LexInteger, LexObject, LexRecord, LexRef,
-    LexRefUnion, LexString, LexToken, LexUnknown, LexUserType, LexXrpcBody, LexXrpcError,
-    LexXrpcParameters, LexXrpcProcedure, LexXrpcQuery, LexXrpcSubscription, LexiconDoc,
+    LexArray, LexBlob, LexBoolean, LexBytes, LexCidLink, LexInteger, LexObject, LexPermission,
+    LexPermissionSet, LexRecord, LexRef, LexRefUnion, LexString, LexToken, LexUnknown, LexUserType,
+    LexXrpcBody, LexXrpcError, LexXrpcParameters, LexXrpcProcedure, LexXrpcQuery,
+    LexXrpcSubscription, LexXrpcSubscriptionMessage, LexiconDoc,
 };
 pub use validation::{validate_object, validate_record, validate_value};

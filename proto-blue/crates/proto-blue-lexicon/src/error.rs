@@ -7,6 +7,8 @@ use thiserror::Error;
 pub enum LexiconError {
     #[error("Invalid lexicon document: {0}")]
     InvalidDocument(String),
+    #[error("Invalid lexicon schema: {0}")]
+    InvalidSchema(String),
     #[error("Duplicate lexicon: {0}")]
     DuplicateLexicon(String),
     #[error("Lexicon not found: {0}")]

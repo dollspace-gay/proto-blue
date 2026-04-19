@@ -294,7 +294,11 @@ impl<'a> Generator<'a> {
             .parameters
             .as_ref()
             .is_some_and(|p| !p.properties.is_empty());
-        let has_message = sub.message.as_ref().is_some_and(|m| m.schema.is_some());
+        // Post-parity-refactor (#46): `LexXrpcSubscription.message` now
+        // carries a required `LexRefUnion` schema rather than the old
+        // optional `LexXrpcBody`. The presence of a message is
+        // determined solely by `sub.message.is_some()`.
+        let has_message = sub.message.is_some();
 
         if has_params || has_message {
             if let Some(desc) = &sub.description {
@@ -303,16 +307,18 @@ impl<'a> Generator<'a> {
             out.push_str(&format!("/// XRPC Subscription: {nsid}\n"));
         }
 
-        if let Some(params) = &sub.parameters {
-            if !params.properties.is_empty() {
-                self.generate_params(out, nsid, params);
-            }
+        if let Some(params) = &sub.parameters
+            && !params.properties.is_empty()
+        {
+            self.generate_params(out, nsid, params);
         }
 
         if let Some(msg) = &sub.message {
-            if let Some(schema) = &msg.schema {
-                self.generate_body_schema(out, nsid, "Message", schema);
-            }
+            // Wrap the `LexRefUnion` back into a `LexUserType::Union`
+            // so `generate_body_schema`'s existing union-codegen path
+            // (tagged enum of boxed variants) can handle it unchanged.
+            let union_def = LexUserType::Union(msg.schema.clone());
+            self.generate_body_schema(out, nsid, "Message", &union_def);
         }
     }
 

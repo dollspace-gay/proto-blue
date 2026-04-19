@@ -169,9 +169,23 @@ pub struct LexXrpcSubscription {
     #[serde(default)]
     pub parameters: Option<LexXrpcParameters>,
     #[serde(default)]
-    pub message: Option<LexXrpcBody>,
+    pub message: Option<LexXrpcSubscriptionMessage>,
     #[serde(default)]
     pub errors: Vec<LexXrpcError>,
+}
+
+/// Wire shape for `LexXrpcSubscription.message`.
+///
+/// Distinct from `LexXrpcBody` — subscription frames carry no `encoding`
+/// (they're always DAG-CBOR), and `schema` is required (vs optional on
+/// request/response bodies) and must be a `LexRefUnion` that enumerates
+/// the frame types the stream can emit.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LexXrpcSubscriptionMessage {
+    #[serde(default)]
+    pub description: Option<String>,
+    pub schema: LexRefUnion,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -350,18 +364,44 @@ pub struct LexRefUnion {
 
 // --- Permission Types ---
 
+/// A `type: "permission"` definition.
+///
+/// Mirrors TS `lexPermission` — a required `resource` string plus an
+/// arbitrary record of permission flags whose values can be string,
+/// integer, boolean, or an array of those. The extra flags are
+/// deserialised into `flags` since Rust lacks a direct equivalent of
+/// Zod's `z.record(z.string(), ...)`.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LexPermission {
     #[serde(default)]
     pub description: Option<String>,
+    /// Target resource identifier. Non-empty per the schema.
+    pub resource: String,
+    /// Arbitrary additional permission flags (captured as raw JSON).
+    #[serde(flatten)]
+    pub flags: HashMap<String, serde_json::Value>,
 }
 
+/// A `type: "permission-set"` definition — bundles multiple
+/// [`LexPermission`] entries with optional display metadata.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LexPermissionSet {
     #[serde(default)]
     pub description: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    /// Localised title. JSON field is `title:lang`.
+    #[serde(default, rename = "title:lang")]
+    pub title_lang: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub detail: Option<String>,
+    /// Localised detail. JSON field is `detail:lang`.
+    #[serde(default, rename = "detail:lang")]
+    pub detail_lang: Option<HashMap<String, String>>,
+    #[serde(default)]
+    pub permissions: Vec<LexPermission>,
 }
 
 #[cfg(test)]
@@ -563,7 +603,10 @@ mod tests {
 
     #[test]
     fn type_name_permission() {
-        let val: LexUserType = serde_json::from_value(json!({"type": "permission"})).unwrap();
+        let val: LexUserType = serde_json::from_value(
+            json!({"type": "permission", "resource": "com.example.thing"}),
+        )
+        .unwrap();
         assert_eq!(val.type_name(), "permission");
     }
 

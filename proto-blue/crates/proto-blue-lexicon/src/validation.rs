@@ -77,7 +77,7 @@ pub fn validate_value(
                 .ok_or_else(|| ValidationError::new(path, "Expected an object"))?;
             validate_object(lexicons, path, o, map)
         }
-        LexUserType::Blob(_) => validate_blob(path, value),
+        LexUserType::Blob(b) => validate_blob(path, b, value),
         LexUserType::Ref(r) => validate_ref(lexicons, path, r, value),
         LexUserType::Union(u) => validate_union(lexicons, path, u, value),
         LexUserType::Token(_) => {
@@ -168,7 +168,7 @@ fn validate_string(path: &str, def: &LexString, value: &LexValue) -> ValidationR
 fn validate_string_format(path: &str, format: &str, value: &str) -> ValidationResult {
     let valid = match format {
         "datetime" => proto_blue_syntax::Datetime::new(value).is_ok(),
-        "uri" => value.contains(':'), // Basic URI check
+        "uri" => is_valid_uri(value),
         "at-uri" => proto_blue_syntax::AtUri::new(value).is_ok(),
         "did" => proto_blue_syntax::Did::new(value).is_ok(),
         "handle" => proto_blue_syntax::Handle::new(value).is_ok(),
@@ -191,6 +191,30 @@ fn validate_string_format(path: &str, format: &str, value: &str) -> ValidationRe
         ));
     }
     Ok(())
+}
+
+/// Check that a string is a syntactically valid generic URI.
+///
+/// The atproto lexicon `format: uri` constraint is deliberately loose
+/// — it matches anything of the shape `<scheme>:<rest>` where `<scheme>`
+/// starts with an ASCII letter and contains only `[A-Za-z0-9+.-]`. That
+/// mirrors TS `@atproto/syntax::isValidUri`, which uses a single
+/// `url.URL` construction attempt and accepts anything it recognises.
+/// We implement it as a scheme check so the validator has no networking
+/// or `reqwest::Url` dependency leaking in at this layer.
+fn is_valid_uri(s: &str) -> bool {
+    let Some((scheme, rest)) = s.split_once(':') else {
+        return false;
+    };
+    if scheme.is_empty() || rest.is_empty() {
+        return false;
+    }
+    let mut chars = scheme.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '.' | '-'))
 }
 
 fn validate_integer(path: &str, def: &LexInteger, value: &LexValue) -> ValidationResult {
@@ -283,18 +307,105 @@ fn validate_cid_link(path: &str, value: &LexValue) -> ValidationResult {
     Ok(())
 }
 
-fn validate_blob(path: &str, value: &LexValue) -> ValidationResult {
-    // Blob refs are maps with $type: "blob"
+fn validate_blob(path: &str, def: &LexBlob, value: &LexValue) -> ValidationResult {
+    // Blob refs reach the validator as maps in `LexValue` form. Two
+    // on-the-wire shapes exist:
+    //
+    // - typed:  { $type: "blob", ref: <CID>, mimeType, size }
+    // - legacy: { cid: "<string CID>", mimeType }
+    //
+    // Rather than round-trip through `BlobRef` serde (which would
+    // require Serialize on `LexValue`), probe the map shape directly
+    // and extract `mime_type` + optional `size` so the `accept` /
+    // `maxSize` gates have something to match against.
     let map = value
         .as_map()
         .ok_or_else(|| ValidationError::new(path, "Expected an object for blob"))?;
 
-    match map.get("$type").and_then(|v| v.as_str()) {
-        Some("blob") => Ok(()),
-        _ => Err(ValidationError::new(
+    let (mime_type, size) = extract_blob_shape(path, map)?;
+
+    // `accept` is a list of MIME-type patterns: exact match, or wildcard
+    // like "image/*". An empty or absent accept list means any type is
+    // allowed (matches TS).
+    if let Some(accepts) = &def.accept
+        && !accepts.is_empty()
+        && !accepts.iter().any(|pat| matches_mime_pattern(pat, mime_type))
+    {
+        return Err(ValidationError::new(
             path,
-            "Expected blob object with $type: \"blob\"",
-        )),
+            format!("blob MIME {mime_type} not in accepted set: {accepts:?}"),
+        ));
+    }
+
+    if let Some(max) = def.max_size
+        && let Some(s) = size
+        && s > max
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("blob size {s} exceeds max {max}"),
+        ));
+    }
+
+    Ok(())
+}
+
+/// Extract `(mime_type, size)` from a blob-shaped map, rejecting the
+/// map when it matches neither the typed nor the legacy form. Returns a
+/// borrowed `&str` for mime to avoid an allocation on the hot path.
+fn extract_blob_shape<'a>(
+    path: &str,
+    map: &'a BTreeMap<String, LexValue>,
+) -> Result<(&'a str, Option<u64>), ValidationError> {
+    let mime_type = map
+        .get("mimeType")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ValidationError::new(path, "blob missing \"mimeType\""))?;
+
+    let type_tag = map.get("$type").and_then(|v| v.as_str());
+    if type_tag == Some("blob") {
+        // Typed form — must have `ref` (CID) and `size` (int).
+        if map.get("ref").and_then(|v| v.as_cid()).is_none() {
+            return Err(ValidationError::new(
+                path,
+                "typed blob missing \"ref\" CID",
+            ));
+        }
+        let size = map.get("size").and_then(|v| v.as_integer()).ok_or_else(|| {
+            ValidationError::new(path, "typed blob missing \"size\"")
+        })?;
+        if size < 0 {
+            return Err(ValidationError::new(
+                path,
+                "blob size cannot be negative",
+            ));
+        }
+        return Ok((mime_type, Some(size as u64)));
+    }
+
+    // Legacy form: top-level `cid` string, no $type.
+    if type_tag.is_none() && map.get("cid").and_then(|v| v.as_str()).is_some() {
+        return Ok((mime_type, None));
+    }
+
+    Err(ValidationError::new(
+        path,
+        "blob must carry either `$type:\"blob\"` + `ref` (typed form) or `cid` (legacy form)",
+    ))
+}
+
+/// Match a MIME value against a lexicon `accept` pattern.
+///
+/// Supports exact match (`image/png`) and wildcard (`image/*`). No
+/// other glob syntax is part of the atproto blob spec.
+fn matches_mime_pattern(pattern: &str, mime: &str) -> bool {
+    if let Some(prefix) = pattern.strip_suffix("/*") {
+        // "image/*" matches any "image/<anything>".
+        mime.starts_with(prefix)
+            && mime[prefix.len()..].starts_with('/')
+            && !mime[prefix.len() + 1..].is_empty()
+    } else {
+        pattern.eq_ignore_ascii_case(mime)
     }
 }
 
@@ -529,5 +640,305 @@ mod tests {
             let value = make_post("hello", "not-a-datetime");
             assert!(validate_record(&lex, rec, &value).is_err());
         }
+    }
+
+    // ── Blob validator tightening ────────────────────────────────────
+
+    fn blob_lex() -> Lexicons {
+        let mut lex = Lexicons::new();
+        lex.add_from_json(
+            r##"{
+            "lexicon": 1,
+            "id": "com.example.upload",
+            "defs": {
+                "main": {
+                    "type": "object",
+                    "required": ["file"],
+                    "properties": {
+                        "file": {
+                            "type": "blob",
+                            "accept": ["image/png", "image/jpeg", "image/*"],
+                            "maxSize": 100
+                        }
+                    }
+                }
+            }
+        }"##,
+        )
+        .unwrap();
+        lex
+    }
+
+    fn typed_blob(mime: &str, size: i64) -> LexValue {
+        let cid = Cid::for_raw(b"x");
+        let mut b = BTreeMap::new();
+        b.insert("$type".to_string(), LexValue::String("blob".into()));
+        b.insert("ref".to_string(), LexValue::Cid(cid));
+        b.insert("mimeType".to_string(), LexValue::String(mime.into()));
+        b.insert("size".to_string(), LexValue::Integer(size));
+        LexValue::Map(b)
+    }
+
+    #[test]
+    fn blob_mime_accept_exact() {
+        let lex = blob_lex();
+        let def = lex.get_def("com.example.upload").unwrap();
+        let LexUserType::Object(obj) = def else {
+            unreachable!()
+        };
+        let mut outer = BTreeMap::new();
+        outer.insert("file".into(), typed_blob("image/png", 10));
+        assert!(validate_object(&lex, "", obj, &outer).is_ok());
+    }
+
+    #[test]
+    fn blob_mime_accept_wildcard() {
+        let lex = blob_lex();
+        let def = lex.get_def("com.example.upload").unwrap();
+        let LexUserType::Object(obj) = def else {
+            unreachable!()
+        };
+        let mut outer = BTreeMap::new();
+        outer.insert("file".into(), typed_blob("image/gif", 10));
+        assert!(validate_object(&lex, "", obj, &outer).is_ok());
+    }
+
+    #[test]
+    fn blob_mime_rejected_when_not_in_accept() {
+        let lex = blob_lex();
+        let def = lex.get_def("com.example.upload").unwrap();
+        let LexUserType::Object(obj) = def else {
+            unreachable!()
+        };
+        let mut outer = BTreeMap::new();
+        outer.insert("file".into(), typed_blob("video/mp4", 10));
+        let err = validate_object(&lex, "", obj, &outer).unwrap_err();
+        let msg = err.to_string();
+        assert!(msg.contains("video/mp4"), "unexpected: {msg}");
+    }
+
+    #[test]
+    fn blob_max_size_enforced() {
+        let lex = blob_lex();
+        let def = lex.get_def("com.example.upload").unwrap();
+        let LexUserType::Object(obj) = def else {
+            unreachable!()
+        };
+        let mut outer = BTreeMap::new();
+        outer.insert("file".into(), typed_blob("image/png", 500));
+        let err = validate_object(&lex, "", obj, &outer).unwrap_err();
+        assert!(err.to_string().contains("size 500 exceeds max 100"));
+    }
+
+    #[test]
+    fn blob_legacy_shape_accepted() {
+        let lex = blob_lex();
+        let def = lex.get_def("com.example.upload").unwrap();
+        let LexUserType::Object(obj) = def else {
+            unreachable!()
+        };
+        let mut legacy = BTreeMap::new();
+        legacy.insert("cid".into(), LexValue::String("bafyreidyxy".into()));
+        legacy.insert("mimeType".into(), LexValue::String("image/png".into()));
+
+        let mut outer = BTreeMap::new();
+        outer.insert("file".into(), LexValue::Map(legacy));
+        assert!(
+            validate_object(&lex, "", obj, &outer).is_ok(),
+            "legacy blob ref should validate when mime fits accept",
+        );
+    }
+
+    #[test]
+    fn blob_rejects_malformed_shape() {
+        let lex = blob_lex();
+        let def = lex.get_def("com.example.upload").unwrap();
+        let LexUserType::Object(obj) = def else {
+            unreachable!()
+        };
+        // Missing `ref`, has `$type: blob` — neither typed nor legacy.
+        let mut bad = BTreeMap::new();
+        bad.insert("$type".into(), LexValue::String("blob".into()));
+        bad.insert("mimeType".into(), LexValue::String("image/png".into()));
+        bad.insert("size".into(), LexValue::Integer(1));
+
+        let mut outer = BTreeMap::new();
+        outer.insert("file".into(), LexValue::Map(bad));
+        assert!(validate_object(&lex, "", obj, &outer).is_err());
+    }
+
+    // ── URI format ───────────────────────────────────────────────────
+
+    #[test]
+    fn uri_format_accepts_valid_schemes() {
+        assert!(is_valid_uri("https://example.com/path"));
+        assert!(is_valid_uri("http://localhost:8080"));
+        assert!(is_valid_uri("at://did:plc:x/col/key"));
+        assert!(is_valid_uri("did:plc:abc"));
+        assert!(is_valid_uri("mailto:user@example.com"));
+    }
+
+    #[test]
+    fn uri_format_rejects_malformed() {
+        assert!(!is_valid_uri("not-a-uri"));
+        assert!(!is_valid_uri("://missing-scheme"));
+        assert!(!is_valid_uri(":missing-scheme-2"));
+        assert!(!is_valid_uri("1http://starts-with-digit"));
+        assert!(!is_valid_uri("http:"));
+        assert!(!is_valid_uri(""));
+    }
+
+    // ── XRPC validator entry points ──────────────────────────────────
+
+    fn xrpc_lex() -> Lexicons {
+        let mut lex = Lexicons::new();
+        lex.add_from_json(
+            r##"{
+            "lexicon": 1,
+            "id": "com.example.echo",
+            "defs": {
+                "main": {
+                    "type": "procedure",
+                    "parameters": {
+                        "type": "params",
+                        "required": ["actor"],
+                        "properties": {
+                            "actor": {"type": "string", "format": "at-identifier"},
+                            "limit": {"type": "integer", "minimum": 1, "maximum": 100}
+                        }
+                    },
+                    "input": {
+                        "encoding": "application/json",
+                        "schema": {
+                            "type": "object",
+                            "required": ["text"],
+                            "properties": {
+                                "text": {"type": "string", "maxLength": 100}
+                            }
+                        }
+                    },
+                    "output": {
+                        "encoding": "application/json",
+                        "schema": {
+                            "type": "object",
+                            "required": ["ok"],
+                            "properties": {
+                                "ok": {"type": "boolean"}
+                            }
+                        }
+                    }
+                }
+            }
+        }"##,
+        )
+        .unwrap();
+        lex
+    }
+
+    #[test]
+    fn xrpc_params_valid() {
+        let lex = xrpc_lex();
+        let mut params = BTreeMap::new();
+        params.insert("actor".into(), LexValue::String("alice.bsky.social".into()));
+        params.insert("limit".into(), LexValue::Integer(42));
+        let value = LexValue::Map(params);
+        assert!(lex.assert_valid_xrpc_params("com.example.echo", &value).is_ok());
+    }
+
+    #[test]
+    fn xrpc_params_missing_required_rejected() {
+        let lex = xrpc_lex();
+        let params = BTreeMap::new();
+        let value = LexValue::Map(params);
+        assert!(lex.assert_valid_xrpc_params("com.example.echo", &value).is_err());
+    }
+
+    #[test]
+    fn xrpc_params_out_of_range_rejected() {
+        let lex = xrpc_lex();
+        let mut params = BTreeMap::new();
+        params.insert("actor".into(), LexValue::String("alice.bsky.social".into()));
+        params.insert("limit".into(), LexValue::Integer(500));
+        let value = LexValue::Map(params);
+        assert!(lex.assert_valid_xrpc_params("com.example.echo", &value).is_err());
+    }
+
+    #[test]
+    fn xrpc_input_valid() {
+        let lex = xrpc_lex();
+        let mut body = BTreeMap::new();
+        body.insert("text".into(), LexValue::String("hello".into()));
+        let value = LexValue::Map(body);
+        assert!(lex.assert_valid_xrpc_input("com.example.echo", &value).is_ok());
+    }
+
+    #[test]
+    fn xrpc_output_valid() {
+        let lex = xrpc_lex();
+        let mut body = BTreeMap::new();
+        body.insert("ok".into(), LexValue::Bool(true));
+        let value = LexValue::Map(body);
+        assert!(lex.assert_valid_xrpc_output("com.example.echo", &value).is_ok());
+    }
+
+    #[test]
+    fn xrpc_wrong_def_type_rejected() {
+        let lex = xrpc_lex();
+        let body = LexValue::Map(BTreeMap::new());
+        // echo is a procedure, not a subscription — message should fail.
+        assert!(
+            lex.assert_valid_xrpc_message("com.example.echo", &body).is_err()
+        );
+    }
+
+    // ── Required-properties refinement ───────────────────────────────
+
+    #[test]
+    fn required_not_in_properties_rejects_schema() {
+        let mut lex = Lexicons::new();
+        let err = lex
+            .add_from_json(
+                r##"{
+                    "lexicon": 1,
+                    "id": "com.example.bad",
+                    "defs": {
+                        "main": {
+                            "type": "record",
+                            "record": {
+                                "type": "object",
+                                "required": ["missingField"],
+                                "properties": {
+                                    "presentField": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                }"##,
+            )
+            .unwrap_err();
+        assert!(
+            matches!(&err, crate::LexiconError::InvalidSchema(msg) if msg.contains("missingField")),
+            "expected InvalidSchema with missingField, got: {err}",
+        );
+    }
+
+    #[test]
+    fn primary_def_at_non_main_rejected() {
+        let mut lex = Lexicons::new();
+        let err = lex
+            .add_from_json(
+                r##"{
+                    "lexicon": 1,
+                    "id": "com.example.bad",
+                    "defs": {
+                        "primary": {
+                            "type": "record",
+                            "record": {"type": "object", "properties": {}}
+                        }
+                    }
+                }"##,
+            )
+            .unwrap_err();
+        assert!(matches!(err, crate::LexiconError::InvalidSchema(_)));
     }
 }

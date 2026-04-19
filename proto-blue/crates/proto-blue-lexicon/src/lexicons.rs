@@ -2,8 +2,14 @@
 
 use std::collections::HashMap;
 
-use crate::error::LexiconError;
-use crate::types::{LexUserType, LexiconDoc};
+use proto_blue_lex_data::LexValue;
+
+use crate::error::{LexiconError, ValidationError, ValidationResult};
+use crate::types::{
+    LexObject, LexRefUnion, LexUserType, LexXrpcBody, LexXrpcParameters, LexXrpcSubscriptionMessage,
+    LexiconDoc,
+};
+use crate::validation::validate_value;
 
 /// Registry of lexicon documents and their definitions.
 ///
@@ -26,12 +32,34 @@ impl Lexicons {
     /// Add a lexicon document to the registry.
     ///
     /// All definitions in the document are registered and their
-    /// references are resolved to absolute URIs.
+    /// references are resolved to absolute URIs. The doc is rejected
+    /// with [`LexiconError::InvalidSchema`] when any of the following
+    /// spec-level refinements fail (mirroring TS `lexiconDoc.refine`):
+    ///
+    /// - primary defs (record / query / procedure / subscription /
+    ///   permission-set) appear only under the `main` key;
+    /// - every entry in an object's `required[]` list actually exists
+    ///   in its `properties[]`.
     pub fn add(&mut self, doc: LexiconDoc) -> Result<(), LexiconError> {
         let nsid = &doc.id;
 
         if self.docs.contains_key(nsid) {
             return Err(LexiconError::DuplicateLexicon(nsid.clone()));
+        }
+
+        // Refinement 1: primary defs must live under "main".
+        for (def_id, def) in &doc.defs {
+            if def.is_primary() && def_id != "main" {
+                return Err(LexiconError::InvalidSchema(format!(
+                    "{nsid}: primary def `{}` must be at `main`, found at `{def_id}`",
+                    def.type_name(),
+                )));
+            }
+        }
+
+        // Refinement 2: `required[]` must reference real properties.
+        for (def_id, def) in &doc.defs {
+            check_required_properties(nsid, def_id, def)?;
         }
 
         // Register each definition
@@ -94,6 +122,330 @@ impl Lexicons {
     pub fn iter_docs(&self) -> impl Iterator<Item = &LexiconDoc> {
         self.docs.values()
     }
+
+    // ── XRPC validator entry points ────────────────────────────────────
+    //
+    // These mirror TS `assertValidXrpcParams/Input/Output/Message` on
+    // `Lexicons`. Each looks up the def by URI, asserts it's the right
+    // primary kind, and dispatches to the corresponding validator.
+
+    /// Validate xrpc query / procedure / subscription params.
+    ///
+    /// `lex_uri` is the NSID of the method (e.g. `app.bsky.feed.getTimeline`
+    /// or `lex:app.bsky.feed.getTimeline`).
+    pub fn assert_valid_xrpc_params(
+        &self,
+        lex_uri: &str,
+        value: &LexValue,
+    ) -> ValidationResult {
+        let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
+        let params: Option<&LexXrpcParameters> = match def {
+            LexUserType::Query(q) => q.parameters.as_ref(),
+            LexUserType::Procedure(p) => p.parameters.as_ref(),
+            LexUserType::Subscription(s) => s.parameters.as_ref(),
+            _ => {
+                return Err(ValidationError::new(
+                    lex_uri,
+                    format!(
+                        "expected query/procedure/subscription, got {}",
+                        def.type_name()
+                    ),
+                ));
+            }
+        };
+
+        let map = value
+            .as_map()
+            .ok_or_else(|| ValidationError::new("params", "expected an object"))?;
+
+        // No params defined → any object is accepted (matches TS).
+        let Some(params) = params else {
+            return Ok(());
+        };
+        validate_params(self, params, map)
+    }
+
+    /// Validate an xrpc procedure input body.
+    pub fn assert_valid_xrpc_input(
+        &self,
+        lex_uri: &str,
+        value: &LexValue,
+    ) -> ValidationResult {
+        let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
+        let input: Option<&LexXrpcBody> = match def {
+            LexUserType::Procedure(p) => p.input.as_ref(),
+            _ => {
+                return Err(ValidationError::new(
+                    lex_uri,
+                    format!("expected procedure, got {}", def.type_name()),
+                ));
+            }
+        };
+        validate_xrpc_body(self, "input", input, value)
+    }
+
+    /// Validate an xrpc query / procedure output body.
+    pub fn assert_valid_xrpc_output(
+        &self,
+        lex_uri: &str,
+        value: &LexValue,
+    ) -> ValidationResult {
+        let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
+        let output: Option<&LexXrpcBody> = match def {
+            LexUserType::Query(q) => q.output.as_ref(),
+            LexUserType::Procedure(p) => p.output.as_ref(),
+            _ => {
+                return Err(ValidationError::new(
+                    lex_uri,
+                    format!(
+                        "expected query or procedure, got {}",
+                        def.type_name()
+                    ),
+                ));
+            }
+        };
+        validate_xrpc_body(self, "output", output, value)
+    }
+
+    /// Validate an xrpc subscription message frame body.
+    pub fn assert_valid_xrpc_message(
+        &self,
+        lex_uri: &str,
+        value: &LexValue,
+    ) -> ValidationResult {
+        let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
+        let message: Option<&LexXrpcSubscriptionMessage> = match def {
+            LexUserType::Subscription(s) => s.message.as_ref(),
+            _ => {
+                return Err(ValidationError::new(
+                    lex_uri,
+                    format!("expected subscription, got {}", def.type_name()),
+                ));
+            }
+        };
+        let Some(message) = message else {
+            // No message shape defined → any value accepted.
+            return Ok(());
+        };
+        validate_union(self, "message", &message.schema, value)
+    }
+}
+
+/// Translate a `LexiconError::DefNotFound` (from `get_def_or_err`) into
+/// a `ValidationError::DefNotFound` so XRPC callers get a uniform error
+/// type to match on.
+fn validator_from_lex(err: LexiconError) -> ValidationError {
+    match err {
+        LexiconError::DefNotFound(uri) => ValidationError::DefNotFound(uri),
+        other => ValidationError::new("", other.to_string()),
+    }
+}
+
+/// Validate XRPC params — primitives only (string, integer, boolean,
+/// unknown) plus arrays of primitives. Matches the TS param validator,
+/// which deliberately disallows object/ref/union fields in query strings.
+fn validate_params(
+    lexicons: &Lexicons,
+    params: &LexXrpcParameters,
+    map: &std::collections::BTreeMap<String, LexValue>,
+) -> ValidationResult {
+    for req in &params.required {
+        if !map.contains_key(req) {
+            return Err(ValidationError::new(
+                &format!("params/{req}"),
+                format!("Required param missing: {req}"),
+            ));
+        }
+    }
+    for (key, prop_def) in &params.properties {
+        let path = format!("params/{key}");
+        if let Some(value) = map.get(key) {
+            validate_value(lexicons, &path, prop_def, value)?;
+        }
+    }
+    Ok(())
+}
+
+/// Validate a request / response body against a [`LexXrpcBody`].
+///
+/// If the body has no schema (raw-bytes endpoint), any value passes.
+/// Otherwise the body's `schema` is expected to be an object-type def;
+/// we dispatch to [`validate_value`] which handles object/ref/union.
+fn validate_xrpc_body(
+    lexicons: &Lexicons,
+    path: &str,
+    body: Option<&LexXrpcBody>,
+    value: &LexValue,
+) -> ValidationResult {
+    let Some(body) = body else {
+        return Ok(());
+    };
+    let Some(schema) = &body.schema else {
+        return Ok(());
+    };
+    validate_value(lexicons, path, schema, value)
+}
+
+/// Validate a value against a [`LexRefUnion`] (used by subscription
+/// messages). Delegates to the regular union validator indirectly — but
+/// we can't call `validation::validate_union` since it's private, so we
+/// do the minimal walk here: the value must be a map with `$type`
+/// matching one of the refs (closed unions reject unknown types, open
+/// unions accept them).
+fn validate_union(
+    lexicons: &Lexicons,
+    path: &str,
+    union: &LexRefUnion,
+    value: &LexValue,
+) -> ValidationResult {
+    let map = value
+        .as_map()
+        .ok_or_else(|| ValidationError::new(path, "expected an object for union"))?;
+    let type_val = map
+        .get("$type")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ValidationError::new(path, "union requires $type field"))?;
+
+    // Normalise the value's $type to a lex URI and see if it's in the
+    // permitted set. The refs were already resolved to absolute form
+    // when the doc was added to the registry.
+    let type_uri = if type_val.contains('#') {
+        format!("lex:{type_val}")
+    } else {
+        format!("lex:{type_val}#main")
+    };
+    let known = union
+        .refs
+        .iter()
+        .any(|r| r == &type_uri || r == &format!("lex:{type_val}"));
+    if !known {
+        if union.closed.unwrap_or(false) {
+            return Err(ValidationError::new(
+                path,
+                format!("unknown type in closed union: {type_val}"),
+            ));
+        }
+        // Open union: unknown types pass through.
+        return Ok(());
+    }
+    if let Some(def) = lexicons.get_def(&type_uri) {
+        validate_value(lexicons, path, def, value)?;
+    }
+    Ok(())
+}
+
+/// Walk every `LexObject` inside a definition and assert its
+/// `required[]` entries all exist in `properties`. TS rejects such
+/// schemas at load time via `superRefine`; we do the same so malformed
+/// lexicons don't slip through and surface later as baffling
+/// "required field missing" errors at validation time.
+fn check_required_properties(
+    nsid: &str,
+    def_id: &str,
+    def: &LexUserType,
+) -> Result<(), LexiconError> {
+    fn check_object(
+        nsid: &str,
+        def_id: &str,
+        path: &str,
+        obj: &LexObject,
+    ) -> Result<(), LexiconError> {
+        for req in &obj.required {
+            if !obj.properties.contains_key(req) {
+                return Err(LexiconError::InvalidSchema(format!(
+                    "{nsid}#{def_id}: {path} lists `{req}` as required but no such property is declared",
+                )));
+            }
+        }
+        for (key, prop) in &obj.properties {
+            let child_path = format!("{path}/{key}");
+            check_required_properties_inner(nsid, def_id, &child_path, prop)?;
+        }
+        Ok(())
+    }
+
+    match def {
+        LexUserType::Object(o) => check_object(nsid, def_id, "", o),
+        LexUserType::Record(r) => check_object(nsid, def_id, "record", &r.record),
+        LexUserType::Query(q) => {
+            if let Some(p) = &q.parameters {
+                check_params(nsid, def_id, "parameters", p)?;
+            }
+            if let Some(b) = &q.output
+                && let Some(s) = &b.schema
+            {
+                check_required_properties_inner(nsid, def_id, "output", s)?;
+            }
+            Ok(())
+        }
+        LexUserType::Procedure(p) => {
+            if let Some(params) = &p.parameters {
+                check_params(nsid, def_id, "parameters", params)?;
+            }
+            if let Some(b) = &p.input
+                && let Some(s) = &b.schema
+            {
+                check_required_properties_inner(nsid, def_id, "input", s)?;
+            }
+            if let Some(b) = &p.output
+                && let Some(s) = &b.schema
+            {
+                check_required_properties_inner(nsid, def_id, "output", s)?;
+            }
+            Ok(())
+        }
+        LexUserType::Subscription(s) => {
+            if let Some(p) = &s.parameters {
+                check_params(nsid, def_id, "parameters", p)?;
+            }
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn check_required_properties_inner(
+    nsid: &str,
+    def_id: &str,
+    path: &str,
+    def: &LexUserType,
+) -> Result<(), LexiconError> {
+    match def {
+        LexUserType::Object(o) => {
+            for req in &o.required {
+                if !o.properties.contains_key(req) {
+                    return Err(LexiconError::InvalidSchema(format!(
+                        "{nsid}#{def_id}: {path} lists `{req}` as required but no such property is declared",
+                    )));
+                }
+            }
+            for (key, prop) in &o.properties {
+                let child_path = format!("{path}/{key}");
+                check_required_properties_inner(nsid, def_id, &child_path, prop)?;
+            }
+            Ok(())
+        }
+        LexUserType::Array(a) => {
+            check_required_properties_inner(nsid, def_id, &format!("{path}[]"), &a.items)
+        }
+        _ => Ok(()),
+    }
+}
+
+fn check_params(
+    nsid: &str,
+    def_id: &str,
+    path: &str,
+    params: &LexXrpcParameters,
+) -> Result<(), LexiconError> {
+    for req in &params.required {
+        if !params.properties.contains_key(req) {
+            return Err(LexiconError::InvalidSchema(format!(
+                "{nsid}#{def_id}: {path} lists `{req}` as required but no such property is declared",
+            )));
+        }
+    }
+    Ok(())
 }
 
 impl Default for Lexicons {
@@ -178,9 +530,11 @@ fn resolve_refs(def: &mut LexUserType, base_nsid: &str) {
                     resolve_refs(prop, base_nsid);
                 }
             }
-            if let Some(body) = &mut s.message {
-                if let Some(schema) = &mut body.schema {
-                    resolve_refs(schema, base_nsid);
+            if let Some(msg) = &mut s.message {
+                // Subscription schemas are always a LexRefUnion — resolve
+                // each ref string directly.
+                for r in &mut msg.schema.refs {
+                    *r = resolve_ref(r, base_nsid);
                 }
             }
         }
