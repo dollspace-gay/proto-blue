@@ -18,6 +18,7 @@ proto-blue-lex-cbor = { workspace = true }
 unicode-segmentation = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 chrono = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }

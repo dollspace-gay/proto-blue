@@ -374,14 +374,10 @@ impl MstNode {
                     }));
                     found = true;
                 }
-                NodeEntry::Tree(subtree) => {
-                    if subtree.get(key).is_some() {
-                        let updated = subtree.update(key, value.clone())?;
-                        new_entries.push(NodeEntry::Tree(updated));
-                        found = true;
-                    } else {
-                        new_entries.push(entry.clone());
-                    }
+                NodeEntry::Tree(subtree) if subtree.get(key).is_some() => {
+                    let updated = subtree.update(key, value.clone())?;
+                    new_entries.push(NodeEntry::Tree(updated));
+                    found = true;
                 }
                 _ => {
                     new_entries.push(entry.clone());

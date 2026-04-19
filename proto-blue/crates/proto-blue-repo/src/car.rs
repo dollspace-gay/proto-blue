@@ -264,7 +264,7 @@ mod tests {
         let mut blocks = BlockMap::new();
         for i in 0..10 {
             blocks
-                .add_value(&LexValue::String(format!("block {i}").into()))
+                .add_value(&LexValue::String(format!("block {i}")))
                 .unwrap();
         }
 

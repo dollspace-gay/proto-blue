@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use proto_blue_lexicon::types::LexiconDoc;
 use clap::Parser;
+use proto_blue_lexicon::types::LexiconDoc;
 
 use generator::Generator;
 

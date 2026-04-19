@@ -46,6 +46,13 @@ impl BlockMap {
         self.map.contains_key(&cid.to_string_base32())
     }
 
+    /// Check if a CID (given as its base32 string form) exists in the map.
+    /// Useful when you've already computed the base32 rep and don't want
+    /// to hash it again.
+    pub fn has_str(&self, cid_b32: &str) -> bool {
+        self.map.contains_key(cid_b32)
+    }
+
     /// Remove a block by CID.
     pub fn delete(&mut self, cid: &Cid) {
         self.map.remove(&cid.to_string_base32());
@@ -97,6 +104,15 @@ impl BlockMap {
         self.map
             .values()
             .map(|(cid, bytes)| (cid, bytes.as_slice()))
+    }
+
+    /// Iterate over all (cid_b32, (&Cid, &[u8])) triples. The base32
+    /// string is the internal key; yield it too for callers that want
+    /// to set-diff without re-hashing.
+    pub fn iter_entries(&self) -> impl Iterator<Item = (String, (&Cid, &[u8]))> {
+        self.map
+            .iter()
+            .map(|(key, (cid, bytes))| (key.clone(), (cid, bytes.as_slice())))
     }
 
     /// Get all CIDs.

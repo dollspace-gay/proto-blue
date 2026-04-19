@@ -176,6 +176,12 @@ impl WebSocketKeepAlive {
     }
 
     /// Calculate the reconnect delay with exponential backoff and jitter.
+    ///
+    /// The backoff grows as `base = 1000 * 2^reconnects` ms, capped at
+    /// `max_reconnect_seconds`. A uniform random jitter in `[-500, +500)` ms
+    /// is added so that a fleet of clients disconnected by the same upstream
+    /// event do not all reconnect simultaneously — the "thundering herd".
+    /// This mirrors the TS ws-client's `backoffMs` helper.
     fn reconnect_delay(&self) -> Duration {
         if self.reconnects == 0 && !self.initial_setup {
             return Duration::ZERO;
@@ -188,8 +194,14 @@ impl WebSocketKeepAlive {
         }
 
         let base_ms = 1000u64.saturating_mul(1u64 << self.reconnects.min(16));
-        let ms = base_ms.min(max_ms);
-        Duration::from_millis(ms)
+        let capped = base_ms.min(max_ms);
+
+        // Jitter in [-500, +500) ms. We use a non-cryptographic RNG; this is
+        // a scheduling decision, not a security-sensitive one.
+        let jitter_ms: i64 = (rand::random::<f64>() * 1000.0) as i64 - 500;
+        let with_jitter = (capped as i64 + jitter_ms).max(0) as u64;
+        let final_ms = with_jitter.min(max_ms);
+        Duration::from_millis(final_ms)
     }
 }
 
@@ -208,6 +220,7 @@ mod tests {
     fn reconnect_delay_initial() {
         let ws = WebSocketKeepAlive::new("ws://localhost:1234", WebSocketKeepAliveOpts::default());
         assert!(ws.initial_setup);
+        // Initial setup path is deterministic (no jitter applied).
         let delay = ws.reconnect_delay();
         assert_eq!(delay, Duration::from_millis(1000));
     }
@@ -221,31 +234,68 @@ mod tests {
         assert_eq!(ws.reconnect_delay(), Duration::ZERO);
     }
 
+    /// Exponential backoff, with ±500 ms of jitter for herd protection.
+    /// Each expected value is `base = 2^n * 1000` ms; the real delay must
+    /// fall in `[base - 500, base + 500)`.
     #[test]
-    fn reconnect_delay_exponential_backoff() {
+    fn reconnect_delay_exponential_backoff_with_jitter() {
         let mut ws =
             WebSocketKeepAlive::new("ws://localhost:1234", WebSocketKeepAliveOpts::default());
         ws.initial_setup = false;
 
-        ws.reconnects = 1;
-        assert_eq!(ws.reconnect_delay(), Duration::from_millis(2000));
-
-        ws.reconnects = 2;
-        assert_eq!(ws.reconnect_delay(), Duration::from_millis(4000));
-
-        ws.reconnects = 3;
-        assert_eq!(ws.reconnect_delay(), Duration::from_millis(8000));
+        for (n, base_ms) in [(1u32, 2000u64), (2, 4000), (3, 8000)] {
+            ws.reconnects = n;
+            for _ in 0..10 {
+                let delay_ms = ws.reconnect_delay().as_millis() as u64;
+                assert!(
+                    delay_ms + 500 >= base_ms && delay_ms < base_ms + 500,
+                    "n={n} base={base_ms} got={delay_ms}"
+                );
+            }
+        }
     }
 
+    /// Cap still applies after jitter. At `reconnects = 20` the uncapped
+    /// backoff would be 2^20 seconds; the cap brings it to
+    /// `max_reconnect_seconds * 1000`, and adding +500 ms of jitter must
+    /// still not exceed the cap (we clamp final_ms to max_ms).
     #[test]
     fn reconnect_delay_capped() {
         let mut ws =
             WebSocketKeepAlive::new("ws://localhost:1234", WebSocketKeepAliveOpts::default());
         ws.initial_setup = false;
         ws.reconnects = 20;
-        let delay = ws.reconnect_delay();
         let max_ms = 64 * 1000;
-        assert_eq!(delay, Duration::from_millis(max_ms));
+        for _ in 0..10 {
+            let delay_ms = ws.reconnect_delay().as_millis() as u64;
+            // Delay is [max - 500, max], since positive jitter is clamped.
+            assert!(
+                delay_ms + 500 >= max_ms && delay_ms <= max_ms,
+                "capped delay out of range: {delay_ms}"
+            );
+        }
+    }
+
+    /// Herd-protection regression: two consecutive calls at the same
+    /// reconnect count must not produce identical delays every time.
+    /// The probability of collision over 100 draws is astronomically
+    /// small if jitter is actually random.
+    #[test]
+    fn reconnect_delay_has_non_trivial_jitter_variance() {
+        let mut ws =
+            WebSocketKeepAlive::new("ws://localhost:1234", WebSocketKeepAliveOpts::default());
+        ws.initial_setup = false;
+        ws.reconnects = 5;
+
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..100 {
+            seen.insert(ws.reconnect_delay().as_millis());
+        }
+        assert!(
+            seen.len() > 10,
+            "jitter has no variance: only {} distinct delays",
+            seen.len()
+        );
     }
 
     #[test]

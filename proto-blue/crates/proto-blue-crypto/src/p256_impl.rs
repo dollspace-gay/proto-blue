@@ -1,7 +1,8 @@
 //! NIST P-256 (secp256r1) keypair implementation.
 
 use p256::ecdsa::{
-    Signature, SigningKey, VerifyingKey, signature::Signer as _, signature::Verifier as _,
+    Signature, SigningKey, VerifyingKey,
+    signature::hazmat::{PrehashSigner as _, PrehashVerifier as _},
 };
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use p256::{EncodedPoint, PublicKey, SecretKey};
@@ -61,8 +62,15 @@ impl keypair::Signer for P256Keypair {
     }
 
     fn sign(&self, msg: &[u8]) -> Result<Vec<u8>, CryptoError> {
+        // ECDSA-over-SHA256: sign the SHA-256 digest of the message exactly
+        // once. Using `SigningKey::sign` would SHA-256 the input again
+        // internally, producing a double-hashed signature incompatible with
+        // every other atproto impl and the W3C did:key test vectors.
         let msg_hash = sha::sha256(msg);
-        let sig: Signature = self.signing_key.sign(&msg_hash);
+        let sig: Signature = self
+            .signing_key
+            .sign_prehash(&msg_hash)
+            .map_err(|e| CryptoError::VerificationFailed(e.to_string()))?;
         let normalized = sig.normalize_s().unwrap_or(sig);
         Ok(normalized.to_bytes().to_vec())
     }
@@ -103,7 +111,7 @@ impl keypair::Verifier for P256Verifier {
             return Ok(false);
         }
 
-        match self.verifying_key.verify(&msg_hash, &signature) {
+        match self.verifying_key.verify_prehash(&msg_hash, &signature) {
             Ok(()) => Ok(true),
             Err(_) => Ok(false),
         }
@@ -115,7 +123,11 @@ impl keypair::Verifier for P256Verifier {
         // Try compact format first
         if let Ok(signature) = Signature::from_slice(sig) {
             let normalized = signature.normalize_s().unwrap_or(signature);
-            if self.verifying_key.verify(&msg_hash, &normalized).is_ok() {
+            if self
+                .verifying_key
+                .verify_prehash(&msg_hash, &normalized)
+                .is_ok()
+            {
                 return Ok(true);
             }
         }
@@ -123,7 +135,11 @@ impl keypair::Verifier for P256Verifier {
         // Try DER format
         if let Ok(signature) = Signature::from_der(sig) {
             let normalized = signature.normalize_s().unwrap_or(signature);
-            if self.verifying_key.verify(&msg_hash, &normalized).is_ok() {
+            if self
+                .verifying_key
+                .verify_prehash(&msg_hash, &normalized)
+                .is_ok()
+            {
                 return Ok(true);
             }
         }

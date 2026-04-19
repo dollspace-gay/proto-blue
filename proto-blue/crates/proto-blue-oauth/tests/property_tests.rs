@@ -9,7 +9,7 @@ proptest! {
         let pkce = generate_pkce();
         let len = pkce.verifier.len();
         prop_assert!(
-            len >= 43 && len <= 128,
+            (43..=128).contains(&len),
             "Verifier length {} not in [43, 128]", len
         );
     }

@@ -47,7 +47,8 @@ fn main() {
     println!("  Private key exported: {} bytes", exported.len());
     let reimported = proto_blue_crypto::K256Keypair::from_private_key(&exported).unwrap();
     let sig = reimported.sign(message).unwrap();
-    let k_verifier = proto_blue_crypto::K256Keypair::verifier_from_compressed(&k_compressed).unwrap();
+    let k_verifier =
+        proto_blue_crypto::K256Keypair::verifier_from_compressed(&k_compressed).unwrap();
     let valid = k_verifier.verify(message, &sig).unwrap();
     println!(
         "  Reimported key verification: {}",

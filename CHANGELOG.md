@@ -6,7 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-18
+
 ### Added
+- XRPC: implement server-side (router, validation, auth, rate-limit) (#16)
+- Syntax: AtUri class-like API (setters, make, relative, searchParams) (#19)
+- Repo: MST covering and commit proofs (#15)
+- OAuth: implement token exchange, refresh, and revocation (#4)
+- OAuth: implement Pushed Authorization Requests (PAR) (#6)
+- OAuth: dynamic client metadata fetching (#7)
+- Repo: sync primitives (firehose, getRepo, diff) (#14)
+- OAuth: parse and validate atproto scope strings (#5)
+- OAuth: add ES256K DPoP support (#8)
+- Crypto: optional private-key export gating (#20)
+- Identity: backup DNS nameservers for handle resolution (#11)
+- Identity: verify handle->DID binding against DID doc alsoKnownAs (#12)
+- Identity: add did:key resolution (#9)
+- Repo: signed commit creation and verification (#13)
+- WS: CBOR streaming frame encode/decode (#17)
+- XRPC: parse Retry-After and RateLimit-* response headers (#22)
 - Add top-level proto-blue facade crate that re-exports all SDK modules (#14)
 - Add user-provided timestamp support to Agent methods (#23)
 - Add MIT license (#19)
@@ -25,11 +43,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Build a robust AT Protocol SDK for Rust (translated from TypeScript SDK) (#1)
 
 ### Fixed
+- WS: add random jitter to reconnect backoff (#18)
+- AT-URI regex uses global case-insensitive flag (defense-in-depth) (#3)
+- normalize_datetime has broken month/day rollover on timezone offsets (#2)
+- Datetime validation accepts semantically invalid values (month=0, hour=25, etc.) (#1)
 - Fix Agent auth state thread-safety: token leak, giant lock, and atomicity gap (#25)
 - Fix Agent resume_session to verify before updating state (#21)
 - Fix all clippy warnings across workspace (#17)
 
 ### Changed
+- XRPC/Identity/OAuth: support CancellationToken for mid-request abort (#21)
+- Identity: race DNS and HTTPS handle resolution in parallel (#10)
 - Rename all crates from atproto-* to proto-blue-* for crates.io publishing (#7)
 - Update 68 dependencies to latest compatible versions (#2)
 - Update jsonwebtoken from 9 to 10 for latest security fixes and features (#24)

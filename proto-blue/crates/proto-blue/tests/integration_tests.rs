@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use proto_blue::lex_data::LexValue;
+use std::collections::BTreeMap;
 
 /// 1. Parse a DID through proto_blue::syntax::Did
 #[test]
@@ -154,7 +154,7 @@ fn common_tid_generation() {
     // All characters should be in base32-sortable charset
     for ch in tid1.as_str().chars() {
         assert!(
-            ('2'..='7').contains(&ch) || ('a'..='z').contains(&ch),
+            ('2'..='7').contains(&ch) || ch.is_ascii_lowercase(),
             "TID character '{}' not in [2-7a-z]",
             ch
         );

@@ -55,7 +55,7 @@ proptest! {
                 Just(LexValue::Null),
                 any::<bool>().prop_map(LexValue::Bool),
                 any::<i64>().prop_map(LexValue::Integer),
-                "[a-z]{0,20}".prop_map(|s| LexValue::String(s)),
+                "[a-z]{0,20}".prop_map(LexValue::String),
             ],
             0..10
         )

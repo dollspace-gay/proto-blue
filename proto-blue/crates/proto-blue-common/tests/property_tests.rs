@@ -14,7 +14,7 @@ proptest! {
         // Every character must be in the base32-sortable charset [2-7a-z]
         for ch in s.chars() {
             prop_assert!(
-                ('2'..='7').contains(&ch) || ('a'..='z').contains(&ch),
+                ('2'..='7').contains(&ch) || ch.is_ascii_lowercase(),
                 "TID character '{}' not in [2-7a-z]", ch
             );
         }

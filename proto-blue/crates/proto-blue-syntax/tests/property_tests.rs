@@ -15,7 +15,7 @@ proptest! {
             // Display should produce the same string
             prop_assert_eq!(did.to_string(), did_str);
             // Re-parsing should succeed
-            let reparsed = proto_blue_syntax::Did::new(&did.to_string()).unwrap();
+            let reparsed = proto_blue_syntax::Did::new(did.as_str()).unwrap();
             prop_assert_eq!(reparsed.to_string(), did.to_string());
         }
     }

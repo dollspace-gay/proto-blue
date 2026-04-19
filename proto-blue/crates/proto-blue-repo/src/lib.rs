@@ -35,11 +35,31 @@
 pub mod block_map;
 pub mod car;
 pub mod cid_set;
+pub mod commit;
+pub mod data_diff;
 pub mod error;
+pub mod firehose;
+pub mod firehose_client;
 pub mod mst;
+pub mod proofs;
+pub mod sync;
 
 pub use block_map::BlockMap;
 pub use car::{CarBlock, blocks_to_car, read_car, read_car_with_root};
 pub use cid_set::CidSet;
+pub use commit::{
+    COMMIT_VERSION, SignedCommit, UnsignedCommit, ensure_commit_sig, sign_commit, verify_commit_sig,
+};
+pub use data_diff::{DataAdd, DataDelete, DataDiff, DataUpdate};
 pub use error::RepoError;
+pub use firehose::{
+    AccountEvent, CommitEvent, FirehoseEvent, IdentityEvent, InfoEvent, RepoOp, RepoOpAction,
+    SyncEvent, decode_event,
+};
+pub use firehose_client::Firehose;
 pub use mst::{Leaf, MstNode, NodeEntry};
+pub use proofs::{
+    commit_proof, covering_proof, proof_for_key, proof_for_left_sibling, proof_for_right_sibling,
+    verify_key_in_proof,
+};
+pub use sync::{VerifiedDiff, VerifiedRepo, verify_diff_car, verify_repo, verify_repo_car};

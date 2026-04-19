@@ -6,6 +6,12 @@ pub enum IdentityError {
     #[error("Could not resolve DID: {0}")]
     DidNotFound(String),
 
+    #[error("Could not resolve handle: {0}")]
+    HandleNotFound(String),
+
+    #[error("Handle/DID binding mismatch: DID {did} does not claim handle {handle} in alsoKnownAs")]
+    HandleDidMismatch { handle: String, did: String },
+
     #[error("Poorly formatted DID: {0}")]
     PoorlyFormattedDid(String),
 
@@ -62,10 +68,7 @@ mod tests {
     #[test]
     fn display_unsupported_did_method() {
         let err = IdentityError::UnsupportedDidMethod("did:example:123".into());
-        assert_eq!(
-            err.to_string(),
-            "Unsupported DID method: did:example:123"
-        );
+        assert_eq!(err.to_string(), "Unsupported DID method: did:example:123");
     }
 
     #[test]

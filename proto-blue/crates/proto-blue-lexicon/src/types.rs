@@ -373,8 +373,10 @@ mod tests {
 
     #[test]
     fn is_primary_true_for_record() {
-        let val: LexUserType =
-            serde_json::from_value(json!({"type": "record", "record": {"type": "object", "properties": {}}})).unwrap();
+        let val: LexUserType = serde_json::from_value(
+            json!({"type": "record", "record": {"type": "object", "properties": {}}}),
+        )
+        .unwrap();
         assert!(val.is_primary());
     }
 
@@ -452,8 +454,10 @@ mod tests {
 
     #[test]
     fn type_name_record() {
-        let val: LexUserType =
-            serde_json::from_value(json!({"type": "record", "record": {"type": "object", "properties": {}}})).unwrap();
+        let val: LexUserType = serde_json::from_value(
+            json!({"type": "record", "record": {"type": "object", "properties": {}}}),
+        )
+        .unwrap();
         assert_eq!(val.type_name(), "record");
     }
 
@@ -849,7 +853,14 @@ mod tests {
         if let LexUserType::String(s) = &val {
             assert_eq!(
                 s.enum_values.as_deref(),
-                Some(vec!["trending".to_string(), "hot".to_string(), "latest".to_string()].as_slice())
+                Some(
+                    vec![
+                        "trending".to_string(),
+                        "hot".to_string(),
+                        "latest".to_string()
+                    ]
+                    .as_slice()
+                )
             );
         } else {
             panic!("Expected String variant");

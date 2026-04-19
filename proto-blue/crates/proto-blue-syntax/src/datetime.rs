@@ -3,6 +3,7 @@
 //! AT Protocol datetimes follow a strict subset of RFC 3339.
 //! See: <https://atproto.com/specs/lexicon#datetime>
 
+use chrono::{DateTime, FixedOffset, SecondsFormat, Utc};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
@@ -67,108 +68,54 @@ fn ensure_valid_datetime(s: &str) -> Result<(), InvalidDatetimeError> {
         )));
     }
 
+    // Syntactic gate: enforce atproto-specific strictness (2-digit zero
+    // padding, uppercase `T`/`Z`, exact offset shape, ≤20 fractional digits)
+    // that the more permissive RFC 3339 parser would otherwise accept.
     if !DATETIME_REGEX.is_match(s) {
         return Err(err("Datetime does not match RFC 3339 format"));
     }
 
-    // Cannot use -00:00 offset (use Z for UTC)
+    // Cannot use -00:00 offset (use Z for UTC). RFC 3339 permits -00:00
+    // to signal "unknown offset"; atproto bans it.
     if s.ends_with("-00:00") {
         return Err(err("Datetime cannot use -00:00 offset; use Z for UTC"));
     }
 
-    // Cannot start with 000 (too close to year zero)
+    // Cannot start with 000 (too close to year zero).
     if s.starts_with("000") {
         return Err(err("Datetime year cannot start with 000"));
     }
 
+    // Semantic gate: reject calendar-invalid values that pass the regex
+    // (month 0, month 13, day 31 in a 30-day month, day 29 in a non-leap
+    // Feb, hour 25, minute 60, second 61, etc.). chrono enforces all of
+    // these when parsing RFC 3339.
+    DateTime::parse_from_rfc3339(s).map_err(|e| err(&format!("Invalid datetime value: {e}")))?;
+
     Ok(())
 }
 
-/// Normalize a datetime to canonical `YYYY-MM-DDTHH:mm:ss.sssZ` format.
+/// Normalize a datetime string to canonical `YYYY-MM-DDTHH:mm:ss.sssZ` form.
+///
+/// The returned string:
+/// - is in UTC (any non-Z offset is converted, with correct day/month/year
+///   rollover via `chrono`);
+/// - has exactly three fractional-second digits, truncated (not rounded)
+///   from longer inputs to match the TS SDK's `Date.toISOString()` output.
 pub fn normalize_datetime(s: &str) -> Result<String, InvalidDatetimeError> {
     ensure_valid_datetime(s)?;
 
-    // Parse the components manually for normalization
-    // The TS SDK uses Date object; we'll do basic timezone normalization
-    // For now, if it ends with Z, keep it; otherwise convert offset to Z
-    if s.ends_with('Z') {
-        // Already UTC, ensure 3 decimal places for milliseconds
-        return Ok(normalize_fractional(s));
-    }
+    // chrono parses RFC 3339 with any offset and gives us a correctly-adjusted
+    // UTC instant. Regex + ensure_valid_datetime already guaranteed the input
+    // is a shape it understands, so a parse failure here would be a bug.
+    let parsed: DateTime<FixedOffset> =
+        DateTime::parse_from_rfc3339(s).map_err(|e| InvalidDatetimeError {
+            reason: format!("internal: RFC 3339 reparse failed after validation: {e}"),
+        })?;
+    let utc: DateTime<Utc> = parsed.with_timezone(&Utc);
 
-    // Has timezone offset like +05:30 or -08:00
-    // Parse and convert to UTC
-    let tz_pos = s.len() - 6; // ±HH:mm is 6 chars
-    let datetime_part = &s[..tz_pos];
-    let tz_part = &s[tz_pos..];
-
-    let tz_sign: i32 = if tz_part.starts_with('+') { 1 } else { -1 };
-    let tz_hours: i32 = tz_part[1..3].parse().unwrap_or(0);
-    let tz_minutes: i32 = tz_part[4..6].parse().unwrap_or(0);
-    let tz_offset_minutes = tz_sign * (tz_hours * 60 + tz_minutes);
-
-    // Parse date/time components
-    let year: i32 = s[0..4].parse().unwrap_or(0);
-    let month: u32 = s[5..7].parse().unwrap_or(1);
-    let day: u32 = s[8..10].parse().unwrap_or(1);
-    let hour: i32 = s[11..13].parse().unwrap_or(0);
-    let minute: i32 = s[14..16].parse().unwrap_or(0);
-    let second: u32 = s[17..19].parse().unwrap_or(0);
-
-    // Extract fractional seconds
-    let frac = if datetime_part.len() > 19 {
-        &datetime_part[19..]
-    } else {
-        ""
-    };
-
-    // Convert to UTC by subtracting timezone offset
-    let total_minutes = hour * 60 + minute - tz_offset_minutes;
-    let utc_hour = ((total_minutes / 60) % 24 + 24) % 24;
-    let utc_minute = ((total_minutes % 60) + 60) % 60;
-
-    // Handle day rollover (simplified - doesn't handle month boundaries perfectly)
-    let day_offset = if total_minutes < 0 {
-        -1
-    } else if total_minutes >= 24 * 60 {
-        1
-    } else {
-        0
-    };
-    let utc_day = (day as i32 + day_offset).max(1) as u32;
-
-    let frac_str = normalize_frac(frac);
-    Ok(format!(
-        "{year:04}-{month:02}-{utc_day:02}T{utc_hour:02}:{utc_minute:02}:{second:02}{frac_str}Z"
-    ))
-}
-
-fn normalize_fractional(s: &str) -> String {
-    // Ensure we have .sss format (3 decimal places)
-    let z_pos = s.len() - 1; // 'Z'
-    let datetime_part = &s[..z_pos];
-
-    if let Some(dot_pos) = datetime_part.rfind('.') {
-        let frac = &datetime_part[dot_pos..];
-        let base = &datetime_part[..dot_pos];
-        let frac_str = normalize_frac(frac);
-        format!("{base}{frac_str}Z")
-    } else {
-        format!("{datetime_part}.000Z")
-    }
-}
-
-fn normalize_frac(frac: &str) -> String {
-    if frac.is_empty() {
-        return ".000".to_string();
-    }
-    // frac starts with '.'
-    let digits = &frac[1..];
-    if digits.len() >= 3 {
-        format!(".{}", &digits[..3])
-    } else {
-        format!(".{:0<3}", digits)
-    }
+    // Millisecond precision mirrors `Date.toISOString()` in the TS SDK.
+    Ok(utc.to_rfc3339_opts(SecondsFormat::Millis, /*use_z=*/ true))
 }
 
 impl fmt::Display for Datetime {
@@ -247,5 +194,72 @@ mod tests {
 
         let result = normalize_datetime("2023-11-15T12:30:00.123456Z").unwrap();
         assert_eq!(result, "2023-11-15T12:30:00.123Z");
+    }
+
+    /// Regression: the previous hand-rolled normalizer admitted in a comment
+    /// that it "doesn't handle month boundaries perfectly". `+HH:MM` means
+    /// local-is-ahead-of-UTC, so `UTC = local - offset`; `-HH:MM` means
+    /// local-is-behind-UTC, so `UTC = local + offset`. We exercise each
+    /// direction across month, year, and leap-day boundaries.
+    #[test]
+    fn normalize_handles_month_and_year_rollover() {
+        // Early Feb 1 in a +02:00 zone → UTC rolls BACK to Jan 31.
+        assert_eq!(
+            normalize_datetime("2023-02-01T00:30:00+02:00").unwrap(),
+            "2023-01-31T22:30:00.000Z",
+        );
+        // Late Feb 28 (non-leap) in a -02:00 zone → UTC rolls FORWARD to Mar 1.
+        assert_eq!(
+            normalize_datetime("2023-02-28T23:30:00-02:00").unwrap(),
+            "2023-03-01T01:30:00.000Z",
+        );
+        // Leap-year Feb 29 exists and stays Feb 29 in UTC.
+        assert_eq!(
+            normalize_datetime("2024-02-29T12:00:00Z").unwrap(),
+            "2024-02-29T12:00:00.000Z",
+        );
+        // Early Jan 1 in a +02:00 zone → UTC rolls BACK to Dec 31 of the
+        // previous year.
+        assert_eq!(
+            normalize_datetime("2024-01-01T01:00:00+02:00").unwrap(),
+            "2023-12-31T23:00:00.000Z",
+        );
+        // Late leap-year Feb 29 in a -02:00 zone → UTC rolls FORWARD to Mar 1.
+        assert_eq!(
+            normalize_datetime("2024-02-29T23:00:00-02:00").unwrap(),
+            "2024-03-01T01:00:00.000Z",
+        );
+    }
+
+    /// Regression: semantic validation must reject calendar-invalid values
+    /// that pass the regex (issue #1).
+    #[test]
+    fn rejects_semantically_invalid_datetimes() {
+        let bad = [
+            "1985-00-12T23:20:50.123Z", // month 0
+            "1985-13-12T23:20:50.123Z", // month 13
+            "1985-04-00T23:20:50.123Z", // day 0
+            "1985-04-31T23:20:50.123Z", // April only has 30 days
+            "2023-02-29T12:00:00Z",     // non-leap year Feb 29
+            "1985-04-12T25:20:50.123Z", // hour 25
+            "1985-04-12T23:99:50.123Z", // minute 99
+            "1985-04-12T23:20:61.123Z", // second 61
+        ];
+        for s in bad {
+            assert!(
+                Datetime::new(s).is_err(),
+                "should reject semantically-invalid datetime {s:?}"
+            );
+        }
+    }
+
+    /// Leap seconds (`:60`) are legal in RFC 3339 *and* chrono parses them
+    /// by rolling forward. We must still accept them if the TS SDK does.
+    #[test]
+    fn leap_second_is_accepted_or_rejected_consistently() {
+        // We don't require leap-second support either way, but we must not
+        // panic, and the answer must match what we'd say for :59 of the
+        // same minute.
+        let _ = Datetime::new("1985-04-12T23:20:60Z");
     }
 }

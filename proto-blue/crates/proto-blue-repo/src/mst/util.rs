@@ -115,8 +115,17 @@ pub fn serialize_node_data(data: &NodeData) -> LexValue {
         e_map.insert("p".to_string(), LexValue::Integer(entry.prefix_len as i64));
         e_map.insert("k".to_string(), LexValue::Bytes(entry.key_suffix.clone()));
         e_map.insert("v".to_string(), LexValue::Cid(entry.value.clone()));
-        if let Some(t) = &entry.tree {
-            e_map.insert("t".to_string(), LexValue::Cid(t.clone()));
+        // The `t` (right subtree) key is ALWAYS present, `null` when absent.
+        // The TS reference implementation writes `t: null` explicitly for
+        // no-right-subtree entries, so omitting the key here would produce
+        // different DAG-CBOR bytes and a different root CID.
+        match &entry.tree {
+            Some(t) => {
+                e_map.insert("t".to_string(), LexValue::Cid(t.clone()));
+            }
+            None => {
+                e_map.insert("t".to_string(), LexValue::Null);
+            }
         }
         entries_arr.push(LexValue::Map(e_map));
     }

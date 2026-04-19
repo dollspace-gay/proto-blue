@@ -1,13 +1,17 @@
 //! CID set — a set of content identifiers.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use proto_blue_lex_data::Cid;
 
-/// A set of CIDs, internally using string representation for efficient lookup.
+/// A set of CIDs.
+///
+/// Internally stores CIDs by their base32 string form (for O(1)
+/// containment checks), but keeps the original `Cid` alongside so it
+/// can be iterated over without re-parsing.
 #[derive(Debug, Clone, Default)]
 pub struct CidSet {
-    set: HashSet<String>,
+    set: HashMap<String, Cid>,
 }
 
 impl CidSet {
@@ -27,22 +31,22 @@ impl CidSet {
 
     /// Add a CID to the set.
     pub fn add(&mut self, cid: Cid) -> &mut Self {
-        self.set.insert(cid.to_string_base32());
+        self.set.insert(cid.to_string_base32(), cid);
         self
     }
 
     /// Merge another set into this one (union).
     pub fn add_set(&mut self, other: &CidSet) -> &mut Self {
-        for s in &other.set {
-            self.set.insert(s.clone());
+        for (k, v) in &other.set {
+            self.set.insert(k.clone(), v.clone());
         }
         self
     }
 
     /// Remove all CIDs in `other` from this set (difference).
     pub fn subtract_set(&mut self, other: &CidSet) -> &mut Self {
-        for s in &other.set {
-            self.set.remove(s);
+        for k in other.set.keys() {
+            self.set.remove(k);
         }
         self
     }
@@ -55,7 +59,7 @@ impl CidSet {
 
     /// Check if a CID is in the set.
     pub fn has(&self, cid: &Cid) -> bool {
-        self.set.contains(&cid.to_string_base32())
+        self.set.contains_key(&cid.to_string_base32())
     }
 
     /// Get the number of CIDs in the set.
@@ -73,9 +77,14 @@ impl CidSet {
         self.set.clear();
     }
 
+    /// Iterate over the CIDs in the set.
+    pub fn iter(&self) -> impl Iterator<Item = &Cid> {
+        self.set.values()
+    }
+
     /// Convert to a list of CID strings.
     pub fn to_strings(&self) -> Vec<&str> {
-        self.set.iter().map(|s| s.as_str()).collect()
+        self.set.keys().map(|s| s.as_str()).collect()
     }
 }
 
@@ -85,11 +94,13 @@ mod tests {
 
     fn test_cid() -> Cid {
         // Create a CID from some test data
-        proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String("test".into())).unwrap()
+        proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String("test".into()))
+            .unwrap()
     }
 
     fn test_cid2() -> Cid {
-        proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String("test2".into())).unwrap()
+        proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String("test2".into()))
+            .unwrap()
     }
 
     #[test]

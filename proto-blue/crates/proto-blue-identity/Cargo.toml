@@ -16,6 +16,7 @@ proto-blue-crypto = { workspace = true }
 reqwest = { workspace = true }
 hickory-resolver = { workspace = true }
 tokio = { workspace = true }
+futures = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

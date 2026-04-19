@@ -7,8 +7,8 @@
 
 use std::collections::BTreeMap;
 
-use proto_blue_lex_data::{Cid, LexValue};
 use base64::Engine as _;
+use proto_blue_lex_data::{Cid, LexValue};
 use serde_json::Value as JsonValue;
 
 use crate::error::JsonError;

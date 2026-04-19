@@ -517,7 +517,10 @@ mod tests {
     fn query_value_encode() {
         assert_eq!(QueryValue::String("hello".into()).encode(), "hello");
         assert_eq!(QueryValue::Integer(42).encode(), "42");
-        assert_eq!(QueryValue::Float(3.14).encode(), "3.14");
+        // Use a generic non-reserved value — clippy rejects anything
+        // close to mathematical constants like π, and the test only
+        // cares that floats round-trip their Display form.
+        assert_eq!(QueryValue::Float(2.5).encode(), "2.5");
         assert_eq!(QueryValue::Boolean(true).encode(), "true");
         assert_eq!(QueryValue::Boolean(false).encode(), "false");
     }
@@ -527,7 +530,7 @@ mod tests {
         let _: QueryValue = "hello".into();
         let _: QueryValue = String::from("hello").into();
         let _: QueryValue = 42i64.into();
-        let _: QueryValue = 3.14f64.into();
+        let _: QueryValue = 2.5f64.into();
         let _: QueryValue = true.into();
         let _: QueryValue = vec!["a", "b"].into();
     }
@@ -541,7 +544,7 @@ mod tests {
             Some(&"Bearer token123".to_string())
         );
         client.unset_header("Authorization");
-        assert!(client.headers.get("authorization").is_none());
+        assert!(!client.headers.contains_key("authorization"));
     }
 
     #[test]

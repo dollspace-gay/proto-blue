@@ -1,5 +1,6 @@
 /atproto-ts/
 /proto-blue/target/
+/.compare/
 .ripsed/
 .chainlink/
 .mcp.json
@@ -16,10 +17,13 @@
 .crosslink/daemon.pid
 .crosslink/daemon.log
 .crosslink/last_test_run
+.crosslink/.active-issue
 .crosslink/keys/
 .crosslink/.hub-cache/
 .crosslink/.knowledge-cache/
 .crosslink/.cache/
+.crosslink/init-manifest.json
+.crosslink/init-manifest.json.tmp
 .crosslink/hook-config.local.json
 .crosslink/integrations/
 .crosslink/rules.local/

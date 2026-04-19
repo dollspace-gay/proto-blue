@@ -26,4 +26,33 @@ pub enum RepoError {
     Car(String),
     #[error("Storage error: {0}")]
     Storage(String),
+    #[error("Invalid signature on commit")]
+    InvalidSignature,
+    #[error("Crypto error: {0}")]
+    Crypto(#[from] proto_blue_crypto::CryptoError),
+    // Boxed to keep the enum (and therefore Result<T, RepoError>) small —
+    // tungstenite's error type is ~136 B, which otherwise dominates every
+    // Result sitting on the stack. See clippy `result_large_err`.
+    #[error("WebSocket error: {0}")]
+    WebSocket(Box<proto_blue_ws::WsError>),
+    #[error("Frame decode error: {0}")]
+    Frame(Box<proto_blue_ws::FrameError>),
+    #[error("Firehose error frame: {error}{}",
+        .message.as_ref().map(|m| format!(": {m}")).unwrap_or_default())]
+    FirehoseError {
+        error: String,
+        message: Option<String>,
+    },
+}
+
+impl From<proto_blue_ws::WsError> for RepoError {
+    fn from(e: proto_blue_ws::WsError) -> Self {
+        RepoError::WebSocket(Box::new(e))
+    }
+}
+
+impl From<proto_blue_ws::FrameError> for RepoError {
+    fn from(e: proto_blue_ws::FrameError) -> Self {
+        RepoError::Frame(Box::new(e))
+    }
 }

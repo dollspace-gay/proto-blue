@@ -74,6 +74,71 @@ impl OAuthClient {
         }
     }
 
+    /// Fetch a client metadata document from the client's `client_id` URL.
+    ///
+    /// In atproto's OAuth profile, `client_id` is a URL that serves a
+    /// JSON document describing the client (per the atproto client-id-
+    /// metadata-document spec, which extends RFC 7591). Use this when
+    /// you want to load client metadata dynamically instead of hard-
+    /// coding it — e.g. an authorization server fetching a third-party
+    /// client's metadata before deciding whether to trust it.
+    ///
+    /// Strict checks:
+    /// - response must be HTTP success,
+    /// - `Content-Type` must be `application/json` (atproto requires
+    ///   this exactly — the spec bans other content types),
+    /// - parsed document's `client_id` must equal the URL it was
+    ///   fetched from, exactly.
+    pub async fn fetch_client_metadata(
+        &self,
+        client_id_url: &str,
+    ) -> Result<OAuthClientMetadata, OAuthError> {
+        let resp = self
+            .http
+            .get(client_id_url)
+            .header("Accept", "application/json")
+            .send()
+            .await?
+            .error_for_status()
+            .map_err(OAuthError::Http)?;
+
+        // Strict Content-Type check. atproto's profile requires
+        // `application/json`; accepting other types could open up
+        // protocol-confusion attacks if an attacker controls the URL.
+        let ct = resp
+            .headers()
+            .get(reqwest::header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .map(str::to_string)
+            .unwrap_or_default();
+        // Allow parameters like `application/json; charset=utf-8`.
+        let base_ct = ct
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .to_ascii_lowercase();
+        if base_ct != "application/json" {
+            return Err(OAuthError::Other(format!(
+                "client metadata must be application/json, got {ct:?}"
+            )));
+        }
+
+        let metadata: OAuthClientMetadata = resp.json().await?;
+
+        // The document's `client_id` must match the URL it came from,
+        // otherwise an authorization server couldn't trust that the
+        // document really describes this client.
+        if metadata.client_id != client_id_url {
+            return Err(OAuthError::Other(format!(
+                "client metadata `client_id` mismatch: document says {:?}, fetched from {:?}",
+                metadata.client_id, client_id_url
+            )));
+        }
+
+        Ok(metadata)
+    }
+
     /// Discover authorization server metadata from an issuer URL.
     ///
     /// Fetches `{issuer}/.well-known/oauth-authorization-server` per RFC 8414.
@@ -425,7 +490,26 @@ impl OAuthClient {
 }
 
 /// Reconstruct a DpopKey from a stored private JWK.
+///
+/// Infers the algorithm from the JWK's `crv` field: `P-256` → ES256,
+/// `secp256k1` → ES256K (RFC 8812). Anything else is rejected — we
+/// don't want to silently downgrade a key the caller thought was
+/// stored for a specific curve.
 pub fn dpop_key_from_jwk(jwk: &serde_json::Value) -> Result<DpopKey, OAuthError> {
+    let crv = jwk
+        .get("crv")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| OAuthError::Other("JWK missing 'crv' field".into()))?;
+    let alg = match crv {
+        "P-256" => crate::dpop::DpopAlg::Es256,
+        "secp256k1" => crate::dpop::DpopAlg::Es256k,
+        other => {
+            return Err(OAuthError::Other(format!(
+                "unsupported JWK curve for DPoP: {other}"
+            )));
+        }
+    };
+
     let public_jwk = {
         let mut pub_jwk = jwk.clone();
         if let Some(obj) = pub_jwk.as_object_mut() {
@@ -435,6 +519,7 @@ pub fn dpop_key_from_jwk(jwk: &serde_json::Value) -> Result<DpopKey, OAuthError>
     };
 
     Ok(DpopKey {
+        alg,
         private_jwk: jwk.clone(),
         public_jwk,
     })

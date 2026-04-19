@@ -38,10 +38,7 @@ mod tests {
     #[test]
     fn display_verification_failed() {
         let err = CryptoError::VerificationFailed("corrupt signature".into());
-        assert_eq!(
-            err.to_string(),
-            "Verification failed: corrupt signature"
-        );
+        assert_eq!(err.to_string(), "Verification failed: corrupt signature");
     }
 
     #[test]

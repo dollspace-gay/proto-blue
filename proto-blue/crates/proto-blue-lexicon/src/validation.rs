@@ -173,7 +173,8 @@ fn validate_string_format(path: &str, format: &str, value: &str) -> ValidationRe
         "did" => proto_blue_syntax::Did::new(value).is_ok(),
         "handle" => proto_blue_syntax::Handle::new(value).is_ok(),
         "at-identifier" => {
-            proto_blue_syntax::Did::new(value).is_ok() || proto_blue_syntax::Handle::new(value).is_ok()
+            proto_blue_syntax::Did::new(value).is_ok()
+                || proto_blue_syntax::Handle::new(value).is_ok()
         }
         "nsid" => proto_blue_syntax::Nsid::new(value).is_ok(),
         "cid" => value.parse::<Cid>().is_ok(),

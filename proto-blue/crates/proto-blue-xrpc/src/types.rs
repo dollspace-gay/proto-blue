@@ -121,8 +121,10 @@ mod tests {
 
     #[test]
     fn encode_float() {
-        let v = QueryValue::Float(3.14);
-        assert_eq!(v.encode(), "3.14");
+        // Avoid values that trigger `clippy::approx_constant` (π, e, etc.)
+        // — this test only cares that a float round-trips its Display form.
+        let v = QueryValue::Float(2.5);
+        assert_eq!(v.encode(), "2.5");
     }
 
     #[test]

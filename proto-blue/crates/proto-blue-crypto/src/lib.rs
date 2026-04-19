@@ -44,6 +44,6 @@ pub use did_key::{
 };
 pub use error::CryptoError;
 pub use k256_impl::{K256Keypair, compress_pubkey as k256_compress_pubkey};
-pub use keypair::{ExportableKeypair, Keypair, Signer, Verifier};
+pub use keypair::{ExportableKeypair, Keypair, SealedKeypair, Signer, Verifier};
 pub use p256_impl::{P256Keypair, compress_pubkey as p256_compress_pubkey};
 pub use sha::sha256;

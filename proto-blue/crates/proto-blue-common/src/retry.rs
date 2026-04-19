@@ -96,9 +96,9 @@ mod tests {
             let d1 = backoff_ms(1, 100, 1000);
             let d2 = backoff_ms(2, 100, 1000);
             // d0 ~= 100, d1 ~= 200, d2 ~= 400 (with +/-15% jitter)
-            assert!(d0 >= 85 && d0 <= 115, "d0={d0}");
-            assert!(d1 >= 170 && d1 <= 230, "d1={d1}");
-            assert!(d2 >= 340 && d2 <= 460, "d2={d2}");
+            assert!((85..=115).contains(&d0), "d0={d0}");
+            assert!((170..=230).contains(&d1), "d1={d1}");
+            assert!((340..=460).contains(&d2), "d2={d2}");
         }
     }
 
@@ -106,7 +106,7 @@ mod tests {
     fn backoff_ms_capped() {
         let d = backoff_ms(10, 100, 1000);
         // 2^10 * 100 = 102400, but capped at 1000 +/- 15%
-        assert!(d >= 850 && d <= 1150, "d={d}");
+        assert!((850..=1150).contains(&d), "d={d}");
     }
 
     #[tokio::test]

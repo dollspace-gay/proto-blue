@@ -2,7 +2,10 @@
 
 use std::time::Duration;
 
-use proto_blue_common::{DidDocument, get_did, get_handle, get_pds_endpoint, get_signing_key};
+use proto_blue_common::{
+    DidDocument, Service, VerificationMethod, get_did, get_handle, get_pds_endpoint,
+    get_signing_key,
+};
 
 use crate::cache::DidCache;
 use crate::error::IdentityError;
@@ -112,6 +115,14 @@ impl DidResolver {
         match method {
             "plc" => self.resolve_plc(did).await,
             "web" => self.resolve_web(did).await,
+            // did:key is fully inline — no network call, the public key
+            // is encoded directly in the identifier. We synthesize a
+            // minimal DID document containing only the `#atproto` signing
+            // key. It has no `alsoKnownAs` and no service endpoints, so
+            // `ensure_atp_document` will later fail with MissingHandle or
+            // MissingPds — which is correct: did:key identifiers cannot
+            // participate in the atproto network, only sign payloads.
+            "key" => Ok(Some(synthesize_did_key_doc(did)?)),
             _ => Err(IdentityError::UnsupportedDidMethod(did.to_string())),
         }
     }
@@ -182,6 +193,48 @@ impl DidResolver {
             Err(_) => Ok(None),
         }
     }
+}
+
+/// Synthesize a DID document for a `did:key:z...` identifier.
+///
+/// `did:key` is a self-contained DID method: the public key is encoded
+/// directly in the identifier (multibase-encoded multicodec + compressed
+/// point). We don't fetch anything — we just validate the encoding via
+/// `proto_blue_crypto::parse_did_key` and return a minimal doc whose
+/// only verification method is the embedded signing key.
+///
+/// The returned document has:
+/// - `id`: the full did:key identifier
+/// - a single `#atproto` verification method with `publicKeyMultibase`
+///   equal to the `z...` portion of the DID
+/// - no `alsoKnownAs` and no `service` entries
+///
+/// Callers that pass such a document to `ensure_atp_document` will get a
+/// `MissingHandle` or `MissingPds` error — did:key identifiers cannot
+/// host an atproto repo, only sign arbitrary payloads.
+fn synthesize_did_key_doc(did: &str) -> Result<DidDocument, IdentityError> {
+    // Validate the encoding. `parse_did_key` rejects malformed or wrong-
+    // prefix multibase blobs.
+    proto_blue_crypto::parse_did_key(did)
+        .map_err(|e| IdentityError::PoorlyFormattedDid(format!("{did}: {e}")))?;
+
+    // The `z...` multikey portion is everything after `did:key:`.
+    let multikey = did
+        .strip_prefix("did:key:")
+        .ok_or_else(|| IdentityError::PoorlyFormattedDid(did.to_string()))?
+        .to_string();
+
+    Ok(DidDocument {
+        id: did.to_string(),
+        also_known_as: Vec::new(),
+        verification_method: vec![VerificationMethod {
+            id: format!("{did}#atproto"),
+            method_type: "Multikey".to_string(),
+            controller: did.to_string(),
+            public_key_multibase: Some(multikey),
+        }],
+        service: Vec::<Service>::new(),
+    })
 }
 
 /// Simple percent-decoding for did:web hostnames.
@@ -382,5 +435,54 @@ mod tests {
         assert_eq!(scheme, "http");
         let url = format!("{scheme}://{hostname}/.well-known/did.json");
         assert_eq!(url, "http://localhost/.well-known/did.json");
+    }
+
+    // ── did:key resolution ───────────────────────────────────────────
+
+    /// A real did:key produced by proto-blue-crypto. This one appears in
+    /// the W3C test vectors as well, so the multikey blob is known-good.
+    const SAMPLE_DID_KEY: &str = "did:key:zQ3shokFTS3brHcDQrn82RUDfCZESWL1ZdCEJwekUDPQiYBme";
+
+    #[test]
+    fn did_key_synthesizes_minimal_document() {
+        let doc = synthesize_did_key_doc(SAMPLE_DID_KEY).unwrap();
+        assert_eq!(doc.id, SAMPLE_DID_KEY);
+        assert!(doc.also_known_as.is_empty());
+        assert!(doc.service.is_empty());
+        assert_eq!(doc.verification_method.len(), 1);
+        let vm = &doc.verification_method[0];
+        assert_eq!(vm.method_type, "Multikey");
+        assert_eq!(vm.controller, SAMPLE_DID_KEY);
+        let mb = vm.public_key_multibase.as_deref().unwrap();
+        assert!(mb.starts_with('z'));
+        // The multikey must be exactly the portion after `did:key:`.
+        assert_eq!(mb, &SAMPLE_DID_KEY["did:key:".len()..]);
+    }
+
+    #[test]
+    fn did_key_resolver_returns_synthesized_doc() {
+        let resolver = DidResolver::new(None, 1000, None);
+        let resolve = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(resolver.resolve_no_check(SAMPLE_DID_KEY));
+        let doc = resolve.unwrap().expect("synthesized doc");
+        assert_eq!(doc.id, SAMPLE_DID_KEY);
+    }
+
+    #[test]
+    fn did_key_malformed_is_rejected() {
+        // Missing `z` multibase prefix — parse_did_key will reject.
+        let bad = "did:key:Q3shokFTS3brHcDQrn82RUDfCZESWL1ZdCEJwekUDPQiYBme";
+        let err = synthesize_did_key_doc(bad).unwrap_err();
+        assert!(matches!(err, IdentityError::PoorlyFormattedDid(_)));
+    }
+
+    #[test]
+    fn did_key_ensure_atp_document_fails_with_missing_handle() {
+        // The synthesized did:key document has no alsoKnownAs, so the
+        // atproto-data extractor must surface that as MissingHandle.
+        let doc = synthesize_did_key_doc(SAMPLE_DID_KEY).unwrap();
+        let err = ensure_atp_document(&doc).unwrap_err();
+        assert!(matches!(err, IdentityError::MissingHandle(_)));
     }
 }
