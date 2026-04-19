@@ -921,3 +921,95 @@ async fn refresh_omits_client_assertion_when_as_does_not_advertise_alg() {
     assert!(!form.contains_key("client_assertion"));
     assert!(!form.contains_key("client_assertion_type"));
 }
+
+/// `callback_verified` must reject when the token response's `sub`
+/// doesn't match the DID the client resolved up-front. Prevents a
+/// compromised AS from silently swapping which user the client is
+/// authenticated as.
+#[tokio::test]
+async fn callback_verified_rejects_sub_mismatch() {
+    let (token_base, _cap) = spawn_oneshot(Reply::json(
+        200,
+        br#"{
+          "access_token":"at-new",
+          "token_type":"DPoP",
+          "refresh_token":"rt-new",
+          "expires_in":3600,
+          "scope":"atproto",
+          "sub":"did:plc:attacker"
+        }"#
+        .to_vec(),
+    ))
+    .await;
+    let token_endpoint = format!("{token_base}/token");
+
+    let client = real_client("https://app.example.com/metadata.json");
+    let meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        &token_endpoint,
+        None,
+        None,
+    );
+    let state = fresh_auth_state("https://as.example.com");
+
+    let err = client
+        .callback_verified(
+            "code",
+            None,
+            Some("https://pds.example.com"),
+            Some("did:plc:expected"),
+            &state,
+            &meta,
+        )
+        .await
+        .unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("did:plc:expected") && msg.contains("did:plc:attacker"),
+        "error should name both DIDs: {msg}"
+    );
+}
+
+/// `callback_verified` accepts matching `sub` and records `aud`.
+#[tokio::test]
+async fn callback_verified_accepts_sub_match_and_records_aud() {
+    let (token_base, _cap) = spawn_oneshot(Reply::json(
+        200,
+        br#"{
+          "access_token":"at-new",
+          "token_type":"DPoP",
+          "refresh_token":"rt-new",
+          "expires_in":3600,
+          "scope":"atproto",
+          "sub":"did:plc:good"
+        }"#
+        .to_vec(),
+    ))
+    .await;
+    let token_endpoint = format!("{token_base}/token");
+
+    let client = real_client("https://app.example.com/metadata.json");
+    let meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        &token_endpoint,
+        None,
+        None,
+    );
+    let state = fresh_auth_state("https://as.example.com");
+
+    let ts = client
+        .callback_verified(
+            "code",
+            None,
+            Some("https://pds.example.com"),
+            Some("did:plc:good"),
+            &state,
+            &meta,
+        )
+        .await
+        .unwrap();
+    assert_eq!(ts.sub, "did:plc:good");
+    assert_eq!(ts.aud.as_deref(), Some("https://pds.example.com"));
+}

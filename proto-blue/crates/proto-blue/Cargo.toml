@@ -32,7 +32,7 @@ proto-blue-xrpc = { workspace = true, optional = true, features = ["server", "fe
 proto-blue-ws = { workspace = true, optional = true, features = ["tungstenite"] }
 proto-blue-identity = { workspace = true, optional = true, features = ["dns", "fetch-reqwest"] }
 proto-blue-api = { workspace = true, optional = true, features = ["fetch-reqwest", "server"] }
-proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-reqwest"] }
+proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-reqwest", "identity-resolver"] }
 
 # ── Wasm backends ──────────────────────────────────────────────────────
 [target.'cfg(target_arch = "wasm32")'.dependencies]
@@ -40,7 +40,7 @@ proto-blue-xrpc = { workspace = true, optional = true, features = ["fetch-web"] 
 proto-blue-ws = { workspace = true, optional = true, features = ["gloo-ws"] }
 proto-blue-identity = { workspace = true, optional = true, features = ["fetch-web"] }
 proto-blue-api = { workspace = true, optional = true, features = ["fetch-web"] }
-proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-web"] }
+proto-blue-oauth = { workspace = true, optional = true, features = ["fetch-web", "identity-resolver"] }
 
 [features]
 # Default to the full SDK — same API surface as before. On wasm32 the

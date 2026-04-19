@@ -14,6 +14,12 @@ categories = ["authentication", "web-programming"]
 proto-blue-common = { workspace = true }
 proto-blue-crypto = { workspace = true }
 proto-blue-xrpc = { workspace = true }
+
+# Optional: full identity resolution (handle → DID → PDS → resource
+# metadata → AS) inside `authorize_from_input`. Enabled by the
+# `identity-resolver` feature. Defaults to off so minimal / server-only
+# OAuth clients don't pull in DNS + PLC crates.
+proto-blue-identity = { workspace = true, optional = true, default-features = false }
 base64 = { workspace = true }
 url = { workspace = true }
 serde = { workspace = true }
@@ -42,13 +48,19 @@ fetch-reqwest = [
     "dep:reqwest",
     "proto-blue-common/fetch-reqwest",
     "proto-blue-xrpc/fetch-reqwest",
+    "proto-blue-identity?/fetch-reqwest",
 ]
 
 # Browser `fetch()`-backed HTTP for wasm32.
 fetch-web = [
     "proto-blue-common/fetch-web",
     "proto-blue-xrpc/fetch-web",
+    "proto-blue-identity?/fetch-web",
 ]
+
+# Full identity resolution (handle / DID / PDS URL → PDS → AS) inside
+# `OAuthClient::resolve_from_input`. Pulls in `proto-blue-identity`.
+identity-resolver = ["dep:proto-blue-identity"]
 
 [dev-dependencies]
 proptest = { workspace = true }

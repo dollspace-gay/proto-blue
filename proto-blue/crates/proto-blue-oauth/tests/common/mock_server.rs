@@ -8,6 +8,7 @@
 //! Not a full HTTP server: chunked encoding, keep-alive, and HTTP/2 are
 //! not implemented. All the OAuth flows we test are a single simple POST
 //! or GET, which fits this model.
+#![allow(dead_code)]
 
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -14,10 +14,15 @@ pub mod error;
 pub mod jwt_assertion;
 pub mod loopback;
 pub mod pkce;
+pub mod resolve;
 pub mod scope;
 pub mod session;
 pub mod store;
 pub mod types;
+
+pub use resolve::{ResolvedInput, verify_token_sub};
+#[cfg(feature = "identity-resolver")]
+pub use resolve::resolve_input;
 
 pub use client::{DpopNonceCache, OAuthClient, validate_client_metadata};
 pub use dpop::{DpopAlg, DpopKey, build_dpop_proof};

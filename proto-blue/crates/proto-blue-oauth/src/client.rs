@@ -513,6 +513,30 @@ impl OAuthClient {
         Ok(ts)
     }
 
+    /// Variant of [`Self::callback_with_iss_and_aud`] that verifies
+    /// the token response's `sub` against a DID the client resolved
+    /// up-front (e.g. from [`crate::resolve::resolve_input`]'s output).
+    ///
+    /// Returns `Err` if the AS handed back a token for a different
+    /// user — catches a compromised AS trying to swap identities.
+    /// When `expected_did` is `None`, behaves identically to
+    /// [`Self::callback_with_iss_and_aud`].
+    pub async fn callback_verified(
+        &self,
+        code: &str,
+        iss: Option<&str>,
+        aud: Option<&str>,
+        expected_did: Option<&str>,
+        auth_state: &AuthState,
+        server_metadata: &OAuthServerMetadata,
+    ) -> Result<TokenSet, OAuthError> {
+        let ts = self
+            .callback_with_iss_and_aud(code, iss, aud, auth_state, server_metadata)
+            .await?;
+        crate::resolve::verify_token_sub(expected_did, &ts.sub)?;
+        Ok(ts)
+    }
+
     /// Handle the OAuth callback, exchanging the authorization code for tokens.
     ///
     /// Parameters:
