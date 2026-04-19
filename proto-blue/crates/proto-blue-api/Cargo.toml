@@ -25,6 +25,9 @@ tokio = { workspace = true, features = ["macros", "rt", "sync"] }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 
+[dev-dependencies]
+async-trait = { workspace = true }
+
 [features]
 # Native default: reqwest HTTP transport via proto-blue-xrpc.
 default = ["fetch-reqwest"]

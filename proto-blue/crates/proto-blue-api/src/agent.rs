@@ -3,12 +3,43 @@
 //! Provides session management, convenience methods for common operations,
 //! and namespace accessors for the full Lexicon API surface.
 
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, Mutex};
+use tokio::sync::{Mutex as AsyncMutex, RwLock};
 
-use proto_blue_xrpc::{CallOptions, HeadersMap, QueryParams, QueryValue, XrpcBody, XrpcClient};
+use proto_blue_xrpc::{
+    CallOptions, HeadersMap, QueryParams, QueryValue, ResponseType, XrpcBody, XrpcClient,
+};
 
 use crate::rich_text::RichText;
+
+/// Session lifecycle events emitted by [`Agent`].
+///
+/// Mirrors TS `AtpSessionEvent`. Register a listener via
+/// [`Agent::on_session`] to observe login / refresh / expiry. Typical
+/// use is to persist the session on `Create` / `Update` and to clear
+/// local state on `Expired`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AtpSessionEvent {
+    /// A new session was established (successful login / resume).
+    Create,
+    /// A login attempt failed.
+    CreateFailed,
+    /// The session tokens were refreshed.
+    Update,
+    /// The server rejected the refresh — the user must log in again.
+    Expired,
+    /// A network-level failure during a session-affecting call.
+    NetworkError,
+}
+
+/// Callback registered via [`Agent::on_session`].
+///
+/// Invoked synchronously on the task that produced the event; handlers
+/// should not block for long. The `Option<&Session>` is `Some` for
+/// `Create` / `Update` and `None` for `CreateFailed` / `Expired` /
+/// `NetworkError`.
+pub type SessionEventCallback =
+    Arc<dyn Fn(AtpSessionEvent, Option<&Session>) + Send + Sync>;
 
 /// Session data for an authenticated agent.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -43,9 +74,28 @@ pub enum AgentError {
 /// is never mutated after construction — auth headers are passed per-request.
 /// This avoids token leaks, giant-lock contention, and split-lock atomicity
 /// gaps that arise from storing auth in the client's default headers.
+///
+/// ## Transparent refresh
+///
+/// Every XRPC call goes through `xrpc_query_with_refresh` /
+/// `xrpc_procedure_with_refresh`, which detect 401 /
+/// `ExpiredToken` responses, call [`Agent::refresh_session`], and
+/// retry once. Concurrent refresh attempts are deduplicated via an
+/// async `Mutex` so N in-flight calls that all see an expired token
+/// issue exactly one `/refreshSession` request. If the refresh itself
+/// fails, the agent fires [`AtpSessionEvent::Expired`] and the
+/// original error propagates.
 pub struct Agent {
     client: XrpcClient,
     session: Arc<RwLock<Option<Session>>>,
+    /// Session-event listeners. Called synchronously on the task that
+    /// produced the event.
+    listeners: Arc<Mutex<Vec<SessionEventCallback>>>,
+    /// Serialises concurrent refreshes. The first caller to see a 401
+    /// acquires this lock, performs the refresh, and writes the new
+    /// session back; subsequent callers block until that finishes and
+    /// then observe the updated session when their retry fires.
+    refresh_lock: Arc<AsyncMutex<()>>,
 }
 
 impl Agent {
@@ -55,7 +105,34 @@ impl Agent {
         Ok(Agent {
             client,
             session: Arc::new(RwLock::new(None)),
+            listeners: Arc::new(Mutex::new(Vec::new())),
+            refresh_lock: Arc::new(AsyncMutex::new(())),
         })
+    }
+
+    /// Register a session-event listener.
+    ///
+    /// Returns `()`, not a handle — listener unregistration isn't
+    /// currently supported (the typical pattern is to register a
+    /// single persistence callback that lives for the Agent's
+    /// lifetime). Multiple listeners are fired in registration order.
+    pub fn on_session<F>(&self, callback: F)
+    where
+        F: Fn(AtpSessionEvent, Option<&Session>) + Send + Sync + 'static,
+    {
+        self.listeners.lock().unwrap().push(Arc::new(callback));
+    }
+
+    /// Fire an event to every registered listener.
+    fn emit(&self, event: AtpSessionEvent, session: Option<&Session>) {
+        // `listeners` is a sync Mutex; we clone the Arc<callback> list
+        // out from under the lock so the callbacks themselves run
+        // without holding it (they could be slow / could call back
+        // into `on_session`).
+        let listeners = self.listeners.lock().unwrap().clone();
+        for cb in listeners {
+            cb(event, session);
+        }
     }
 
     /// Get the service URL string.
@@ -91,13 +168,17 @@ impl Agent {
     }
 
     /// Log in with identifier (handle or DID) and password.
+    ///
+    /// Emits [`AtpSessionEvent::Create`] on success, or
+    /// [`AtpSessionEvent::CreateFailed`] if the server rejected the
+    /// credentials.
     pub async fn login(&self, identifier: &str, password: &str) -> Result<Session, AgentError> {
         let body = serde_json::json!({
             "identifier": identifier,
             "password": password,
         });
 
-        let response = self
+        let response = match self
             .client
             .procedure(
                 "com.atproto.server.createSession",
@@ -105,12 +186,20 @@ impl Agent {
                 Some(XrpcBody::Json(body)),
                 None,
             )
-            .await?;
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                self.emit(AtpSessionEvent::CreateFailed, None);
+                return Err(AgentError::Xrpc(e));
+            }
+        };
 
         let session: Session = serde_json::from_value(response.data)?;
 
         // Atomically commit session in a single write lock
         *self.session.write().await = Some(session.clone());
+        self.emit(AtpSessionEvent::Create, Some(&session));
         Ok(session)
     }
 
@@ -146,16 +235,19 @@ impl Agent {
         if let Some(did) = verified_did {
             committed.did = did;
         }
-        *self.session.write().await = Some(committed);
+        *self.session.write().await = Some(committed.clone());
+        self.emit(AtpSessionEvent::Create, Some(&committed));
 
         Ok(())
     }
 
     /// Refresh the current session tokens.
     ///
-    /// Uses a per-request header for the refresh call so the refresh JWT is
-    /// never exposed as the global auth state. The new session is committed
-    /// atomically in a single write lock.
+    /// Emits [`AtpSessionEvent::Update`] on success or
+    /// [`AtpSessionEvent::Expired`] if the refresh token was
+    /// rejected. Uses a per-request header for the refresh call so the
+    /// refresh JWT is never exposed as the global auth state. The new
+    /// session is committed atomically in a single write lock.
     pub async fn refresh_session(&self) -> Result<Session, AgentError> {
         let refresh_jwt = {
             let sess = self.session.read().await;
@@ -172,15 +264,33 @@ impl Agent {
             ..Default::default()
         };
 
-        let response = self
+        let response = match self
             .client
             .procedure("com.atproto.server.refreshSession", None, None, Some(&opts))
-            .await?;
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                // Any 401 during refresh means the refresh token
+                // itself is rejected — drop the session and signal
+                // Expired. Other errors (network failure, 5xx, etc.)
+                // surface as NetworkError and leave the session in
+                // place so a later attempt can retry.
+                if is_refresh_rejected(&e) {
+                    *self.session.write().await = None;
+                    self.emit(AtpSessionEvent::Expired, None);
+                } else {
+                    self.emit(AtpSessionEvent::NetworkError, None);
+                }
+                return Err(AgentError::Xrpc(e));
+            }
+        };
 
         let session: Session = serde_json::from_value(response.data)?;
 
         // Atomically commit new session in a single write lock
         *self.session.write().await = Some(session.clone());
+        self.emit(AtpSessionEvent::Update, Some(&session));
         Ok(session)
     }
 
@@ -191,28 +301,108 @@ impl Agent {
         self.did().await.ok_or(AgentError::NotAuthenticated)
     }
 
-    /// Helper: make a query call.
+    /// Helper: make a query call with transparent 401-refresh retry.
+    ///
+    /// When the first attempt returns `ExpiredToken`, try to refresh
+    /// the session and replay the call once with the fresh access
+    /// token. Concurrent refreshes are deduplicated via
+    /// [`Agent::refresh_lock`].
     async fn xrpc_query(
         &self,
         nsid: &str,
         params: Option<&QueryParams>,
     ) -> Result<serde_json::Value, AgentError> {
         let opts = self.auth_call_options().await;
-        let response = self.client.query(nsid, params, opts.as_ref()).await?;
-        Ok(response.data)
+        let first = self.client.query(nsid, params, opts.as_ref()).await;
+        match first {
+            Ok(r) => Ok(r.data),
+            Err(e) if is_auth_expired(&e) => {
+                self.refresh_and_retry(|opts| {
+                    let c = self.client.clone();
+                    let nsid = nsid.to_string();
+                    let params = params.cloned();
+                    async move {
+                        c.query(&nsid, params.as_ref(), opts.as_ref()).await
+                    }
+                })
+                .await
+            }
+            Err(e) => Err(AgentError::Xrpc(e)),
+        }
     }
 
-    /// Helper: make a procedure call with JSON body.
+    /// Helper: make a procedure call with transparent 401-refresh retry.
     async fn xrpc_procedure(
         &self,
         nsid: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, AgentError> {
         let opts = self.auth_call_options().await;
-        let response = self
+        let first = self
             .client
-            .procedure(nsid, None, Some(XrpcBody::Json(body)), opts.as_ref())
-            .await?;
+            .procedure(nsid, None, Some(XrpcBody::Json(body.clone())), opts.as_ref())
+            .await;
+        match first {
+            Ok(r) => Ok(r.data),
+            Err(e) if is_auth_expired(&e) => {
+                self.refresh_and_retry(|opts| {
+                    let c = self.client.clone();
+                    let nsid = nsid.to_string();
+                    let body = body.clone();
+                    async move {
+                        c.procedure(&nsid, None, Some(XrpcBody::Json(body)), opts.as_ref())
+                            .await
+                    }
+                })
+                .await
+            }
+            Err(e) => Err(AgentError::Xrpc(e)),
+        }
+    }
+
+    /// Shared refresh-and-retry driver.
+    ///
+    /// Acquires the `refresh_lock`, refreshes the session if the
+    /// access token in `self.session` is still the one that produced
+    /// the 401, rebuilds `CallOptions` from the new token, and runs
+    /// `replay(new_opts)`. Concurrent callers that arrive after the
+    /// lock is held observe the refreshed session when they get to
+    /// build their own opts — only one `/refreshSession` HTTP call
+    /// fires per refresh cycle.
+    async fn refresh_and_retry<F, Fut>(
+        &self,
+        replay: F,
+    ) -> Result<serde_json::Value, AgentError>
+    where
+        F: FnOnce(Option<CallOptions>) -> Fut,
+        Fut: std::future::Future<
+            Output = Result<proto_blue_xrpc::XrpcResponse, proto_blue_xrpc::Error>,
+        >,
+    {
+        // Snapshot the access token the caller's first attempt used.
+        // After we acquire the refresh lock, compare — if a peer
+        // already refreshed, skip the redundant refresh.
+        let pre_refresh_jwt = self
+            .session
+            .read()
+            .await
+            .as_ref()
+            .map(|s| s.access_jwt.clone());
+        let _guard = self.refresh_lock.lock().await;
+        let current_jwt = self
+            .session
+            .read()
+            .await
+            .as_ref()
+            .map(|s| s.access_jwt.clone());
+        if pre_refresh_jwt == current_jwt {
+            // No peer did the refresh — we must.
+            self.refresh_session().await?;
+        }
+        drop(_guard);
+
+        let opts = self.auth_call_options().await;
+        let response = replay(opts).await?;
         Ok(response.data)
     }
 
@@ -503,6 +693,35 @@ impl Agent {
     }
 }
 
+/// `true` if an XRPC error signals that the access token is expired
+/// and the caller should try to refresh. Looks for
+/// `AuthenticationRequired` (401) with the specific `ExpiredToken`
+/// error name — other 401 variants aren't necessarily caused by
+/// expiry (e.g. wrong credentials, app-password rejection) and
+/// shouldn't trigger the refresh-and-retry path.
+fn is_auth_expired(err: &proto_blue_xrpc::Error) -> bool {
+    match err {
+        proto_blue_xrpc::Error::Xrpc(x) => {
+            matches!(x.status, ResponseType::AuthenticationRequired)
+                && x.is_error("ExpiredToken")
+        }
+        _ => false,
+    }
+}
+
+/// `true` if an error from `/refreshSession` signals that the refresh
+/// token is rejected (rather than a transient network problem). Any
+/// 401 from the refresh endpoint is authoritative — the token is
+/// dead — regardless of the specific error-name code.
+fn is_refresh_rejected(err: &proto_blue_xrpc::Error) -> bool {
+    match err {
+        proto_blue_xrpc::Error::Xrpc(x) => {
+            matches!(x.status, ResponseType::AuthenticationRequired)
+        }
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -584,4 +803,288 @@ mod tests {
         let agent = Agent::new("https://bsky.social").unwrap();
         assert!(agent.auth_call_options().await.is_none());
     }
+
+    // ── Session events + auto-refresh ────────────────────────────────
+
+    use async_trait::async_trait;
+    use proto_blue_common::fetch::{
+        FetchError, FetchHandler, HttpRequest, HttpResponse,
+    };
+
+    /// Fetcher that scripts a sequence of responses for each NSID path.
+    /// The first call to each NSID returns `responses[i][0]`, second
+    /// `responses[i][1]`, etc. Also counts calls per NSID for assertions.
+    struct ScriptedFetcher {
+        createsession_body: Vec<u8>,
+        /// (path_suffix, sequence_of_bodies)
+        scripts: std::sync::Mutex<std::collections::HashMap<String, Vec<ScriptedResponse>>>,
+        call_counts: std::sync::Mutex<std::collections::HashMap<String, usize>>,
+    }
+
+    #[derive(Clone)]
+    struct ScriptedResponse {
+        status: u16,
+        body: Vec<u8>,
+    }
+
+    impl ScriptedFetcher {
+        fn new(createsession_body: Vec<u8>) -> Self {
+            Self {
+                createsession_body,
+                scripts: Default::default(),
+                call_counts: Default::default(),
+            }
+        }
+        fn script(&self, path: &str, responses: Vec<ScriptedResponse>) {
+            self.scripts
+                .lock()
+                .unwrap()
+                .insert(path.to_string(), responses);
+        }
+        fn call_count(&self, path: &str) -> usize {
+            *self.call_counts.lock().unwrap().get(path).unwrap_or(&0)
+        }
+    }
+
+    #[async_trait]
+    impl FetchHandler for ScriptedFetcher {
+        async fn fetch(&self, req: HttpRequest) -> Result<HttpResponse, FetchError> {
+            let path = req.url.clone();
+            let key = path
+                .split("/xrpc/")
+                .nth(1)
+                .unwrap_or(&path)
+                .split('?')
+                .next()
+                .unwrap_or("")
+                .to_string();
+            *self
+                .call_counts
+                .lock()
+                .unwrap()
+                .entry(key.clone())
+                .or_insert(0) += 1;
+
+            // Scripted responses always take precedence; the
+            // createSession short-circuit only fires when the caller
+            // hasn't explicitly scripted it.
+            {
+                let mut scripts = self.scripts.lock().unwrap();
+                if let Some(list) = scripts.get_mut(&key) {
+                    let resp = if list.len() == 1 {
+                        list[0].clone()
+                    } else {
+                        list.remove(0)
+                    };
+                    let mut headers = proto_blue_common::fetch::HttpHeaders::new();
+                    headers.insert("content-type".into(), "application/json".into());
+                    return Ok(HttpResponse {
+                        status: resp.status,
+                        headers,
+                        body: resp.body,
+                    });
+                }
+            }
+
+            // Default: createSession always succeeds.
+            if key == "com.atproto.server.createSession" {
+                let mut headers = proto_blue_common::fetch::HttpHeaders::new();
+                headers.insert("content-type".into(), "application/json".into());
+                return Ok(HttpResponse {
+                    status: 200,
+                    headers,
+                    body: self.createsession_body.clone(),
+                });
+            }
+
+            Err(FetchError::Other(format!("no script for {key}")))
+        }
+    }
+
+    fn login_body() -> Vec<u8> {
+        br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a1","refreshJwt":"r1"}"#
+            .to_vec()
+    }
+
+    fn agent_with_fetcher(fetcher: Arc<ScriptedFetcher>) -> Agent {
+        let client = XrpcClient::with_fetch_handler(
+            "https://example.com",
+            fetcher,
+        )
+        .unwrap();
+        Agent {
+            client,
+            session: Arc::new(RwLock::new(None)),
+            listeners: Arc::new(Mutex::new(Vec::new())),
+            refresh_lock: Arc::new(AsyncMutex::new(())),
+        }
+    }
+
+    #[tokio::test]
+    async fn emits_create_on_successful_login() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        let agent = agent_with_fetcher(fetcher);
+
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
+            Arc::new(Mutex::new(Vec::new()));
+        let ev_clone = events.clone();
+        agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
+
+        agent.login("alice", "secret").await.unwrap();
+        let got = events.lock().unwrap().clone();
+        assert_eq!(got, vec![AtpSessionEvent::Create]);
+    }
+
+    #[tokio::test]
+    async fn emits_create_failed_on_login_rejection() {
+        let fetcher = Arc::new(ScriptedFetcher::new(vec![]));
+        // Override createSession to fail:
+        fetcher.script(
+            "com.atproto.server.createSession",
+            vec![ScriptedResponse {
+                status: 401,
+                body: br#"{"error":"AuthenticationRequired","message":"bad pwd"}"#
+                    .to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher);
+
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
+            Arc::new(Mutex::new(Vec::new()));
+        let ev_clone = events.clone();
+        agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
+
+        // Override `createsession_body` handler: scripts take precedence.
+        // ScriptedFetcher's createSession short-circuit only fires when
+        // NOT scripted; since we scripted it, the 401 flows through.
+        let _ = agent.login("alice", "bad").await.unwrap_err();
+        let got = events.lock().unwrap().clone();
+        assert_eq!(got, vec![AtpSessionEvent::CreateFailed]);
+    }
+
+    #[tokio::test]
+    async fn auto_refreshes_on_expired_access_token() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+
+        // First call to describeServer returns 401 ExpiredToken,
+        // second call (post-refresh) returns 200.
+        fetcher.script(
+            "com.atproto.server.describeServer",
+            vec![
+                ScriptedResponse {
+                    status: 401,
+                    body: br#"{"error":"ExpiredToken","message":"expired"}"#.to_vec(),
+                },
+                ScriptedResponse {
+                    status: 200,
+                    body: br#"{"did":"did:plc:svr"}"#.to_vec(),
+                },
+            ],
+        );
+        fetcher.script(
+            "com.atproto.server.refreshSession",
+            vec![ScriptedResponse {
+                status: 200,
+                body: br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a2","refreshJwt":"r2"}"#
+                    .to_vec(),
+            }],
+        );
+
+        let agent = agent_with_fetcher(fetcher.clone());
+        agent.login("alice", "secret").await.unwrap();
+
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
+            Arc::new(Mutex::new(Vec::new()));
+        let ev_clone = events.clone();
+        agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
+
+        let result = agent.describe_server().await.unwrap();
+        assert_eq!(result["did"], "did:plc:svr");
+
+        // describeServer was called twice (first 401, second success
+        // after refresh); refreshSession was called exactly once.
+        assert_eq!(fetcher.call_count("com.atproto.server.describeServer"), 2);
+        assert_eq!(fetcher.call_count("com.atproto.server.refreshSession"), 1);
+
+        // One Update event fired during the refresh.
+        let got = events.lock().unwrap().clone();
+        assert_eq!(got, vec![AtpSessionEvent::Update]);
+    }
+
+    #[tokio::test]
+    async fn concurrent_expired_token_refreshes_once() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+
+        // All 401s for the first three attempts; subsequent calls get
+        // the scripted OK response (the last entry is reused).
+        fetcher.script(
+            "com.atproto.server.describeServer",
+            vec![
+                ScriptedResponse {
+                    status: 401,
+                    body: br#"{"error":"ExpiredToken","message":"expired"}"#.to_vec(),
+                },
+                ScriptedResponse {
+                    status: 200,
+                    body: br#"{"did":"did:plc:svr"}"#.to_vec(),
+                },
+            ],
+        );
+        fetcher.script(
+            "com.atproto.server.refreshSession",
+            vec![ScriptedResponse {
+                status: 200,
+                body: br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a2","refreshJwt":"r2"}"#
+                    .to_vec(),
+            }],
+        );
+
+        let agent = Arc::new(agent_with_fetcher(fetcher.clone()));
+        agent.login("alice", "secret").await.unwrap();
+
+        // 5 concurrent calls all hit 401 on first attempt. Refresh
+        // must fire exactly once — the dedup lock + access-token
+        // staleness check guarantee this.
+        let mut handles = Vec::new();
+        for _ in 0..5 {
+            let a = agent.clone();
+            handles.push(tokio::spawn(async move {
+                a.describe_server().await.unwrap();
+            }));
+        }
+        for h in handles {
+            h.await.unwrap();
+        }
+
+        assert_eq!(
+            fetcher.call_count("com.atproto.server.refreshSession"),
+            1,
+            "concurrent callers must share one refreshSession call",
+        );
+    }
+
+    #[tokio::test]
+    async fn emits_expired_when_refresh_itself_401s() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        fetcher.script(
+            "com.atproto.server.refreshSession",
+            vec![ScriptedResponse {
+                status: 401,
+                body: br#"{"error":"AuthenticationRequired","message":"refresh expired"}"#.to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher);
+        agent.login("alice", "secret").await.unwrap();
+
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
+            Arc::new(Mutex::new(Vec::new()));
+        let ev_clone = events.clone();
+        agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
+
+        let _ = agent.refresh_session().await.unwrap_err();
+        let got = events.lock().unwrap().clone();
+        assert_eq!(got, vec![AtpSessionEvent::Expired]);
+        assert!(agent.session().await.is_none(), "session cleared on expired refresh");
+    }
+
 }

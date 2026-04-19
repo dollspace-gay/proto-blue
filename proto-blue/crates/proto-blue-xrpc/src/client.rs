@@ -26,6 +26,7 @@ use crate::types::{CallOptions, HeadersMap, QueryParams, QueryValue, XrpcBody, X
 /// Handles query (GET) and procedure (POST) XRPC methods, URL
 /// construction, parameter encoding, and response parsing. The actual HTTP
 /// transport is abstracted behind [`FetchHandler`].
+#[derive(Clone)]
 pub struct XrpcClient {
     /// The base service URL (e.g. `https://bsky.social`).
     service: Url,
