@@ -315,7 +315,9 @@ impl XrpcServer {
         });
 
         Router::new()
-            .route("/xrpc/:nsid", get(handle_query).post(handle_procedure))
+            // axum ≥ 0.8 uses `{name}` for path capture groups (the
+            // older `:name` syntax now panics).
+            .route("/xrpc/{nsid}", get(handle_query).post(handle_procedure))
             .with_state(state)
     }
 }
