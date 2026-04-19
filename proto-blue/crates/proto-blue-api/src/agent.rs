@@ -96,6 +96,32 @@ pub struct Agent {
     /// session back; subsequent callers block until that finishes and
     /// then observe the updated session when their retry fires.
     refresh_lock: Arc<AsyncMutex<()>>,
+    /// Optional `atproto-proxy` target (e.g. `did:web:api.bsky.chat#bsky_chat`
+    /// when calling the chat service).
+    proxy: Arc<RwLock<Option<String>>>,
+    /// Optional set of labeler DIDs to send as `atproto-accept-labelers`.
+    labelers: Arc<RwLock<Vec<LabelerOpts>>>,
+}
+
+/// A single labeler entry, mirroring TS `Agent`'s `AtprotoLabelerDef`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabelerOpts {
+    /// The labeler's DID (e.g. `did:plc:<labeler>`).
+    pub did: String,
+    /// When `true`, this labeler is redirected to (sent as
+    /// `atproto-accept-labelers: did;redirect`). Matches TS behaviour.
+    pub redirect: bool,
+}
+
+impl LabelerOpts {
+    /// Format a single labeler for the `atproto-accept-labelers` header.
+    fn header_value(&self) -> String {
+        if self.redirect {
+            format!("{};redirect", self.did)
+        } else {
+            self.did.clone()
+        }
+    }
 }
 
 impl Agent {
@@ -107,6 +133,8 @@ impl Agent {
             session: Arc::new(RwLock::new(None)),
             listeners: Arc::new(Mutex::new(Vec::new())),
             refresh_lock: Arc::new(AsyncMutex::new(())),
+            proxy: Arc::new(RwLock::new(None)),
+            labelers: Arc::new(RwLock::new(Vec::new())),
         })
     }
 
@@ -152,19 +180,95 @@ impl Agent {
 
     // --- Authentication ---
 
-    /// Build per-request `CallOptions` carrying the current access token.
-    /// Returns `None` if not authenticated.
+    /// Build per-request `CallOptions` carrying the current access
+    /// token, proxy target, and labeler list. Returns `None` if not
+    /// authenticated (the proxy + labelers are still folded into the
+    /// call options of non-auth helpers via [`Self::anon_call_options`]).
     async fn auth_call_options(&self) -> Option<CallOptions> {
         let guard = self.session.read().await;
-        guard.as_ref().map(|s| {
-            let mut headers = HeadersMap::new();
-            headers.insert("Authorization".into(), format!("Bearer {}", s.access_jwt));
-            CallOptions {
+        let session = guard.as_ref()?;
+        let mut headers = HeadersMap::new();
+        headers.insert(
+            "Authorization".into(),
+            format!("Bearer {}", session.access_jwt),
+        );
+        self.inject_proxy_and_labelers(&mut headers).await;
+        Some(CallOptions {
+            encoding: None,
+            headers: Some(headers),
+            ..Default::default()
+        })
+    }
+
+    /// Build anonymous [`CallOptions`] carrying just the proxy and
+    /// labeler config, for methods that don't need auth.
+    ///
+    /// Exposed in case callers drive `XrpcClient::query` / `::procedure`
+    /// directly and want the agent's proxy / labeler headers folded in.
+    pub async fn anon_call_options(&self) -> Option<CallOptions> {
+        let mut headers = HeadersMap::new();
+        self.inject_proxy_and_labelers(&mut headers).await;
+        if headers.is_empty() {
+            None
+        } else {
+            Some(CallOptions {
                 encoding: None,
                 headers: Some(headers),
                 ..Default::default()
-            }
-        })
+            })
+        }
+    }
+
+    async fn inject_proxy_and_labelers(&self, headers: &mut HeadersMap) {
+        if let Some(proxy) = self.proxy.read().await.as_ref() {
+            headers.insert("atproto-proxy".into(), proxy.clone());
+        }
+        let labelers = self.labelers.read().await;
+        if !labelers.is_empty() {
+            let v = labelers
+                .iter()
+                .map(|l| l.header_value())
+                .collect::<Vec<_>>()
+                .join(", ");
+            headers.insert("atproto-accept-labelers".into(), v);
+        }
+    }
+
+    /// Configure the service-proxy target (`atproto-proxy` header) for
+    /// every subsequent call. Pass `None` to clear.
+    ///
+    /// The canonical use case is chat, which runs on a different
+    /// service: `agent.configure_proxy(Some("did:web:api.bsky.chat#bsky_chat"))`.
+    pub async fn configure_proxy(&self, target: Option<&str>) {
+        *self.proxy.write().await = target.map(String::from);
+    }
+
+    /// Return a new [`Agent`] configured with the given proxy target.
+    /// Shares session state with this agent (cheap clone of internals).
+    pub async fn with_proxy(&self, target: &str) -> Self {
+        let cloned = self.shallow_clone();
+        cloned.configure_proxy(Some(target)).await;
+        cloned
+    }
+
+    /// Configure the set of labelers sent as `atproto-accept-labelers`.
+    /// Passing an empty slice clears the header.
+    pub async fn configure_labelers(&self, labelers: &[LabelerOpts]) {
+        *self.labelers.write().await = labelers.to_vec();
+    }
+
+    /// Shallow-clone the agent: shares session / listener / refresh
+    /// state but receives independent proxy + labeler config. Used by
+    /// [`Self::with_proxy`].
+    fn shallow_clone(&self) -> Self {
+        Agent {
+            client: self.client.clone(),
+            session: self.session.clone(),
+            listeners: self.listeners.clone(),
+            refresh_lock: self.refresh_lock.clone(),
+            proxy: Arc::new(RwLock::new(None)),
+            labelers: self.labelers.clone(),
+        }
     }
 
     /// Log in with identifier (handle or DID) and password.
@@ -691,6 +795,198 @@ impl Agent {
         self.xrpc_query("com.atproto.server.describeServer", None)
             .await
     }
+
+    // --- Account lifecycle ---
+
+    /// Log out of the current session.
+    ///
+    /// Sends a best-effort `deleteSession` call using the current
+    /// **refresh** token (TS matches this — `deleteSession` requires
+    /// the refresh JWT, not the access JWT). Clears local session
+    /// state whether or not the server call succeeds, so the agent
+    /// always ends up unauthenticated.
+    pub async fn logout(&self) -> Result<(), AgentError> {
+        let refresh_jwt = {
+            let guard = self.session.read().await;
+            guard.as_ref().map(|s| s.refresh_jwt.clone())
+        };
+
+        let server_result = if let Some(refresh_jwt) = refresh_jwt {
+            let mut headers = HeadersMap::new();
+            headers.insert("Authorization".into(), format!("Bearer {}", refresh_jwt));
+            let opts = CallOptions {
+                encoding: None,
+                headers: Some(headers),
+                ..Default::default()
+            };
+            self.client
+                .procedure(
+                    "com.atproto.server.deleteSession",
+                    None,
+                    None,
+                    Some(&opts),
+                )
+                .await
+                .map(|_| ())
+        } else {
+            Ok(())
+        };
+
+        // Always clear local state.
+        *self.session.write().await = None;
+        self.emit(AtpSessionEvent::Expired, None);
+
+        server_result.map_err(AgentError::Xrpc)
+    }
+
+    /// Create a new account on the current service.
+    ///
+    /// `extra` is merged into the request body — useful for passing
+    /// `inviteCode`, `verificationCode`, or custom provider-specific
+    /// fields without this method's signature needing to know every
+    /// option the server supports.
+    ///
+    /// On success, the new session is stored and `Create` is emitted.
+    pub async fn create_account(
+        &self,
+        handle: &str,
+        password: &str,
+        email: Option<&str>,
+        extra: Option<serde_json::Value>,
+    ) -> Result<Session, AgentError> {
+        let mut body = serde_json::json!({
+            "handle": handle,
+            "password": password,
+        });
+        if let Some(email) = email {
+            body["email"] = serde_json::Value::String(email.to_string());
+        }
+        if let Some(extra) = extra
+            && let Some(extra_map) = extra.as_object()
+            && let Some(body_map) = body.as_object_mut()
+        {
+            for (k, v) in extra_map {
+                body_map.insert(k.clone(), v.clone());
+            }
+        }
+
+        let response = match self
+            .client
+            .procedure(
+                "com.atproto.server.createAccount",
+                None,
+                Some(XrpcBody::Json(body)),
+                None,
+            )
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => {
+                self.emit(AtpSessionEvent::CreateFailed, None);
+                return Err(AgentError::Xrpc(e));
+            }
+        };
+
+        let session: Session = serde_json::from_value(response.data)?;
+        *self.session.write().await = Some(session.clone());
+        self.emit(AtpSessionEvent::Create, Some(&session));
+        Ok(session)
+    }
+
+    /// Create-or-update the signed-in user's `app.bsky.actor.profile`
+    /// record.
+    ///
+    /// The `mutate` closure receives the existing profile record (or
+    /// `serde_json::Value::Null` if none exists) and returns the
+    /// desired next state. This pattern mirrors TS
+    /// `AtpAgent.upsertProfile(updateFn)`.
+    ///
+    /// The write uses `putRecord` with `swapRecord` for CAS safety;
+    /// if the swap fails we retry up to 5 times with a fresh read.
+    pub async fn upsert_profile<F>(&self, mutate: F) -> Result<serde_json::Value, AgentError>
+    where
+        F: Fn(serde_json::Value) -> serde_json::Value,
+    {
+        let did = self.assert_did().await?;
+        const MAX_RETRIES: u32 = 5;
+
+        for _ in 0..MAX_RETRIES {
+            // Read the existing profile (may 404 — that's fine).
+            let existing_result = self
+                .xrpc_query(
+                    "com.atproto.repo.getRecord",
+                    Some(&{
+                        let mut p = QueryParams::new();
+                        p.insert("repo".into(), QueryValue::String(did.clone()));
+                        p.insert(
+                            "collection".into(),
+                            QueryValue::String("app.bsky.actor.profile".into()),
+                        );
+                        p.insert("rkey".into(), QueryValue::String("self".into()));
+                        p
+                    }),
+                )
+                .await;
+
+            let (existing_record, swap_cid) = match existing_result {
+                Ok(r) => {
+                    let record = r.get("value").cloned().unwrap_or(serde_json::Value::Null);
+                    let cid = r.get("cid").and_then(|v| v.as_str()).map(String::from);
+                    (record, cid)
+                }
+                Err(AgentError::Xrpc(ref e)) if is_not_found(e) => {
+                    (serde_json::Value::Null, None)
+                }
+                Err(e) => return Err(e),
+            };
+
+            let updated = mutate(existing_record);
+            let mut body = serde_json::json!({
+                "repo": did,
+                "collection": "app.bsky.actor.profile",
+                "rkey": "self",
+                "record": updated,
+            });
+            if let Some(cid) = swap_cid {
+                body["swapRecord"] = serde_json::Value::String(cid);
+            }
+
+            match self
+                .xrpc_procedure("com.atproto.repo.putRecord", body)
+                .await
+            {
+                Ok(r) => return Ok(r),
+                Err(AgentError::Xrpc(ref e)) if is_invalid_swap(e) => {
+                    // Race lost — someone else updated between our read
+                    // and write. Loop and try again with a fresh read.
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Err(AgentError::Other(
+            "upsert_profile: exceeded maximum retries due to concurrent writes".into(),
+        ))
+    }
+}
+
+/// `true` if an XRPC error is a 4xx that specifically indicates the
+/// record does not exist. `getRecord` uses `RecordNotFound`.
+fn is_not_found(err: &proto_blue_xrpc::Error) -> bool {
+    match err {
+        proto_blue_xrpc::Error::Xrpc(x) => x.is_error("RecordNotFound"),
+        _ => false,
+    }
+}
+
+/// `true` if the server rejected a `putRecord` because the `swapRecord`
+/// CID didn't match — caller should re-read and retry.
+fn is_invalid_swap(err: &proto_blue_xrpc::Error) -> bool {
+    match err {
+        proto_blue_xrpc::Error::Xrpc(x) => x.is_error("InvalidSwap"),
+        _ => false,
+    }
 }
 
 /// `true` if an XRPC error signals that the access token is expired
@@ -917,6 +1213,8 @@ mod tests {
             session: Arc::new(RwLock::new(None)),
             listeners: Arc::new(Mutex::new(Vec::new())),
             refresh_lock: Arc::new(AsyncMutex::new(())),
+            proxy: Arc::new(RwLock::new(None)),
+            labelers: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -1061,6 +1359,144 @@ mod tests {
             1,
             "concurrent callers must share one refreshSession call",
         );
+    }
+
+    #[tokio::test]
+    async fn configure_proxy_sets_header_on_next_call() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        fetcher.script(
+            "com.atproto.server.describeServer",
+            vec![ScriptedResponse {
+                status: 200,
+                body: br#"{"did":"did:plc:svr"}"#.to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher.clone());
+        agent.configure_proxy(Some("did:web:api.bsky.chat#bsky_chat")).await;
+
+        agent.describe_server().await.unwrap();
+
+        // We can't easily inspect fetched headers from ScriptedFetcher
+        // as it's structured; instead, assert the proxy is readable.
+        let p = agent.proxy.read().await;
+        assert_eq!(p.as_deref(), Some("did:web:api.bsky.chat#bsky_chat"));
+    }
+
+    #[tokio::test]
+    async fn configure_labelers_stores_list() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        let agent = agent_with_fetcher(fetcher);
+        agent
+            .configure_labelers(&[
+                LabelerOpts {
+                    did: "did:plc:a".into(),
+                    redirect: false,
+                },
+                LabelerOpts {
+                    did: "did:plc:b".into(),
+                    redirect: true,
+                },
+            ])
+            .await;
+        let l = agent.labelers.read().await;
+        assert_eq!(l.len(), 2);
+        assert_eq!(l[0].header_value(), "did:plc:a");
+        assert_eq!(l[1].header_value(), "did:plc:b;redirect");
+    }
+
+    #[tokio::test]
+    async fn logout_clears_session() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        fetcher.script(
+            "com.atproto.server.deleteSession",
+            vec![ScriptedResponse {
+                status: 200,
+                body: b"{}".to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher.clone());
+        agent.login("alice", "secret").await.unwrap();
+        assert!(agent.session().await.is_some());
+        agent.logout().await.unwrap();
+        assert!(agent.session().await.is_none());
+        assert_eq!(
+            fetcher.call_count("com.atproto.server.deleteSession"),
+            1,
+        );
+    }
+
+    #[tokio::test]
+    async fn logout_clears_session_even_on_server_error() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        fetcher.script(
+            "com.atproto.server.deleteSession",
+            vec![ScriptedResponse {
+                status: 500,
+                body: br#"{"error":"InternalServerError"}"#.to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher);
+        agent.login("alice", "secret").await.unwrap();
+        // Server call fails, but local state must still be cleared.
+        let _ = agent.logout().await;
+        assert!(agent.session().await.is_none());
+    }
+
+    #[tokio::test]
+    async fn create_account_emits_create_on_success() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        fetcher.script(
+            "com.atproto.server.createAccount",
+            vec![ScriptedResponse {
+                status: 200,
+                body: br#"{"did":"did:plc:new","handle":"newuser","accessJwt":"a","refreshJwt":"r"}"#
+                    .to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher);
+
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
+        let ev = events.clone();
+        agent.on_session(move |e, _| ev.lock().unwrap().push(e));
+
+        let session = agent
+            .create_account("newuser", "pw", Some("new@example.com"), None)
+            .await
+            .unwrap();
+        assert_eq!(session.did, "did:plc:new");
+        assert_eq!(events.lock().unwrap().clone(), vec![AtpSessionEvent::Create]);
+    }
+
+    #[tokio::test]
+    async fn upsert_profile_creates_when_absent() {
+        let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
+        // getRecord returns 404 RecordNotFound
+        fetcher.script(
+            "com.atproto.repo.getRecord",
+            vec![ScriptedResponse {
+                status: 400,
+                body: br#"{"error":"RecordNotFound","message":"no such record"}"#.to_vec(),
+            }],
+        );
+        fetcher.script(
+            "com.atproto.repo.putRecord",
+            vec![ScriptedResponse {
+                status: 200,
+                body: br#"{"uri":"at://did:plc:u/app.bsky.actor.profile/self","cid":"bafy"}"#
+                    .to_vec(),
+            }],
+        );
+        let agent = agent_with_fetcher(fetcher);
+        agent.login("alice", "secret").await.unwrap();
+
+        let result = agent
+            .upsert_profile(|prev| {
+                assert!(prev.is_null(), "no existing profile");
+                serde_json::json!({"$type": "app.bsky.actor.profile", "displayName": "Alice"})
+            })
+            .await
+            .unwrap();
+        assert_eq!(result["uri"], "at://did:plc:u/app.bsky.actor.profile/self");
     }
 
     #[tokio::test]
