@@ -32,7 +32,7 @@ pub enum ValidationError {
 
 impl ValidationError {
     pub fn new(path: &str, message: impl Into<String>) -> Self {
-        ValidationError::InvalidValue {
+        Self::InvalidValue {
             path: path.to_string(),
             message: message.into(),
         }

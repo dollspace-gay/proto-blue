@@ -165,4 +165,3 @@ pub struct ReactionView {
 pub struct ReactionViewSender {
     pub did: String,
 }
-

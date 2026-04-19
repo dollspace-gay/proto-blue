@@ -72,4 +72,3 @@ pub struct SelfLabel {
 pub struct SelfLabels {
     pub values: Vec<SelfLabel>,
 }
-

@@ -61,13 +61,13 @@ pub enum RepoError {
 #[cfg(feature = "firehose-client")]
 impl From<proto_blue_ws::WsError> for RepoError {
     fn from(e: proto_blue_ws::WsError) -> Self {
-        RepoError::WebSocket(Box::new(e))
+        Self::WebSocket(Box::new(e))
     }
 }
 
 #[cfg(feature = "firehose-client")]
 impl From<proto_blue_ws::FrameError> for RepoError {
     fn from(e: proto_blue_ws::FrameError) -> Self {
-        RepoError::Frame(Box::new(e))
+        Self::Frame(Box::new(e))
     }
 }

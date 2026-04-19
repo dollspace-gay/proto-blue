@@ -16,7 +16,7 @@ use crate::error::CborError;
 /// CBOR tag number for CIDs (per DAG-CBOR spec).
 const CID_CBOR_TAG: u64 = 42;
 
-/// Encode a LexValue to DAG-CBOR bytes.
+/// Encode a `LexValue` to DAG-CBOR bytes.
 ///
 /// Enforces AT Protocol data model constraints:
 /// - Only string map keys
@@ -30,7 +30,7 @@ pub fn encode(value: &LexValue) -> Result<Vec<u8>, CborError> {
     Ok(buf)
 }
 
-/// Decode DAG-CBOR bytes to a LexValue, enforcing canonical form.
+/// Decode DAG-CBOR bytes to a `LexValue`, enforcing canonical form.
 ///
 /// Validates AT Protocol data model constraints and DAG-CBOR spec:
 /// - Rejects float values (NaN, Infinity, non-integer floats)
@@ -103,13 +103,13 @@ pub fn decode_all(bytes: &[u8]) -> Result<Vec<LexValue>, CborError> {
     Ok(results)
 }
 
-/// Compute the CID for a LexValue by encoding to DAG-CBOR and hashing with SHA-256.
+/// Compute the CID for a `LexValue` by encoding to DAG-CBOR and hashing with SHA-256.
 pub fn cid_for_lex(value: &LexValue) -> Result<Cid, CborError> {
     let cbor_bytes = encode(value)?;
     Ok(Cid::for_cbor(&cbor_bytes))
 }
 
-/// Convert a LexValue to a ciborium CBOR Value for encoding.
+/// Convert a `LexValue` to a ciborium CBOR Value for encoding.
 fn lex_to_cbor(value: &LexValue) -> Result<ciborium::Value, CborError> {
     match value {
         LexValue::Null => Ok(ciborium::Value::Null),
@@ -153,7 +153,7 @@ fn lex_to_cbor(value: &LexValue) -> Result<ciborium::Value, CborError> {
     }
 }
 
-/// Convert a ciborium CBOR Value back to a LexValue.
+/// Convert a ciborium CBOR Value back to a `LexValue`.
 fn cbor_to_lex(value: ciborium::Value) -> Result<LexValue, CborError> {
     match value {
         ciborium::Value::Null => Ok(LexValue::Null),
@@ -601,10 +601,7 @@ mod tests {
 
         // Lenient accepts the indefinite form.
         let lenient = decode_lenient(&non_canonical).unwrap();
-        assert_eq!(
-            lenient,
-            LexValue::Array(vec![LexValue::Integer(1)]),
-        );
+        assert_eq!(lenient, LexValue::Array(vec![LexValue::Integer(1)]),);
 
         // Strict rejects (canonical would be [0x81, 0x01], 2 bytes).
         let err = decode(&non_canonical).unwrap_err();

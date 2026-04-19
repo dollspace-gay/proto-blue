@@ -44,8 +44,23 @@ fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
 
 fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     let mut qp = proto_blue_xrpc::QueryParams::new();
-    { let v = &p.actor; qp.insert("actor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.others { qp.insert("others".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
+    {
+        let v = &p.actor;
+        qp.insert(
+            "actor".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.others {
+        qp.insert(
+            "others".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
     qp
 }
 
@@ -56,7 +71,10 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<Output, CallError> {
     let qp = params.map(to_query_params);
-    let response = match client.query("app.bsky.graph.getRelationships", qp.as_ref(), opts).await {
+    let response = match client
+        .query("app.bsky.graph.getRelationships", qp.as_ref(), opts)
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -67,12 +85,14 @@ pub async fn call(
 /// Register a typed handler for this method on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.query("app.bsky.graph.getRelationships", move |ctx| {
@@ -80,8 +100,12 @@ where
         async move {
             let params = params_from_ctx(&ctx);
             let out = handler(ctx, params).await?;
-            let value = serde_json::to_value(&out)
-                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            let value = serde_json::to_value(&out).map_err(|e| {
+                proto_blue_xrpc::XrpcServerError::new(
+                    proto_blue_xrpc::ResponseType::InternalServerError,
+                    format!("output serialize: {e}"),
+                )
+            })?;
             Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
         }
     })
@@ -94,7 +118,11 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         actor: (ctx.params.get("actor").cloned())?,
-        others: Some(ctx.params.get("others").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        others: Some(
+            ctx.params
+                .get("others")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
     })
 }
-

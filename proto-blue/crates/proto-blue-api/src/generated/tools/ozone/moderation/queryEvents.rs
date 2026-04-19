@@ -81,29 +81,180 @@ fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
 
 fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     let mut qp = proto_blue_xrpc::QueryParams::new();
-    if let Some(v) = &p.added_labels { qp.insert("addedLabels".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.added_tags { qp.insert("addedTags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.age_assurance_state { qp.insert("ageAssuranceState".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.batch_id { qp.insert("batchId".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.collections { qp.insert("collections".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.comment { qp.insert("comment".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.created_after { qp.insert("createdAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.created_before { qp.insert("createdBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.created_by { qp.insert("createdBy".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.cursor { qp.insert("cursor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.has_comment { qp.insert("hasComment".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
-    if let Some(v) = &p.include_all_user_records { qp.insert("includeAllUserRecords".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
-    if let Some(v) = &p.limit { qp.insert("limit".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.mod_tool { qp.insert("modTool".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.policies { qp.insert("policies".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.removed_labels { qp.insert("removedLabels".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.removed_tags { qp.insert("removedTags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.report_types { qp.insert("reportTypes".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.sort_direction { qp.insert("sortDirection".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.subject { qp.insert("subject".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.subject_type { qp.insert("subjectType".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.types { qp.insert("types".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.with_strike { qp.insert("withStrike".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.added_labels {
+        qp.insert(
+            "addedLabels".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.added_tags {
+        qp.insert(
+            "addedTags".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.age_assurance_state {
+        qp.insert(
+            "ageAssuranceState".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.batch_id {
+        qp.insert(
+            "batchId".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.collections {
+        qp.insert(
+            "collections".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.comment {
+        qp.insert(
+            "comment".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.created_after {
+        qp.insert(
+            "createdAfter".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.created_before {
+        qp.insert(
+            "createdBefore".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.created_by {
+        qp.insert(
+            "createdBy".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.cursor {
+        qp.insert(
+            "cursor".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.has_comment {
+        qp.insert(
+            "hasComment".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
+    if let Some(v) = &p.include_all_user_records {
+        qp.insert(
+            "includeAllUserRecords".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
+    if let Some(v) = &p.limit {
+        qp.insert(
+            "limit".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.mod_tool {
+        qp.insert(
+            "modTool".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.policies {
+        qp.insert(
+            "policies".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.removed_labels {
+        qp.insert(
+            "removedLabels".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.removed_tags {
+        qp.insert(
+            "removedTags".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.report_types {
+        qp.insert(
+            "reportTypes".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.sort_direction {
+        qp.insert(
+            "sortDirection".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.subject {
+        qp.insert(
+            "subject".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.subject_type {
+        qp.insert(
+            "subjectType".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.types {
+        qp.insert(
+            "types".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.with_strike {
+        qp.insert(
+            "withStrike".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
     qp
 }
 
@@ -114,7 +265,10 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<Output, CallError> {
     let qp = params.map(to_query_params);
-    let response = match client.query("tools.ozone.moderation.queryEvents", qp.as_ref(), opts).await {
+    let response = match client
+        .query("tools.ozone.moderation.queryEvents", qp.as_ref(), opts)
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -125,12 +279,14 @@ pub async fn call(
 /// Register a typed handler for this method on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.query("tools.ozone.moderation.queryEvents", move |ctx| {
@@ -138,8 +294,12 @@ where
         async move {
             let params = params_from_ctx(&ctx);
             let out = handler(ctx, params).await?;
-            let value = serde_json::to_value(&out)
-                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            let value = serde_json::to_value(&out).map_err(|e| {
+                proto_blue_xrpc::XrpcServerError::new(
+                    proto_blue_xrpc::ResponseType::InternalServerError,
+                    format!("output serialize: {e}"),
+                )
+            })?;
             Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
         }
     })
@@ -151,29 +311,82 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        added_labels: Some(ctx.params.get("addedLabels").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        added_tags: Some(ctx.params.get("addedTags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        added_labels: Some(
+            ctx.params
+                .get("addedLabels")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        added_tags: Some(
+            ctx.params
+                .get("addedTags")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         age_assurance_state: ctx.params.get("ageAssuranceState").cloned(),
         batch_id: ctx.params.get("batchId").cloned(),
-        collections: Some(ctx.params.get("collections").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        collections: Some(
+            ctx.params
+                .get("collections")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         comment: ctx.params.get("comment").cloned(),
         created_after: ctx.params.get("createdAfter").cloned(),
         created_before: ctx.params.get("createdBefore").cloned(),
         created_by: ctx.params.get("createdBy").cloned(),
         cursor: ctx.params.get("cursor").cloned(),
-        has_comment: ctx.params.get("hasComment").and_then(|v| v.parse::<bool>().ok()),
-        include_all_user_records: ctx.params.get("includeAllUserRecords").and_then(|v| v.parse::<bool>().ok()),
+        has_comment: ctx
+            .params
+            .get("hasComment")
+            .and_then(|v| v.parse::<bool>().ok()),
+        include_all_user_records: ctx
+            .params
+            .get("includeAllUserRecords")
+            .and_then(|v| v.parse::<bool>().ok()),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        mod_tool: Some(ctx.params.get("modTool").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        policies: Some(ctx.params.get("policies").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        removed_labels: Some(ctx.params.get("removedLabels").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        removed_tags: Some(ctx.params.get("removedTags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        report_types: Some(ctx.params.get("reportTypes").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        mod_tool: Some(
+            ctx.params
+                .get("modTool")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        policies: Some(
+            ctx.params
+                .get("policies")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        removed_labels: Some(
+            ctx.params
+                .get("removedLabels")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        removed_tags: Some(
+            ctx.params
+                .get("removedTags")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        report_types: Some(
+            ctx.params
+                .get("reportTypes")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         sort_direction: ctx.params.get("sortDirection").cloned(),
         subject: ctx.params.get("subject").cloned(),
         subject_type: ctx.params.get("subjectType").cloned(),
-        types: Some(ctx.params.get("types").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        with_strike: ctx.params.get("withStrike").and_then(|v| v.parse::<bool>().ok()),
+        types: Some(
+            ctx.params
+                .get("types")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        with_strike: ctx
+            .params
+            .get("withStrike")
+            .and_then(|v| v.parse::<bool>().ok()),
     })
 }
-

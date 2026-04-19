@@ -10,7 +10,7 @@ proptest! {
     #[test]
     fn type_name_never_empty(type_str in ".+") {
         let mut map = BTreeMap::new();
-        map.insert("$type".to_string(), LexValue::String(type_str.clone()));
+        map.insert("$type".to_string(), LexValue::String(type_str));
         let val = LexValue::Map(map);
         let name = val.type_name();
         prop_assert!(name.is_some());

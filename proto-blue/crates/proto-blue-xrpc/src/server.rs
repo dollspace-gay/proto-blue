@@ -69,11 +69,8 @@ pub type StreamItem = Result<JsonValue, XrpcServerError>;
 /// server pumps the stream into the client-facing WebSocket, encoding
 /// each item as a message/error frame via
 /// [`proto_blue_lex_cbor`] + [`proto_blue_lex_data::LexValue`].
-pub type StreamHandlerFn = Arc<
-    dyn Fn(HandlerContext) -> Pin<Box<dyn Stream<Item = StreamItem> + Send>>
-        + Send
-        + Sync,
->;
+pub type StreamHandlerFn =
+    Arc<dyn Fn(HandlerContext) -> Pin<Box<dyn Stream<Item = StreamItem> + Send>> + Send + Sync>;
 
 /// Context passed to every handler invocation.
 ///
@@ -150,7 +147,7 @@ pub struct XrpcServerError {
 
 impl XrpcServerError {
     pub fn new(status: ResponseType, message: impl Into<String>) -> Self {
-        XrpcServerError {
+        Self {
             status,
             error: None,
             message: Some(message.into()),
@@ -235,8 +232,9 @@ impl Default for XrpcServer {
 }
 
 impl XrpcServer {
+    #[must_use]
     pub fn new() -> Self {
-        XrpcServer {
+        Self {
             methods: HashMap::new(),
             auth: None,
             rate_limiter: None,
@@ -255,7 +253,8 @@ impl XrpcServer {
     /// Default (when unset) is axum's 2 MiB limit. Pass
     /// `usize::MAX` via [`with_disabled_body_limit`](Self::with_disabled_body_limit)
     /// if you genuinely want no limit.
-    pub fn with_body_limit(mut self, bytes: usize) -> Self {
+    #[must_use]
+    pub const fn with_body_limit(mut self, bytes: usize) -> Self {
         self.body_limit = Some(bytes);
         self
     }
@@ -264,7 +263,8 @@ impl XrpcServer {
     /// trusted deployments behind an ingress that enforces its own
     /// limits. Equivalent to
     /// `axum::extract::DefaultBodyLimit::disable()`.
-    pub fn with_disabled_body_limit(mut self) -> Self {
+    #[must_use]
+    pub const fn with_disabled_body_limit(mut self) -> Self {
         self.body_limit = Some(usize::MAX);
         self
     }
@@ -351,6 +351,7 @@ impl XrpcServer {
     ///
     /// No-op if `nsid` is not yet registered. Pair this with
     /// [`XrpcServer::with_auth`] to install a verifier.
+    #[must_use]
     pub fn require_auth(mut self, nsid: &str) -> Self {
         if let Some(m) = self.methods.get_mut(nsid) {
             m.require_auth = true;
@@ -409,10 +410,7 @@ impl XrpcServer {
             // registered kind and either dispatches as a query or
             // performs the WebSocket upgrade for a subscription.
             // POST stays on the procedure path.
-            .route(
-                "/xrpc/{nsid}",
-                get(handle_get).post(handle_procedure),
-            )
+            .route("/xrpc/{nsid}", get(handle_get).post(handle_procedure))
             .with_state(state);
 
         // Apply the body-size policy. DefaultBodyLimit::max(usize::MAX)
@@ -440,7 +438,7 @@ struct ServerState {
 /// query dispatcher which returns a 404.
 ///
 /// `Option<WebSocketUpgrade>` and `Bytes` can't coexist in a single
-/// axum handler (Bytes consumes the body, WebSocketUpgrade needs to
+/// axum handler (Bytes consumes the body, `WebSocketUpgrade` needs to
 /// upgrade the connection), so we serve GET without reading a body —
 /// queries shouldn't carry one — and synthesise an empty `Bytes` for
 /// the query dispatch.
@@ -461,7 +459,9 @@ async fn handle_get(
         // WebSocket upgrade" error rather than axum's default 400.
         let (mut parts, _body) = req.into_parts();
         let upgrade =
-            match <WebSocketUpgrade as FromRequestParts<()>>::from_request_parts(&mut parts, &()).await {
+            match <WebSocketUpgrade as FromRequestParts<()>>::from_request_parts(&mut parts, &())
+                .await
+            {
                 Ok(u) => u,
                 Err(_) => {
                     return XrpcServerError::new(
@@ -474,7 +474,15 @@ async fn handle_get(
             };
         return subscription_upgrade(state, nsid, params, headers, upgrade);
     }
-    dispatch(state, MethodKind::Query, nsid, params, headers, Bytes::new()).await
+    dispatch(
+        state,
+        MethodKind::Query,
+        nsid,
+        params,
+        headers,
+        Bytes::new(),
+    )
+    .await
 }
 
 async fn handle_procedure(
@@ -625,7 +633,11 @@ fn subscription_upgrade(
 
     // Look up + clone the stream handler up front so the move-into
     // closure is cheap and panic-free even if state mutates later.
-    let stream_handler = match state.methods.get(&nsid).and_then(|m| m.stream_handler.as_ref()) {
+    let stream_handler = match state
+        .methods
+        .get(&nsid)
+        .and_then(|m| m.stream_handler.as_ref())
+    {
         Some(h) => h.clone(),
         None => {
             return XrpcServerError::new(
@@ -647,11 +659,7 @@ fn subscription_upgrade(
 ///
 /// Exits promptly if the peer disconnects (the WebSocket's own
 /// read-half receives a `Close` / `None`).
-async fn run_subscription_pump(
-    socket: WebSocket,
-    handler: StreamHandlerFn,
-    ctx: HandlerContext,
-) {
+async fn run_subscription_pump(socket: WebSocket, handler: StreamHandlerFn, ctx: HandlerContext) {
     let (mut sink, mut client_read) = socket.split();
     let mut stream = handler(ctx);
 
@@ -712,10 +720,7 @@ fn encode_message_frame(value: &JsonValue) -> Result<Vec<u8>, XrpcServerError> {
     // we trust our own handler output).
     let body = proto_blue_lex_json::json_to_lex(value);
     let mut header = std::collections::BTreeMap::new();
-    header.insert(
-        "op".to_string(),
-        LexValue::Integer(OP_MESSAGE),
-    );
+    header.insert("op".to_string(), LexValue::Integer(OP_MESSAGE));
     let header = LexValue::Map(header);
 
     let mut bytes = proto_blue_lex_cbor::encode(&header).map_err(|e| {
@@ -744,10 +749,7 @@ async fn send_error_frame(
     use proto_blue_lex_data::LexValue;
 
     let mut header = std::collections::BTreeMap::new();
-    header.insert(
-        "op".to_string(),
-        LexValue::Integer(OP_ERROR),
-    );
+    header.insert("op".to_string(), LexValue::Integer(OP_ERROR));
     let header = LexValue::Map(header);
 
     let mut body_map = std::collections::BTreeMap::new();
@@ -764,7 +766,9 @@ async fn send_error_frame(
     let body_bytes = proto_blue_lex_cbor::encode(&body).map_err(|_| ())?;
     bytes.extend_from_slice(&body_bytes);
 
-    sink.send(Message::Binary(bytes.into())).await.map_err(|_| ())?;
+    sink.send(Message::Binary(bytes.into()))
+        .await
+        .map_err(|_| ())?;
     sink.send(Message::Close(None)).await.map_err(|_| ())?;
     Ok(())
 }
@@ -1055,7 +1059,7 @@ mod tests {
     }
     impl CountingLimiter {
         fn with_allowance(n: usize) -> Self {
-            CountingLimiter {
+            Self {
                 allowed: std::sync::atomic::AtomicUsize::new(n),
             }
         }

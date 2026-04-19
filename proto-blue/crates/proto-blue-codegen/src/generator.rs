@@ -189,7 +189,9 @@ impl<'a> Generator<'a> {
             // Serialised as "$type": "<nsid>"; deserialisation preserves
             // whatever was on the wire (including absent, in which case
             // the default is the canonical type string for this NSID).
-            out.push_str("    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.\n");
+            out.push_str(
+                "    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.\n",
+            );
             out.push_str("    #[serde(rename = \"$type\", default = \"default_type\")]\n");
             out.push_str("    pub r#type: String,\n");
         }
@@ -380,9 +382,7 @@ impl<'a> Generator<'a> {
         let has_output = query.output.as_ref().is_some_and(|o| o.schema.is_some());
 
         // Emit `to_query_params` translator when we have params.
-        if has_params
-            && let Some(params) = &query.parameters
-        {
+        if has_params && let Some(params) = &query.parameters {
             self.generate_to_query_params(out, params);
         }
 
@@ -409,7 +409,9 @@ impl<'a> Generator<'a> {
             ));
         }
         out.push_str("        Ok(r) => r,\n");
-        out.push_str("        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),\n");
+        out.push_str(
+            "        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),\n",
+        );
         out.push_str("        Err(e) => return Err(CallError::Transport(e)),\n");
         out.push_str("    };\n");
         if has_output {
@@ -421,12 +423,7 @@ impl<'a> Generator<'a> {
     }
 
     /// Emit the `call()` helper for a procedure.
-    fn generate_procedure_call_fn(
-        &self,
-        out: &mut String,
-        nsid: &str,
-        proc: &LexXrpcProcedure,
-    ) {
+    fn generate_procedure_call_fn(&self, out: &mut String, nsid: &str, proc: &LexXrpcProcedure) {
         let has_params = proc
             .parameters
             .as_ref()
@@ -434,9 +431,7 @@ impl<'a> Generator<'a> {
         let has_input = proc.input.as_ref().is_some_and(|i| i.schema.is_some());
         let has_output = proc.output.as_ref().is_some_and(|o| o.schema.is_some());
 
-        if has_params
-            && let Some(params) = &proc.parameters
-        {
+        if has_params && let Some(params) = &proc.parameters {
             self.generate_to_query_params(out, params);
         }
 
@@ -462,7 +457,9 @@ impl<'a> Generator<'a> {
             out.push_str("    let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;\n");
         }
         if has_input {
-            out.push_str("    let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);\n");
+            out.push_str(
+                "    let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);\n",
+            );
             out.push_str(&format!(
                 "    let response = match client.procedure(\"{nsid}\", qp_ref, Some(body), opts).await {{\n",
             ));
@@ -472,7 +469,9 @@ impl<'a> Generator<'a> {
             ));
         }
         out.push_str("        Ok(r) => r,\n");
-        out.push_str("        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),\n");
+        out.push_str(
+            "        Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),\n",
+        );
         out.push_str("        Err(e) => return Err(CallError::Transport(e)),\n");
         out.push_str("    };\n");
         if has_output {
@@ -493,12 +492,7 @@ impl<'a> Generator<'a> {
     ///
     /// Gated behind the `server` feature so this module compiles
     /// client-side without pulling in axum.
-    fn generate_query_register_fn(
-        &self,
-        out: &mut String,
-        nsid: &str,
-        query: &LexXrpcQuery,
-    ) {
+    fn generate_query_register_fn(&self, out: &mut String, nsid: &str, query: &LexXrpcQuery) {
         let has_params = query
             .parameters
             .as_ref()
@@ -516,7 +510,9 @@ impl<'a> Generator<'a> {
         if has_params {
             out.push_str("    F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,\n");
         } else {
-            out.push_str("    F: Fn(proto_blue_xrpc::HandlerContext) -> Fut + Send + Sync + 'static,\n");
+            out.push_str(
+                "    F: Fn(proto_blue_xrpc::HandlerContext) -> Fut + Send + Sync + 'static,\n",
+            );
         }
         if has_output {
             out.push_str("    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,\n");
@@ -544,9 +540,7 @@ impl<'a> Generator<'a> {
         out.push_str("        }\n");
         out.push_str("    })\n");
         out.push_str("}\n\n");
-        if has_params
-            && let Some(params) = &query.parameters
-        {
+        if has_params && let Some(params) = &query.parameters {
             self.generate_params_from_ctx(out, params);
         }
     }
@@ -580,7 +574,9 @@ impl<'a> Generator<'a> {
         if has_input {
             arg.push_str(", Option<Input>");
         }
-        out.push_str(&format!("    F: Fn({arg}) -> Fut + Send + Sync + 'static,\n"));
+        out.push_str(&format!(
+            "    F: Fn({arg}) -> Fut + Send + Sync + 'static,\n"
+        ));
         if has_output {
             out.push_str("    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,\n");
         } else {
@@ -618,9 +614,7 @@ impl<'a> Generator<'a> {
         out.push_str("        }\n");
         out.push_str("    })\n");
         out.push_str("}\n\n");
-        if has_params
-            && let Some(params) = &proc.parameters
-        {
+        if has_params && let Some(params) = &proc.parameters {
             self.generate_params_from_ctx(out, params);
         }
     }
@@ -632,7 +626,9 @@ impl<'a> Generator<'a> {
     /// HTTP query string transports them).
     fn generate_params_from_ctx(&self, out: &mut String, params: &LexXrpcParameters) {
         out.push_str("#[cfg(feature = \"server\")]\n");
-        out.push_str("fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {\n");
+        out.push_str(
+            "fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {\n",
+        );
         out.push_str("    // Always construct a `Params` — required fields are\n");
         out.push_str("    // validated upstream by the lexicon validator when enabled;\n");
         out.push_str("    // missing values surface as runtime errors from the handler.\n");
@@ -650,12 +646,12 @@ impl<'a> Generator<'a> {
 
             let parser = match prop {
                 LexUserType::String(_) => format!("ctx.params.get(\"{key}\").cloned()"),
-                LexUserType::Integer(_) => format!(
-                    "ctx.params.get(\"{key}\").and_then(|v| v.parse::<i64>().ok())"
-                ),
-                LexUserType::Boolean(_) => format!(
-                    "ctx.params.get(\"{key}\").and_then(|v| v.parse::<bool>().ok())"
-                ),
+                LexUserType::Integer(_) => {
+                    format!("ctx.params.get(\"{key}\").and_then(|v| v.parse::<i64>().ok())")
+                }
+                LexUserType::Boolean(_) => {
+                    format!("ctx.params.get(\"{key}\").and_then(|v| v.parse::<bool>().ok())")
+                }
                 LexUserType::Array(arr) => match &*arr.items {
                     LexUserType::String(_) => format!(
                         "Some(ctx.params.get(\"{key}\").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default())"
@@ -669,9 +665,7 @@ impl<'a> Generator<'a> {
                 // required fields get the bare value (Option is
                 // unwrapped with a default-ish fallback); upstream
                 // lexicon validation should have caught absence.
-                out.push_str(&format!(
-                    "        {field}: ({parser})?,\n",
-                ));
+                out.push_str(&format!("        {field}: ({parser})?,\n",));
             } else {
                 out.push_str(&format!("        {field}: {parser},\n"));
             }
@@ -1227,7 +1221,10 @@ mod tests {
         // `DefsPostView`. They must now be distinct.
         let a = ref_to_variant_name("app.bsky.feed.defs", "postView");
         let b = ref_to_variant_name("app.bsky.unspecced.defs", "postView");
-        assert_ne!(a, b, "cross-namespace collision must not produce the same variant");
+        assert_ne!(
+            a, b,
+            "cross-namespace collision must not produce the same variant"
+        );
         assert_eq!(a, "BskyFeedDefsPostView");
         assert_eq!(b, "BskyUnspeccedDefsPostView");
     }

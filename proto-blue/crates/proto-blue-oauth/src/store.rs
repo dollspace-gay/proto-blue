@@ -3,14 +3,14 @@
 //! Clients need to persist three kinds of state across an OAuth flow:
 //!
 //! 1. **Authorization state** — the CSRF `state` parameter, PKCE
-//!    verifier, and ephemeral DPoP key, keyed by `state`. Written
+//!    verifier, and ephemeral `DPoP` key, keyed by `state`. Written
 //!    during [`OAuthClient::authorize`](crate::OAuthClient::authorize)
 //!    and read during
 //!    [`OAuthClient::callback`](crate::OAuthClient::callback).
 //! 2. **Session state** — a durable [`TokenSet`](crate::TokenSet) plus
-//!    its DPoP key, keyed by the user's DID. Used to reattach to an
+//!    its `DPoP` key, keyed by the user's DID. Used to reattach to an
 //!    authenticated user across process restarts.
-//! 3. **DPoP nonces** — per-origin nonces rotated by the AS and RS.
+//! 3. **`DPoP` nonces** — per-origin nonces rotated by the AS and RS.
 //!    Already handled by [`DpopNonceCache`](crate::DpopNonceCache)
 //!    in-process; callers who want durable nonce caching can implement
 //!    this trait and plug it in.
@@ -55,13 +55,14 @@ pub struct MemoryStore {
 }
 
 impl MemoryStore {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Number of entries currently held. Useful for tests.
     pub fn len(&self) -> usize {
-        self.inner.lock().map(|m| m.len()).unwrap_or(0)
+        self.inner.lock().map_or(0, |m| m.len())
     }
 
     pub fn is_empty(&self) -> bool {

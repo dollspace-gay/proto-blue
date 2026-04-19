@@ -1,4 +1,4 @@
-//! AT Protocol JSON <-> LexValue conversion with $link and $bytes encoding.
+//! AT Protocol JSON <-> `LexValue` conversion with $link and $bytes encoding.
 //!
 //! In JSON representation:
 //! - CIDs are encoded as `{"$link": "bafy..."}`

@@ -32,4 +32,3 @@ pub struct MessageMe {
     pub message_me_url: String,
     pub show_button_to: String,
 }
-

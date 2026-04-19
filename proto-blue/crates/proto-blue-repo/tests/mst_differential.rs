@@ -177,7 +177,7 @@ fn add_then_delete_returns_original_root() {
         m
     };
     let base_root = root_cid(&base);
-    let with_extra = add(base.clone(), "com.example.record/3jqfcqzm3fx2j");
+    let with_extra = add(base, "com.example.record/3jqfcqzm3fx2j");
     let after_delete = with_extra
         .delete("com.example.record/3jqfcqzm3fx2j")
         .expect("delete");

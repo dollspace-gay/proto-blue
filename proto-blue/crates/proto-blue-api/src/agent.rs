@@ -38,8 +38,7 @@ pub enum AtpSessionEvent {
 /// should not block for long. The `Option<&Session>` is `Some` for
 /// `Create` / `Update` and `None` for `CreateFailed` / `Expired` /
 /// `NetworkError`.
-pub type SessionEventCallback =
-    Arc<dyn Fn(AtpSessionEvent, Option<&Session>) + Send + Sync>;
+pub type SessionEventCallback = Arc<dyn Fn(AtpSessionEvent, Option<&Session>) + Send + Sync>;
 
 /// Session data for an authenticated agent.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -128,7 +127,7 @@ impl Agent {
     /// Create a new agent pointing at the given service URL.
     pub fn new(service: impl AsRef<str>) -> Result<Self, AgentError> {
         let client = XrpcClient::new(service)?;
-        Ok(Agent {
+        Ok(Self {
             client,
             session: Arc::new(RwLock::new(None)),
             listeners: Arc::new(Mutex::new(Vec::new())),
@@ -164,6 +163,7 @@ impl Agent {
     }
 
     /// Get the service URL string.
+    #[must_use]
     pub fn service(&self) -> String {
         self.client.service_url().to_string()
     }
@@ -227,7 +227,7 @@ impl Agent {
         if !labelers.is_empty() {
             let v = labelers
                 .iter()
-                .map(|l| l.header_value())
+                .map(LabelerOpts::header_value)
                 .collect::<Vec<_>>()
                 .join(", ");
             headers.insert("atproto-accept-labelers".into(), v);
@@ -261,7 +261,7 @@ impl Agent {
     /// state but receives independent proxy + labeler config. Used by
     /// [`Self::with_proxy`].
     fn shallow_clone(&self) -> Self {
-        Agent {
+        Self {
             client: self.client.clone(),
             session: self.session.clone(),
             listeners: self.listeners.clone(),
@@ -332,7 +332,7 @@ impl Agent {
             .data
             .get("did")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         // Verification succeeded — atomically commit state in a single write lock
         let mut committed = session;
@@ -361,7 +361,7 @@ impl Agent {
 
         // Use per-request header for refresh — never mutate global auth state
         let mut headers = HeadersMap::new();
-        headers.insert("Authorization".into(), format!("Bearer {}", refresh_jwt));
+        headers.insert("Authorization".into(), format!("Bearer {refresh_jwt}"));
         let opts = CallOptions {
             encoding: None,
             headers: Some(headers),
@@ -425,9 +425,7 @@ impl Agent {
                     let c = self.client.clone();
                     let nsid = nsid.to_string();
                     let params = params.cloned();
-                    async move {
-                        c.query(&nsid, params.as_ref(), opts.as_ref()).await
-                    }
+                    async move { c.query(&nsid, params.as_ref(), opts.as_ref()).await }
                 })
                 .await
             }
@@ -444,7 +442,12 @@ impl Agent {
         let opts = self.auth_call_options().await;
         let first = self
             .client
-            .procedure(nsid, None, Some(XrpcBody::Json(body.clone())), opts.as_ref())
+            .procedure(
+                nsid,
+                None,
+                Some(XrpcBody::Json(body.clone())),
+                opts.as_ref(),
+            )
             .await;
         match first {
             Ok(r) => Ok(r.data),
@@ -473,15 +476,12 @@ impl Agent {
     /// lock is held observe the refreshed session when they get to
     /// build their own opts — only one `/refreshSession` HTTP call
     /// fires per refresh cycle.
-    async fn refresh_and_retry<F, Fut>(
-        &self,
-        replay: F,
-    ) -> Result<serde_json::Value, AgentError>
+    async fn refresh_and_retry<F, Fut>(&self, replay: F) -> Result<serde_json::Value, AgentError>
     where
         F: FnOnce(Option<CallOptions>) -> Fut,
         Fut: std::future::Future<
-            Output = Result<proto_blue_xrpc::XrpcResponse, proto_blue_xrpc::Error>,
-        >,
+                Output = Result<proto_blue_xrpc::XrpcResponse, proto_blue_xrpc::Error>,
+            >,
     {
         // Snapshot the access token the caller's first attempt used.
         // After we acquire the refresh lock, compare — if a peer
@@ -551,7 +551,7 @@ impl Agent {
 
     /// Resolve a timestamp: use the provided value or generate one.
     fn resolve_timestamp(created_at: Option<&str>) -> String {
-        created_at.map(String::from).unwrap_or_else(Self::now_iso)
+        created_at.map_or_else(Self::now_iso, String::from)
     }
 
     // --- Post operations ---
@@ -578,7 +578,7 @@ impl Agent {
         self.create_record("app.bsky.feed.post", record).await
     }
 
-    /// Create a post from RichText (includes detected facets).
+    /// Create a post from `RichText` (includes detected facets).
     pub async fn post_rich(
         &self,
         rt: &RichText,
@@ -733,7 +733,7 @@ impl Agent {
             .await?;
         data.get("did")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
+            .map(std::string::ToString::to_string)
             .ok_or_else(|| AgentError::Other("Missing DID in response".into()))
     }
 
@@ -813,19 +813,14 @@ impl Agent {
 
         let server_result = if let Some(refresh_jwt) = refresh_jwt {
             let mut headers = HeadersMap::new();
-            headers.insert("Authorization".into(), format!("Bearer {}", refresh_jwt));
+            headers.insert("Authorization".into(), format!("Bearer {refresh_jwt}"));
             let opts = CallOptions {
                 encoding: None,
                 headers: Some(headers),
                 ..Default::default()
             };
             self.client
-                .procedure(
-                    "com.atproto.server.deleteSession",
-                    None,
-                    None,
-                    Some(&opts),
-                )
+                .procedure("com.atproto.server.deleteSession", None, None, Some(&opts))
                 .await
                 .map(|_| ())
         } else {
@@ -934,9 +929,7 @@ impl Agent {
                     let cid = r.get("cid").and_then(|v| v.as_str()).map(String::from);
                     (record, cid)
                 }
-                Err(AgentError::Xrpc(ref e)) if is_not_found(e) => {
-                    (serde_json::Value::Null, None)
-                }
+                Err(AgentError::Xrpc(ref e)) if is_not_found(e) => (serde_json::Value::Null, None),
                 Err(e) => return Err(e),
             };
 
@@ -998,8 +991,7 @@ fn is_invalid_swap(err: &proto_blue_xrpc::Error) -> bool {
 fn is_auth_expired(err: &proto_blue_xrpc::Error) -> bool {
     match err {
         proto_blue_xrpc::Error::Xrpc(x) => {
-            matches!(x.status, ResponseType::AuthenticationRequired)
-                && x.is_error("ExpiredToken")
+            matches!(x.status, ResponseType::AuthenticationRequired) && x.is_error("ExpiredToken")
         }
         _ => false,
     }
@@ -1009,7 +1001,7 @@ fn is_auth_expired(err: &proto_blue_xrpc::Error) -> bool {
 /// token is rejected (rather than a transient network problem). Any
 /// 401 from the refresh endpoint is authoritative — the token is
 /// dead — regardless of the specific error-name code.
-fn is_refresh_rejected(err: &proto_blue_xrpc::Error) -> bool {
+const fn is_refresh_rejected(err: &proto_blue_xrpc::Error) -> bool {
     match err {
         proto_blue_xrpc::Error::Xrpc(x) => {
             matches!(x.status, ResponseType::AuthenticationRequired)
@@ -1103,9 +1095,7 @@ mod tests {
     // ── Session events + auto-refresh ────────────────────────────────
 
     use async_trait::async_trait;
-    use proto_blue_common::fetch::{
-        FetchError, FetchHandler, HttpRequest, HttpResponse,
-    };
+    use proto_blue_common::fetch::{FetchError, FetchHandler, HttpRequest, HttpResponse};
 
     /// Fetcher that scripts a sequence of responses for each NSID path.
     /// The first call to each NSID returns `responses[i][0]`, second
@@ -1198,16 +1188,11 @@ mod tests {
     }
 
     fn login_body() -> Vec<u8> {
-        br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a1","refreshJwt":"r1"}"#
-            .to_vec()
+        br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a1","refreshJwt":"r1"}"#.to_vec()
     }
 
     fn agent_with_fetcher(fetcher: Arc<ScriptedFetcher>) -> Agent {
-        let client = XrpcClient::with_fetch_handler(
-            "https://example.com",
-            fetcher,
-        )
-        .unwrap();
+        let client = XrpcClient::with_fetch_handler("https://example.com", fetcher).unwrap();
         Agent {
             client,
             session: Arc::new(RwLock::new(None)),
@@ -1223,8 +1208,7 @@ mod tests {
         let fetcher = Arc::new(ScriptedFetcher::new(login_body()));
         let agent = agent_with_fetcher(fetcher);
 
-        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
-            Arc::new(Mutex::new(Vec::new()));
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let ev_clone = events.clone();
         agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
 
@@ -1241,14 +1225,12 @@ mod tests {
             "com.atproto.server.createSession",
             vec![ScriptedResponse {
                 status: 401,
-                body: br#"{"error":"AuthenticationRequired","message":"bad pwd"}"#
-                    .to_vec(),
+                body: br#"{"error":"AuthenticationRequired","message":"bad pwd"}"#.to_vec(),
             }],
         );
         let agent = agent_with_fetcher(fetcher);
 
-        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
-            Arc::new(Mutex::new(Vec::new()));
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let ev_clone = events.clone();
         agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
 
@@ -1291,8 +1273,7 @@ mod tests {
         let agent = agent_with_fetcher(fetcher.clone());
         agent.login("alice", "secret").await.unwrap();
 
-        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
-            Arc::new(Mutex::new(Vec::new()));
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let ev_clone = events.clone();
         agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
 
@@ -1372,7 +1353,9 @@ mod tests {
             }],
         );
         let agent = agent_with_fetcher(fetcher.clone());
-        agent.configure_proxy(Some("did:web:api.bsky.chat#bsky_chat")).await;
+        agent
+            .configure_proxy(Some("did:web:api.bsky.chat#bsky_chat"))
+            .await;
 
         agent.describe_server().await.unwrap();
 
@@ -1419,10 +1402,7 @@ mod tests {
         assert!(agent.session().await.is_some());
         agent.logout().await.unwrap();
         assert!(agent.session().await.is_none());
-        assert_eq!(
-            fetcher.call_count("com.atproto.server.deleteSession"),
-            1,
-        );
+        assert_eq!(fetcher.call_count("com.atproto.server.deleteSession"), 1,);
     }
 
     #[tokio::test]
@@ -1449,8 +1429,9 @@ mod tests {
             "com.atproto.server.createAccount",
             vec![ScriptedResponse {
                 status: 200,
-                body: br#"{"did":"did:plc:new","handle":"newuser","accessJwt":"a","refreshJwt":"r"}"#
-                    .to_vec(),
+                body:
+                    br#"{"did":"did:plc:new","handle":"newuser","accessJwt":"a","refreshJwt":"r"}"#
+                        .to_vec(),
             }],
         );
         let agent = agent_with_fetcher(fetcher);
@@ -1464,7 +1445,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(session.did, "did:plc:new");
-        assert_eq!(events.lock().unwrap().clone(), vec![AtpSessionEvent::Create]);
+        assert_eq!(
+            events.lock().unwrap().clone(),
+            vec![AtpSessionEvent::Create]
+        );
     }
 
     #[tokio::test]
@@ -1512,15 +1496,16 @@ mod tests {
         let agent = agent_with_fetcher(fetcher);
         agent.login("alice", "secret").await.unwrap();
 
-        let events: Arc<Mutex<Vec<AtpSessionEvent>>> =
-            Arc::new(Mutex::new(Vec::new()));
+        let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let ev_clone = events.clone();
         agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
 
         let _ = agent.refresh_session().await.unwrap_err();
         let got = events.lock().unwrap().clone();
         assert_eq!(got, vec![AtpSessionEvent::Expired]);
-        assert!(agent.session().await.is_none(), "session cleared on expired refresh");
+        assert!(
+            agent.session().await.is_none(),
+            "session cleared on expired refresh"
+        );
     }
-
 }

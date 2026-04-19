@@ -46,8 +46,9 @@ pub struct MemoryCache {
 
 impl MemoryCache {
     /// Create a new memory cache with optional TTL overrides.
+    #[must_use]
     pub fn new(stale_ttl_ms: Option<u64>, max_ttl_ms: Option<u64>) -> Self {
-        MemoryCache {
+        Self {
             stale_ttl_ms: stale_ttl_ms.unwrap_or(HOUR),
             max_ttl_ms: max_ttl_ms.unwrap_or(DAY),
             cache: std::sync::Mutex::new(HashMap::new()),

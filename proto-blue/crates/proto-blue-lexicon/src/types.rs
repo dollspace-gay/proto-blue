@@ -83,38 +83,37 @@ pub enum LexUserType {
 
 impl LexUserType {
     /// Check if this is a primary type (record/query/procedure/subscription).
-    pub fn is_primary(&self) -> bool {
+    #[must_use]
+    pub const fn is_primary(&self) -> bool {
         matches!(
             self,
-            LexUserType::Record(_)
-                | LexUserType::Query(_)
-                | LexUserType::Procedure(_)
-                | LexUserType::Subscription(_)
+            Self::Record(_) | Self::Query(_) | Self::Procedure(_) | Self::Subscription(_)
         )
     }
 
     /// Get the type name string.
-    pub fn type_name(&self) -> &'static str {
+    #[must_use]
+    pub const fn type_name(&self) -> &'static str {
         match self {
-            LexUserType::Record(_) => "record",
-            LexUserType::Query(_) => "query",
-            LexUserType::Procedure(_) => "procedure",
-            LexUserType::Subscription(_) => "subscription",
-            LexUserType::Object(_) => "object",
-            LexUserType::Array(_) => "array",
-            LexUserType::String(_) => "string",
-            LexUserType::Integer(_) => "integer",
-            LexUserType::Boolean(_) => "boolean",
-            LexUserType::Bytes(_) => "bytes",
-            LexUserType::CidLink(_) => "cid-link",
-            LexUserType::Blob(_) => "blob",
-            LexUserType::Token(_) => "token",
-            LexUserType::Unknown(_) => "unknown",
-            LexUserType::Ref(_) => "ref",
-            LexUserType::Union(_) => "union",
-            LexUserType::Params(_) => "params",
-            LexUserType::Permission(_) => "permission",
-            LexUserType::PermissionSet(_) => "permission-set",
+            Self::Record(_) => "record",
+            Self::Query(_) => "query",
+            Self::Procedure(_) => "procedure",
+            Self::Subscription(_) => "subscription",
+            Self::Object(_) => "object",
+            Self::Array(_) => "array",
+            Self::String(_) => "string",
+            Self::Integer(_) => "integer",
+            Self::Boolean(_) => "boolean",
+            Self::Bytes(_) => "bytes",
+            Self::CidLink(_) => "cid-link",
+            Self::Blob(_) => "blob",
+            Self::Token(_) => "token",
+            Self::Unknown(_) => "unknown",
+            Self::Ref(_) => "ref",
+            Self::Union(_) => "union",
+            Self::Params(_) => "params",
+            Self::Permission(_) => "permission",
+            Self::PermissionSet(_) => "permission-set",
         }
     }
 }
@@ -603,10 +602,9 @@ mod tests {
 
     #[test]
     fn type_name_permission() {
-        let val: LexUserType = serde_json::from_value(
-            json!({"type": "permission", "resource": "com.example.thing"}),
-        )
-        .unwrap();
+        let val: LexUserType =
+            serde_json::from_value(json!({"type": "permission", "resource": "com.example.thing"}))
+                .unwrap();
         assert_eq!(val.type_name(), "permission");
     }
 

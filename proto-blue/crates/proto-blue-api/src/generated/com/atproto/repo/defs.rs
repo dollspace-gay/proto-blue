@@ -9,4 +9,3 @@ pub struct CommitMeta {
     pub cid: String,
     pub rev: String,
 }
-

@@ -1,7 +1,7 @@
 //! Content Identifier (CID) implementation for AT Protocol.
 //!
 //! CIDs are self-describing content-addressed identifiers used in IPLD.
-//! AT Protocol uses CIDv1 with DAG-CBOR (0x71) or raw (0x55) codecs
+//! AT Protocol uses `CIDv1` with DAG-CBOR (0x71) or raw (0x55) codecs
 //! and SHA-256 (0x12) hashing exclusively.
 
 use sha2::{Digest, Sha256};
@@ -23,7 +23,7 @@ pub const SHA2_512: u64 = 0x13;
 /// SHA-256 digest length in bytes.
 const SHA256_DIGEST_LEN: usize = 32;
 
-/// A content identifier (CIDv1) as used in AT Protocol.
+/// A content identifier (`CIDv1`) as used in AT Protocol.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Cid {
     /// CID version (always 1 for AT Protocol).
@@ -56,9 +56,10 @@ pub enum CidError {
 }
 
 impl Cid {
-    /// Create a new CIDv1.
-    pub fn new(codec: u64, hash_code: u64, digest: Vec<u8>) -> Self {
-        Cid {
+    /// Create a new `CIDv1`.
+    #[must_use]
+    pub const fn new(codec: u64, hash_code: u64, digest: Vec<u8>) -> Self {
+        Self {
             version: 1,
             codec,
             hash_code,
@@ -66,16 +67,18 @@ impl Cid {
         }
     }
 
-    /// Create a CIDv1 for DAG-CBOR data by hashing with SHA-256.
+    /// Create a `CIDv1` for DAG-CBOR data by hashing with SHA-256.
+    #[must_use]
     pub fn for_cbor(cbor_bytes: &[u8]) -> Self {
         let digest = Sha256::digest(cbor_bytes).to_vec();
-        Cid::new(CBOR_CODEC, SHA2_256, digest)
+        Self::new(CBOR_CODEC, SHA2_256, digest)
     }
 
-    /// Create a CIDv1 for raw data by hashing with SHA-256.
+    /// Create a `CIDv1` for raw data by hashing with SHA-256.
+    #[must_use]
     pub fn for_raw(raw_bytes: &[u8]) -> Self {
         let digest = Sha256::digest(raw_bytes).to_vec();
-        Cid::new(RAW_CODEC, SHA2_256, digest)
+        Self::new(RAW_CODEC, SHA2_256, digest)
     }
 
     /// Create a CID from a raw SHA-256 digest with raw codec.
@@ -86,12 +89,13 @@ impl Cid {
                 actual: digest.len(),
             });
         }
-        Ok(Cid::new(RAW_CODEC, SHA2_256, digest))
+        Ok(Self::new(RAW_CODEC, SHA2_256, digest))
     }
 
     /// Check if this CID is DASL-compliant (AT Protocol requirements).
     ///
-    /// DASL CIDs must be CIDv1, use raw or DAG-CBOR codec, SHA-256 hash, 32-byte digest.
+    /// DASL CIDs must be `CIDv1`, use raw or DAG-CBOR codec, SHA-256 hash, 32-byte digest.
+    #[must_use]
     pub fn is_dasl_compliant(&self) -> bool {
         self.version == 1
             && (self.codec == RAW_CODEC || self.codec == CBOR_CODEC)
@@ -111,10 +115,11 @@ impl Cid {
     }
 
     /// Encode this CID to its binary representation.
+    #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         // Version
-        encode_varint(self.version as u64, &mut buf);
+        encode_varint(u64::from(self.version), &mut buf);
         // Codec
         encode_varint(self.codec, &mut buf);
         // Multihash: hash code + digest length + digest
@@ -147,7 +152,7 @@ impl Cid {
 
         let digest = bytes[pos..pos + digest_len].to_vec();
 
-        Ok(Cid {
+        Ok(Self {
             version: version as u8,
             codec,
             hash_code,
@@ -157,7 +162,7 @@ impl Cid {
 
     /// Parse a CID from a multibase-encoded string.
     ///
-    /// CIDv1 strings use base32lower by default (prefix 'b').
+    /// `CIDv1` strings use base32lower by default (prefix 'b').
     pub fn from_str_multibase(s: &str) -> Result<Self, CidError> {
         if s.is_empty() {
             return Err(CidError::Invalid("Empty CID string".to_string()));
@@ -170,6 +175,7 @@ impl Cid {
     }
 
     /// Encode this CID as a multibase string (base32lower, prefix 'b').
+    #[must_use]
     pub fn to_string_base32(&self) -> String {
         let bytes = self.to_bytes();
         multibase::encode(multibase::Base::Base32Lower, &bytes)
@@ -191,7 +197,7 @@ impl fmt::Debug for Cid {
 impl FromStr for Cid {
     type Err = CidError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Cid::from_str_multibase(s)
+        Self::from_str_multibase(s)
     }
 }
 
@@ -207,7 +213,7 @@ impl serde::Serialize for Cid {
 impl<'de> serde::Deserialize<'de> for Cid {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Cid::from_str_multibase(&s).map_err(serde::de::Error::custom)
+        Self::from_str_multibase(&s).map_err(serde::de::Error::custom)
     }
 }
 
@@ -241,7 +247,7 @@ fn read_varint(bytes: &[u8], pos: &mut usize) -> Result<u64, CidError> {
         let byte = bytes[*pos];
         *pos += 1;
 
-        value |= ((byte & 0x7F) as u64) << shift;
+        value |= u64::from(byte & 0x7F) << shift;
 
         if byte & 0x80 == 0 {
             return Ok(value);

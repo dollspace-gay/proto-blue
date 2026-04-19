@@ -3,7 +3,6 @@
 //! NSIDs are reverse-DNS-style identifiers like `com.atproto.repo.createRecord`.
 //! See: <https://atproto.com/specs/nsid>
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -17,7 +16,7 @@ const MAX_SEGMENT_LENGTH: usize = 63;
 /// Minimum number of segments (authority has at least 2 + name = 3).
 const MIN_SEGMENTS: usize = 3;
 
-static NSID_REGEX: Lazy<Regex> = Lazy::new(|| {
+static NSID_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"^[a-zA-Z](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+(?:\.[a-zA-Z](?:[a-zA-Z0-9]{0,62})?)$",
     )
@@ -41,10 +40,11 @@ impl Nsid {
     /// Create a new `Nsid` from a string, validating the format.
     pub fn new(s: &str) -> Result<Self, InvalidNsidError> {
         ensure_valid_nsid(s)?;
-        Ok(Nsid(s.to_string()))
+        Ok(Self(s.to_string()))
     }
 
     /// Check whether a string is a valid NSID.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
         ensure_valid_nsid(s).is_ok()
     }
@@ -55,12 +55,13 @@ impl Nsid {
     ///
     /// Mirrors TS `NSID.create(authority, name)`.
     pub fn create(authority: &str, name: &str) -> Result<Self, InvalidNsidError> {
-        Nsid::new(&format!("{authority}.{name}"))
+        Self::new(&format!("{authority}.{name}"))
     }
 
     /// Return the authority portion (all segments except the last).
     ///
     /// For `com.atproto.repo.createRecord`, returns `com.atproto.repo`.
+    #[must_use]
     pub fn authority(&self) -> &str {
         let last_dot = self.0.rfind('.').unwrap();
         &self.0[..last_dot]
@@ -69,22 +70,26 @@ impl Nsid {
     /// Return the name portion (last segment).
     ///
     /// For `com.atproto.repo.createRecord`, returns `createRecord`.
+    #[must_use]
     pub fn name(&self) -> &str {
         let last_dot = self.0.rfind('.').unwrap();
         &self.0[last_dot + 1..]
     }
 
     /// Return the segments as a vector.
+    #[must_use]
     pub fn segments(&self) -> Vec<&str> {
         self.0.split('.').collect()
     }
 
     /// Return the inner string.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consume and return the inner string.
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
@@ -163,7 +168,7 @@ impl fmt::Display for Nsid {
 impl FromStr for Nsid {
     type Err = InvalidNsidError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Nsid::new(s)
+        Self::new(s)
     }
 }
 
@@ -182,7 +187,7 @@ impl serde::Serialize for Nsid {
 impl<'de> serde::Deserialize<'de> for Nsid {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Nsid::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

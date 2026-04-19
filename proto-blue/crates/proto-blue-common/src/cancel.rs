@@ -47,15 +47,15 @@ pub enum CancelError<E> {
 
 impl<E> CancelError<E> {
     /// `true` if cancelled; `false` if the inner future errored.
-    pub fn is_cancelled(&self) -> bool {
-        matches!(self, CancelError::Cancelled)
+    pub const fn is_cancelled(&self) -> bool {
+        matches!(self, Self::Cancelled)
     }
 
     /// Extract the inner error, if any.
     pub fn into_inner(self) -> Option<E> {
         match self {
-            CancelError::Inner(e) => Some(e),
-            CancelError::Cancelled => None,
+            Self::Inner(e) => Some(e),
+            Self::Cancelled => None,
         }
     }
 }
@@ -76,7 +76,7 @@ where
 {
     tokio::select! {
         result = fut => result.map_err(CancelError::Inner),
-        _ = token.cancelled() => Err(CancelError::Cancelled),
+        () = token.cancelled() => Err(CancelError::Cancelled),
     }
 }
 
@@ -89,7 +89,7 @@ where
 {
     tokio::select! {
         value = fut => Some(value),
-        _ = token.cancelled() => None,
+        () = token.cancelled() => None,
     }
 }
 

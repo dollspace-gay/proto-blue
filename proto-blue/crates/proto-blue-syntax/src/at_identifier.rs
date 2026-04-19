@@ -1,6 +1,6 @@
 //! AT Identifier (DID or Handle) validation and types.
 //!
-//! An AtIdentifier is either a DID or a Handle.
+//! An `AtIdentifier` is either a DID or a Handle.
 
 use std::fmt;
 use std::str::FromStr;
@@ -43,34 +43,38 @@ impl AtIdentifier {
     }
 
     /// Check whether a string is a valid AT identifier.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
-        AtIdentifier::new(s).is_ok()
+        Self::new(s).is_ok()
     }
 
     /// Return the inner string representation.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
-            AtIdentifier::Did(d) => d.as_str(),
-            AtIdentifier::Handle(h) => h.as_str(),
+            Self::Did(d) => d.as_str(),
+            Self::Handle(h) => h.as_str(),
         }
     }
 
     /// Check if this is a DID.
-    pub fn is_did(&self) -> bool {
-        matches!(self, AtIdentifier::Did(_))
+    #[must_use]
+    pub const fn is_did(&self) -> bool {
+        matches!(self, Self::Did(_))
     }
 
     /// Check if this is a Handle.
-    pub fn is_handle(&self) -> bool {
-        matches!(self, AtIdentifier::Handle(_))
+    #[must_use]
+    pub const fn is_handle(&self) -> bool {
+        matches!(self, Self::Handle(_))
     }
 }
 
 impl fmt::Display for AtIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AtIdentifier::Did(d) => d.fmt(f),
-            AtIdentifier::Handle(h) => h.fmt(f),
+            Self::Did(d) => d.fmt(f),
+            Self::Handle(h) => h.fmt(f),
         }
     }
 }
@@ -78,19 +82,19 @@ impl fmt::Display for AtIdentifier {
 impl FromStr for AtIdentifier {
     type Err = InvalidAtIdentifierError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        AtIdentifier::new(s)
+        Self::new(s)
     }
 }
 
 impl From<Did> for AtIdentifier {
     fn from(d: Did) -> Self {
-        AtIdentifier::Did(d)
+        Self::Did(d)
     }
 }
 
 impl From<Handle> for AtIdentifier {
     fn from(h: Handle) -> Self {
-        AtIdentifier::Handle(h)
+        Self::Handle(h)
     }
 }
 
@@ -103,7 +107,7 @@ impl serde::Serialize for AtIdentifier {
 impl<'de> serde::Deserialize<'de> for AtIdentifier {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        AtIdentifier::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

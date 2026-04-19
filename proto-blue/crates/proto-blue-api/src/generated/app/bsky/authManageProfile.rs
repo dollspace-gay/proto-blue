@@ -2,4 +2,3 @@
 //! Lexicon: app.bsky.authManageProfile
 
 use serde::{Deserialize, Serialize};
-

@@ -16,4 +16,3 @@ pub struct View {
     pub media: serde_json::Value,
     pub record: crate::app::bsky::embed::record::View,
 }
-

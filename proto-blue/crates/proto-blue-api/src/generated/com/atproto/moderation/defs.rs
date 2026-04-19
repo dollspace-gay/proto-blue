@@ -30,42 +30,66 @@ pub const ReasonType_REASON_RUDE: &str = "com.atproto.moderation.defs#reasonRude
 pub const ReasonType_REASON_OTHER: &str = "com.atproto.moderation.defs#reasonOther";
 pub const ReasonType_REASON_APPEAL: &str = "com.atproto.moderation.defs#reasonAppeal";
 pub const ReasonType_REASON_VIOLENCE_ANIMAL: &str = "tools.ozone.report.defs#reasonViolenceAnimal";
-pub const ReasonType_REASON_VIOLENCE_THREATS: &str = "tools.ozone.report.defs#reasonViolenceThreats";
-pub const ReasonType_REASON_VIOLENCE_GRAPHIC_CONTENT: &str = "tools.ozone.report.defs#reasonViolenceGraphicContent";
-pub const ReasonType_REASON_VIOLENCE_GLORIFICATION: &str = "tools.ozone.report.defs#reasonViolenceGlorification";
-pub const ReasonType_REASON_VIOLENCE_EXTREMIST_CONTENT: &str = "tools.ozone.report.defs#reasonViolenceExtremistContent";
-pub const ReasonType_REASON_VIOLENCE_TRAFFICKING: &str = "tools.ozone.report.defs#reasonViolenceTrafficking";
+pub const ReasonType_REASON_VIOLENCE_THREATS: &str =
+    "tools.ozone.report.defs#reasonViolenceThreats";
+pub const ReasonType_REASON_VIOLENCE_GRAPHIC_CONTENT: &str =
+    "tools.ozone.report.defs#reasonViolenceGraphicContent";
+pub const ReasonType_REASON_VIOLENCE_GLORIFICATION: &str =
+    "tools.ozone.report.defs#reasonViolenceGlorification";
+pub const ReasonType_REASON_VIOLENCE_EXTREMIST_CONTENT: &str =
+    "tools.ozone.report.defs#reasonViolenceExtremistContent";
+pub const ReasonType_REASON_VIOLENCE_TRAFFICKING: &str =
+    "tools.ozone.report.defs#reasonViolenceTrafficking";
 pub const ReasonType_REASON_VIOLENCE_OTHER: &str = "tools.ozone.report.defs#reasonViolenceOther";
-pub const ReasonType_REASON_SEXUAL_ABUSE_CONTENT: &str = "tools.ozone.report.defs#reasonSexualAbuseContent";
+pub const ReasonType_REASON_SEXUAL_ABUSE_CONTENT: &str =
+    "tools.ozone.report.defs#reasonSexualAbuseContent";
 pub const ReasonType_REASON_SEXUAL_NCII: &str = "tools.ozone.report.defs#reasonSexualNCII";
 pub const ReasonType_REASON_SEXUAL_DEEPFAKE: &str = "tools.ozone.report.defs#reasonSexualDeepfake";
 pub const ReasonType_REASON_SEXUAL_ANIMAL: &str = "tools.ozone.report.defs#reasonSexualAnimal";
-pub const ReasonType_REASON_SEXUAL_UNLABELED: &str = "tools.ozone.report.defs#reasonSexualUnlabeled";
+pub const ReasonType_REASON_SEXUAL_UNLABELED: &str =
+    "tools.ozone.report.defs#reasonSexualUnlabeled";
 pub const ReasonType_REASON_SEXUAL_OTHER: &str = "tools.ozone.report.defs#reasonSexualOther";
-pub const ReasonType_REASON_CHILD_SAFETY_CSAM: &str = "tools.ozone.report.defs#reasonChildSafetyCSAM";
-pub const ReasonType_REASON_CHILD_SAFETY_GROOM: &str = "tools.ozone.report.defs#reasonChildSafetyGroom";
-pub const ReasonType_REASON_CHILD_SAFETY_PRIVACY: &str = "tools.ozone.report.defs#reasonChildSafetyPrivacy";
-pub const ReasonType_REASON_CHILD_SAFETY_HARASSMENT: &str = "tools.ozone.report.defs#reasonChildSafetyHarassment";
-pub const ReasonType_REASON_CHILD_SAFETY_OTHER: &str = "tools.ozone.report.defs#reasonChildSafetyOther";
-pub const ReasonType_REASON_HARASSMENT_TROLL: &str = "tools.ozone.report.defs#reasonHarassmentTroll";
-pub const ReasonType_REASON_HARASSMENT_TARGETED: &str = "tools.ozone.report.defs#reasonHarassmentTargeted";
-pub const ReasonType_REASON_HARASSMENT_HATE_SPEECH: &str = "tools.ozone.report.defs#reasonHarassmentHateSpeech";
-pub const ReasonType_REASON_HARASSMENT_DOXXING: &str = "tools.ozone.report.defs#reasonHarassmentDoxxing";
-pub const ReasonType_REASON_HARASSMENT_OTHER: &str = "tools.ozone.report.defs#reasonHarassmentOther";
+pub const ReasonType_REASON_CHILD_SAFETY_CSAM: &str =
+    "tools.ozone.report.defs#reasonChildSafetyCSAM";
+pub const ReasonType_REASON_CHILD_SAFETY_GROOM: &str =
+    "tools.ozone.report.defs#reasonChildSafetyGroom";
+pub const ReasonType_REASON_CHILD_SAFETY_PRIVACY: &str =
+    "tools.ozone.report.defs#reasonChildSafetyPrivacy";
+pub const ReasonType_REASON_CHILD_SAFETY_HARASSMENT: &str =
+    "tools.ozone.report.defs#reasonChildSafetyHarassment";
+pub const ReasonType_REASON_CHILD_SAFETY_OTHER: &str =
+    "tools.ozone.report.defs#reasonChildSafetyOther";
+pub const ReasonType_REASON_HARASSMENT_TROLL: &str =
+    "tools.ozone.report.defs#reasonHarassmentTroll";
+pub const ReasonType_REASON_HARASSMENT_TARGETED: &str =
+    "tools.ozone.report.defs#reasonHarassmentTargeted";
+pub const ReasonType_REASON_HARASSMENT_HATE_SPEECH: &str =
+    "tools.ozone.report.defs#reasonHarassmentHateSpeech";
+pub const ReasonType_REASON_HARASSMENT_DOXXING: &str =
+    "tools.ozone.report.defs#reasonHarassmentDoxxing";
+pub const ReasonType_REASON_HARASSMENT_OTHER: &str =
+    "tools.ozone.report.defs#reasonHarassmentOther";
 pub const ReasonType_REASON_MISLEADING_BOT: &str = "tools.ozone.report.defs#reasonMisleadingBot";
-pub const ReasonType_REASON_MISLEADING_IMPERSONATION: &str = "tools.ozone.report.defs#reasonMisleadingImpersonation";
+pub const ReasonType_REASON_MISLEADING_IMPERSONATION: &str =
+    "tools.ozone.report.defs#reasonMisleadingImpersonation";
 pub const ReasonType_REASON_MISLEADING_SPAM: &str = "tools.ozone.report.defs#reasonMisleadingSpam";
 pub const ReasonType_REASON_MISLEADING_SCAM: &str = "tools.ozone.report.defs#reasonMisleadingScam";
-pub const ReasonType_REASON_MISLEADING_ELECTIONS: &str = "tools.ozone.report.defs#reasonMisleadingElections";
-pub const ReasonType_REASON_MISLEADING_OTHER: &str = "tools.ozone.report.defs#reasonMisleadingOther";
-pub const ReasonType_REASON_RULE_SITE_SECURITY: &str = "tools.ozone.report.defs#reasonRuleSiteSecurity";
-pub const ReasonType_REASON_RULE_PROHIBITED_SALES: &str = "tools.ozone.report.defs#reasonRuleProhibitedSales";
+pub const ReasonType_REASON_MISLEADING_ELECTIONS: &str =
+    "tools.ozone.report.defs#reasonMisleadingElections";
+pub const ReasonType_REASON_MISLEADING_OTHER: &str =
+    "tools.ozone.report.defs#reasonMisleadingOther";
+pub const ReasonType_REASON_RULE_SITE_SECURITY: &str =
+    "tools.ozone.report.defs#reasonRuleSiteSecurity";
+pub const ReasonType_REASON_RULE_PROHIBITED_SALES: &str =
+    "tools.ozone.report.defs#reasonRuleProhibitedSales";
 pub const ReasonType_REASON_RULE_BAN_EVASION: &str = "tools.ozone.report.defs#reasonRuleBanEvasion";
 pub const ReasonType_REASON_RULE_OTHER: &str = "tools.ozone.report.defs#reasonRuleOther";
-pub const ReasonType_REASON_SELF_HARM_CONTENT: &str = "tools.ozone.report.defs#reasonSelfHarmContent";
+pub const ReasonType_REASON_SELF_HARM_CONTENT: &str =
+    "tools.ozone.report.defs#reasonSelfHarmContent";
 pub const ReasonType_REASON_SELF_HARM_ED: &str = "tools.ozone.report.defs#reasonSelfHarmED";
 pub const ReasonType_REASON_SELF_HARM_STUNTS: &str = "tools.ozone.report.defs#reasonSelfHarmStunts";
-pub const ReasonType_REASON_SELF_HARM_SUBSTANCES: &str = "tools.ozone.report.defs#reasonSelfHarmSubstances";
+pub const ReasonType_REASON_SELF_HARM_SUBSTANCES: &str =
+    "tools.ozone.report.defs#reasonSelfHarmSubstances";
 pub const ReasonType_REASON_SELF_HARM_OTHER: &str = "tools.ozone.report.defs#reasonSelfHarmOther";
 
 /// Direct violation of server rules, laws, terms of service. Prefer new lexicon definition `tools.ozone.report.defs#reasonRuleOther`.
@@ -76,4 +100,3 @@ pub type SubjectType = String;
 pub const SubjectType_ACCOUNT: &str = "account";
 pub const SubjectType_RECORD: &str = "record";
 pub const SubjectType_CHAT: &str = "chat";
-

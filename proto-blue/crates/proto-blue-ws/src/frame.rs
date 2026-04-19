@@ -74,7 +74,7 @@ pub enum FrameError {
 
 impl From<proto_blue_lex_cbor::CborError> for FrameError {
     fn from(e: proto_blue_lex_cbor::CborError) -> Self {
-        FrameError::Decode(e.to_string())
+        Self::Decode(e.to_string())
     }
 }
 
@@ -111,8 +111,8 @@ impl Frame {
     /// Encode this frame as the two-CBOR-value wire format.
     pub fn encode(&self) -> Result<Vec<u8>, FrameError> {
         let (header, body) = match self {
-            Frame::Message(m) => (build_message_header(m.r#type.as_deref()), m.body.clone()),
-            Frame::Error(e) => (build_error_header(), build_error_body(e)),
+            Self::Message(m) => (build_message_header(m.r#type.as_deref()), m.body.clone()),
+            Self::Error(e) => (build_error_header(), build_error_body(e)),
         };
 
         let mut out = encode(&header).map_err(|e| FrameError::Encode(e.to_string()))?;
@@ -140,11 +140,11 @@ impl Frame {
         match op {
             OP_MESSAGE => {
                 let r#type = read_optional_string_field(&header, "t")?;
-                Ok(Frame::Message(MessageFrame { r#type, body }))
+                Ok(Self::Message(MessageFrame { r#type, body }))
             }
             OP_ERROR => {
                 let frame = parse_error_body(&body)?;
-                Ok(Frame::Error(frame))
+                Ok(Self::Error(frame))
             }
             other => Err(FrameError::UnknownOp(other)),
         }

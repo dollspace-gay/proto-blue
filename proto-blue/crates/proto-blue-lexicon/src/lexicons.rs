@@ -6,8 +6,8 @@ use proto_blue_lex_data::LexValue;
 
 use crate::error::{LexiconError, ValidationError, ValidationResult};
 use crate::types::{
-    LexObject, LexRefUnion, LexUserType, LexXrpcBody, LexXrpcParameters, LexXrpcSubscriptionMessage,
-    LexiconDoc,
+    LexObject, LexRefUnion, LexUserType, LexXrpcBody, LexXrpcParameters,
+    LexXrpcSubscriptionMessage, LexiconDoc,
 };
 use crate::validation::validate_value;
 
@@ -22,8 +22,9 @@ pub struct Lexicons {
 
 impl Lexicons {
     /// Create a new empty registry.
+    #[must_use]
     pub fn new() -> Self {
-        Lexicons {
+        Self {
             docs: HashMap::new(),
             defs: HashMap::new(),
         }
@@ -90,6 +91,7 @@ impl Lexicons {
     }
 
     /// Get a lexicon document by NSID.
+    #[must_use]
     pub fn get(&self, nsid: &str) -> Option<&LexiconDoc> {
         self.docs.get(nsid)
     }
@@ -97,6 +99,7 @@ impl Lexicons {
     /// Get a definition by its URI.
     ///
     /// Accepts formats: `lex:nsid#defId`, `nsid#defId`, `lex:nsid`, `nsid`.
+    #[must_use]
     pub fn get_def(&self, uri: &str) -> Option<&LexUserType> {
         let normalized = normalize_uri(uri);
         self.defs.get(&normalized)
@@ -109,11 +112,13 @@ impl Lexicons {
     }
 
     /// Get the number of registered lexicon documents.
+    #[must_use]
     pub fn doc_count(&self) -> usize {
         self.docs.len()
     }
 
     /// Get the number of registered definitions.
+    #[must_use]
     pub fn def_count(&self) -> usize {
         self.defs.len()
     }
@@ -133,11 +138,7 @@ impl Lexicons {
     ///
     /// `lex_uri` is the NSID of the method (e.g. `app.bsky.feed.getTimeline`
     /// or `lex:app.bsky.feed.getTimeline`).
-    pub fn assert_valid_xrpc_params(
-        &self,
-        lex_uri: &str,
-        value: &LexValue,
-    ) -> ValidationResult {
+    pub fn assert_valid_xrpc_params(&self, lex_uri: &str, value: &LexValue) -> ValidationResult {
         let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
         let params: Option<&LexXrpcParameters> = match def {
             LexUserType::Query(q) => q.parameters.as_ref(),
@@ -166,11 +167,7 @@ impl Lexicons {
     }
 
     /// Validate an xrpc procedure input body.
-    pub fn assert_valid_xrpc_input(
-        &self,
-        lex_uri: &str,
-        value: &LexValue,
-    ) -> ValidationResult {
+    pub fn assert_valid_xrpc_input(&self, lex_uri: &str, value: &LexValue) -> ValidationResult {
         let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
         let input: Option<&LexXrpcBody> = match def {
             LexUserType::Procedure(p) => p.input.as_ref(),
@@ -185,11 +182,7 @@ impl Lexicons {
     }
 
     /// Validate an xrpc query / procedure output body.
-    pub fn assert_valid_xrpc_output(
-        &self,
-        lex_uri: &str,
-        value: &LexValue,
-    ) -> ValidationResult {
+    pub fn assert_valid_xrpc_output(&self, lex_uri: &str, value: &LexValue) -> ValidationResult {
         let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
         let output: Option<&LexXrpcBody> = match def {
             LexUserType::Query(q) => q.output.as_ref(),
@@ -197,10 +190,7 @@ impl Lexicons {
             _ => {
                 return Err(ValidationError::new(
                     lex_uri,
-                    format!(
-                        "expected query or procedure, got {}",
-                        def.type_name()
-                    ),
+                    format!("expected query or procedure, got {}", def.type_name()),
                 ));
             }
         };
@@ -208,11 +198,7 @@ impl Lexicons {
     }
 
     /// Validate an xrpc subscription message frame body.
-    pub fn assert_valid_xrpc_message(
-        &self,
-        lex_uri: &str,
-        value: &LexValue,
-    ) -> ValidationResult {
+    pub fn assert_valid_xrpc_message(&self, lex_uri: &str, value: &LexValue) -> ValidationResult {
         let def = self.get_def_or_err(lex_uri).map_err(validator_from_lex)?;
         let message: Option<&LexXrpcSubscriptionMessage> = match def {
             LexUserType::Subscription(s) => s.message.as_ref(),
@@ -471,7 +457,7 @@ fn normalize_uri(uri: &str) -> String {
     }
 }
 
-/// Resolve all relative references in a LexUserType to absolute URIs.
+/// Resolve all relative references in a `LexUserType` to absolute URIs.
 fn resolve_refs(def: &mut LexUserType, base_nsid: &str) {
     match def {
         LexUserType::Ref(r) => {
@@ -565,7 +551,7 @@ mod tests {
     use super::*;
 
     fn sample_lexicon_json() -> &'static str {
-        r##"{
+        r#"{
             "lexicon": 1,
             "id": "com.example.test",
             "defs": {
@@ -594,7 +580,7 @@ mod tests {
                     }
                 }
             }
-        }"##
+        }"#
     }
 
     #[test]

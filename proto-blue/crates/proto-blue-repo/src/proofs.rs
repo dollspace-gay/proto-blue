@@ -382,7 +382,7 @@ mod tests {
     fn proof_for_existing_key_rejects_wrong_value() {
         let v = cid_for(b"v");
         let wrong = cid_for(b"wrong");
-        let mst = build_mst(&[("coll/a", v.clone())]);
+        let mst = build_mst(&[("coll/a", v)]);
         let root = mst.get_pointer().unwrap();
         let proof = proof_for_key(&mst, "coll/a").unwrap();
         assert!(
@@ -417,16 +417,16 @@ mod tests {
         // will decode to a different-shaped one), either of which
         // breaks verification.
         let orig_bytes = proof.get(&root).unwrap().to_vec();
-        let mut tampered = orig_bytes.clone();
+        let mut tampered = orig_bytes;
         *tampered.last_mut().unwrap() ^= 0xff;
         proof.set(root.clone(), tampered);
 
         // We expect either an error from load or a `Ok(false)` from
         // verify — both are acceptable outcomes for tampered input.
         let res = verify_key_in_proof(&proof, &root, "coll/a", Some(&cid_for(b"a")));
-        match res {
-            Ok(v) => assert!(!v, "tampered proof must not verify"),
-            Err(_) => { /* load rejected it, also fine */ }
+        if let Ok(v) = res {
+            assert!(!v, "tampered proof must not verify")
+        } else { /* load rejected it, also fine */
         }
     }
 
@@ -486,7 +486,7 @@ mod tests {
             ("coll/a", v.clone()),
             ("coll/b", v.clone()),
             ("coll/c", v.clone()),
-            ("coll/d", v.clone()),
+            ("coll/d", v),
         ]);
         let only_key = proof_for_key(&mst, "coll/b").unwrap();
         let covering = covering_proof(&mst, "coll/b").unwrap();

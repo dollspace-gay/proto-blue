@@ -198,7 +198,7 @@ async fn array_params_emit_repeated_keys() {
         .iter()
         .filter_map(|p| p.strip_prefix("tag="))
         .collect();
-    tag_values.sort();
+    tag_values.sort_unstable();
     assert_eq!(tag_values, vec!["a", "b", "c"]);
 }
 
@@ -413,11 +413,9 @@ async fn connection_refused_is_not_an_xrpc_error() {
     // Port 1 is virtually always closed on Linux.
     let client = XrpcClient::new("http://127.0.0.1:1").unwrap();
     let err = client.query("foo", None, None).await.unwrap_err();
-    match err {
-        XrpcClientError::Xrpc(_) => {
-            panic!("connection failure must not surface as XrpcError");
-        }
-        _ => { /* any non-Xrpc variant is fine */ }
+    if let XrpcClientError::Xrpc(_) = err {
+        panic!("connection failure must not surface as XrpcError");
+    } else { /* any non-Xrpc variant is fine */
     }
 }
 

@@ -18,4 +18,3 @@ pub struct BookmarkView {
     pub item: serde_json::Value,
     pub subject: crate::com::atproto::repo::strongRef::Main,
 }
-

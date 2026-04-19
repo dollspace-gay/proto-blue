@@ -97,4 +97,3 @@ pub struct DraftWithId {
     pub draft: Draft,
     pub id: String,
 }
-

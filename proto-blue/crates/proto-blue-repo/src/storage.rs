@@ -87,34 +87,39 @@ struct MemoryInner {
 
 impl MemoryBlockstore {
     /// Construct an empty store.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Construct a store pre-populated with a [`BlockMap`] and an
     /// optional root commit CID — typical usage after reading a CAR.
+    #[must_use]
     pub fn from_blocks(blocks: BlockMap, root: Option<Cid>) -> Self {
         let mut map = HashMap::new();
         for (cid, bytes) in blocks.iter() {
             map.insert(cid.clone(), bytes.to_vec());
         }
-        MemoryBlockstore {
+        Self {
             inner: Arc::new(Mutex::new(MemoryInner { blocks: map, root })),
         }
     }
 
     /// Number of blocks currently stored.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.inner.lock().unwrap().blocks.len()
     }
 
     /// `true` when no blocks have been stored.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Snapshot the current contents as a [`BlockMap`]. Useful for
     /// emitting a CAR.
+    #[must_use]
     pub fn snapshot(&self) -> BlockMap {
         let inner = self.inner.lock().unwrap();
         let mut out = BlockMap::new();

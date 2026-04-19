@@ -1,4 +1,4 @@
-//! BlockMap — a map from CID to block bytes.
+//! `BlockMap` — a map from CID to block bytes.
 
 use std::collections::HashMap;
 
@@ -16,11 +16,12 @@ pub struct BlockMap {
 
 impl BlockMap {
     /// Create a new empty block map.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Add a LexValue, encoding it as CBOR and computing its CID.
+    /// Add a `LexValue`, encoding it as CBOR and computing its CID.
     pub fn add_value(&mut self, value: &LexValue) -> Result<Cid, RepoError> {
         let bytes = proto_blue_lex_cbor::encode(value)?;
         let cid = proto_blue_lex_cbor::cid_for_lex(value)?;
@@ -35,6 +36,7 @@ impl BlockMap {
     }
 
     /// Get block bytes by CID.
+    #[must_use]
     pub fn get(&self, cid: &Cid) -> Option<&[u8]> {
         self.map
             .get(&cid.to_string_base32())
@@ -42,6 +44,7 @@ impl BlockMap {
     }
 
     /// Check if a CID exists in the map.
+    #[must_use]
     pub fn has(&self, cid: &Cid) -> bool {
         self.map.contains_key(&cid.to_string_base32())
     }
@@ -49,6 +52,7 @@ impl BlockMap {
     /// Check if a CID (given as its base32 string form) exists in the map.
     /// Useful when you've already computed the base32 rep and don't want
     /// to hash it again.
+    #[must_use]
     pub fn has_str(&self, cid_b32: &str) -> bool {
         self.map.contains_key(cid_b32)
     }
@@ -59,8 +63,9 @@ impl BlockMap {
     }
 
     /// Get multiple blocks. Returns found blocks and missing CIDs.
-    pub fn get_many(&self, cids: &[Cid]) -> (BlockMap, Vec<Cid>) {
-        let mut found = BlockMap::new();
+    #[must_use]
+    pub fn get_many(&self, cids: &[Cid]) -> (Self, Vec<Cid>) {
+        let mut found = Self::new();
         let mut missing = Vec::new();
         for cid in cids {
             if let Some(bytes) = self.get(cid) {
@@ -72,24 +77,27 @@ impl BlockMap {
         (found, missing)
     }
 
-    /// Merge another BlockMap into this one.
-    pub fn add_map(&mut self, other: &BlockMap) {
+    /// Merge another `BlockMap` into this one.
+    pub fn add_map(&mut self, other: &Self) {
         for (key, (cid, bytes)) in &other.map {
             self.map.insert(key.clone(), (cid.clone(), bytes.clone()));
         }
     }
 
     /// Get the number of blocks.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.map.len()
     }
 
     /// Check if the map is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
 
     /// Get the total byte size of all blocks.
+    #[must_use]
     pub fn byte_size(&self) -> usize {
         self.map.values().map(|(_, b)| b.len()).sum()
     }
@@ -106,7 +114,7 @@ impl BlockMap {
             .map(|(cid, bytes)| (cid, bytes.as_slice()))
     }
 
-    /// Iterate over all (cid_b32, (&Cid, &[u8])) triples. The base32
+    /// Iterate over all (`cid_b32`, (&Cid, &[u8])) triples. The base32
     /// string is the internal key; yield it too for callers that want
     /// to set-diff without re-hashing.
     pub fn iter_entries(&self) -> impl Iterator<Item = (String, (&Cid, &[u8]))> {
@@ -116,6 +124,7 @@ impl BlockMap {
     }
 
     /// Get all CIDs.
+    #[must_use]
     pub fn cids(&self) -> Vec<Cid> {
         self.map.values().map(|(cid, _)| cid.clone()).collect()
     }
@@ -172,7 +181,7 @@ mod tests {
         let cid2 = map.add_value(&LexValue::String("b".into())).unwrap();
         let cid3 = proto_blue_lex_cbor::cid_for_lex(&LexValue::String("missing".into())).unwrap();
 
-        let (found, missing) = map.get_many(&[cid1.clone(), cid2.clone(), cid3.clone()]);
+        let (found, missing) = map.get_many(&[cid1.clone(), cid2.clone(), cid3]);
         assert_eq!(found.len(), 2);
         assert_eq!(missing.len(), 1);
         assert!(found.has(&cid1));

@@ -47,8 +47,9 @@ pub struct UnsignedCommit {
 
 impl UnsignedCommit {
     /// Construct a new v3 unsigned commit.
-    pub fn new(did: String, data: Cid, rev: String, prev: Option<Cid>) -> Self {
-        UnsignedCommit {
+    #[must_use]
+    pub const fn new(did: String, data: Cid, rev: String, prev: Option<Cid>) -> Self {
+        Self {
             did,
             version: COMMIT_VERSION,
             data,
@@ -65,6 +66,7 @@ impl UnsignedCommit {
     /// Convert to a `LexValue::Map` ready for DAG-CBOR encoding. DAG-CBOR
     /// sorts map keys canonically at encode time, so the key order here
     /// doesn't matter for correctness.
+    #[must_use]
     pub fn to_lex_value(&self) -> LexValue {
         let mut m = BTreeMap::new();
         m.insert("did".to_string(), LexValue::String(self.did.clone()));
@@ -105,6 +107,7 @@ pub struct SignedCommit {
 impl SignedCommit {
     /// Drop the signature to get the unsigned payload. Useful when you
     /// want to re-verify or re-compute the signing bytes.
+    #[must_use]
     pub fn unsigned(&self) -> UnsignedCommit {
         UnsignedCommit {
             did: self.did.clone(),
@@ -122,6 +125,7 @@ impl SignedCommit {
     }
 
     /// Convert to a `LexValue::Map` with the `sig` field included.
+    #[must_use]
     pub fn to_lex_value(&self) -> LexValue {
         let mut m = BTreeMap::new();
         m.insert("did".to_string(), LexValue::String(self.did.clone()));
@@ -171,7 +175,7 @@ impl SignedCommit {
             Some(LexValue::Bytes(b)) => b.clone(),
             _ => return Err(RepoError::InvalidCommit("missing bytes `sig`".into())),
         };
-        Ok(SignedCommit {
+        Ok(Self {
             did,
             version,
             data,
@@ -329,11 +333,11 @@ mod tests {
         assert!(!verify_commit_sig(&bad, &kp.did()).unwrap());
 
         // Flip a byte of the signature.
-        let mut bad = signed.clone();
+        let mut bad = signed;
         bad.sig[0] ^= 0xFF;
         // Could be an error (malformed sig) or a false — either is fine.
         let result = verify_commit_sig(&bad, &kp.did());
-        assert!(result.as_ref().map(|v| !v).unwrap_or(true));
+        assert!(result.as_ref().map_or(true, |v| !v));
     }
 
     #[test]
@@ -418,7 +422,7 @@ mod tests {
         // Cloning must produce the same CID (it's a deterministic hash).
         assert_eq!(
             signed.cid().unwrap().to_string_base32(),
-            signed.clone().cid().unwrap().to_string_base32(),
+            signed.cid().unwrap().to_string_base32(),
         );
     }
 }

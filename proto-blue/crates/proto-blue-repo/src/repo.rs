@@ -14,8 +14,8 @@
 
 use std::sync::Arc;
 
-use proto_blue_crypto::Signer;
 use proto_blue_common::next_tid;
+use proto_blue_crypto::Signer;
 use proto_blue_lex_cbor::cid_for_lex;
 use proto_blue_lex_data::{Cid, LexValue};
 
@@ -44,18 +44,19 @@ pub enum RepoWrite {
         value: LexValue,
     },
     /// Delete the record at `<collection>/<rkey>`.
-    Delete {
-        collection: String,
-        rkey: String,
-    },
+    Delete { collection: String, rkey: String },
 }
 
 impl RepoWrite {
     fn key(&self) -> String {
         match self {
-            RepoWrite::Create { collection, rkey, .. }
-            | RepoWrite::Update { collection, rkey, .. }
-            | RepoWrite::Delete { collection, rkey } => format!("{collection}/{rkey}"),
+            Self::Create {
+                collection, rkey, ..
+            }
+            | Self::Update {
+                collection, rkey, ..
+            }
+            | Self::Delete { collection, rkey } => format!("{collection}/{rkey}"),
         }
     }
 }
@@ -94,23 +95,27 @@ pub struct Repo {
 
 impl Repo {
     /// The repo owner's DID.
+    #[must_use]
     pub fn did(&self) -> &str {
         &self.did
     }
 
     /// CID of the current signed commit. `None` for an empty repo
     /// (no commits yet).
-    pub fn commit_cid(&self) -> Option<&Cid> {
+    #[must_use]
+    pub const fn commit_cid(&self) -> Option<&Cid> {
         self.commit_cid.as_ref()
     }
 
     /// The current signed commit, if any.
-    pub fn commit(&self) -> Option<&SignedCommit> {
+    #[must_use]
+    pub const fn commit(&self) -> Option<&SignedCommit> {
         self.commit.as_ref()
     }
 
     /// The current MST.
-    pub fn mst(&self) -> &MstNode {
+    #[must_use]
+    pub const fn mst(&self) -> &MstNode {
         &self.mst
     }
 
@@ -125,7 +130,7 @@ impl Repo {
         let commit_val = storage.read_obj(&commit_cid)?;
         let commit = SignedCommit::from_lex_value(&commit_val)?;
         let mst = load_mst(&*storage, &commit.data)?;
-        Ok(Repo {
+        Ok(Self {
             storage,
             did: commit.did.clone(),
             commit_cid: Some(commit_cid),
@@ -159,7 +164,7 @@ impl Repo {
 
         storage.apply_commit(commit_cid.clone(), &blocks)?;
 
-        Ok(Repo {
+        Ok(Self {
             storage,
             did,
             commit_cid: Some(commit_cid),
@@ -190,9 +195,8 @@ impl Repo {
         for write in writes {
             // Validate key shape up front — catches bad NSIDs /
             // malformed rkeys before any tree manipulation.
-            parse_data_key(&write.key()).map_err(|e| {
-                RepoError::InvalidMstKey(format!("invalid data key: {e}"))
-            })?;
+            parse_data_key(&write.key())
+                .map_err(|e| RepoError::InvalidMstKey(format!("invalid data key: {e}")))?;
             match write {
                 RepoWrite::Create { value, .. } => {
                     let key = write.key();
@@ -239,12 +243,8 @@ impl Repo {
 
         // Build the new commit.
         let rev = next_tid(None).to_string();
-        let unsigned = UnsignedCommit::new(
-            self.did.clone(),
-            mst_root,
-            rev,
-            self.commit_cid.clone(),
-        );
+        let unsigned =
+            UnsignedCommit::new(self.did.clone(), mst_root, rev, self.commit_cid.clone());
         let signed = sign_commit(&unsigned, signer)?;
         let commit_cid = signed.cid()?;
 
@@ -267,7 +267,8 @@ impl Repo {
     /// Persist a [`CommitData`] through the storage layer and advance
     /// the in-memory state.
     pub fn apply_commit(&mut self, data: CommitData) -> Result<(), RepoError> {
-        self.storage.apply_commit(data.commit_cid.clone(), &data.blocks)?;
+        self.storage
+            .apply_commit(data.commit_cid.clone(), &data.blocks)?;
         // Rebuild our cached MST pointer from the new commit's data CID.
         self.mst = load_mst(&*self.storage, &data.commit.data)?;
         self.commit_cid = Some(data.commit_cid);
@@ -313,12 +314,8 @@ impl Repo {
             .data
             .clone();
         let rev = next_tid(None).to_string();
-        let unsigned = UnsignedCommit::new(
-            self.did.clone(),
-            data_cid,
-            rev,
-            self.commit_cid.clone(),
-        );
+        let unsigned =
+            UnsignedCommit::new(self.did.clone(), data_cid, rev, self.commit_cid.clone());
         let signed = sign_commit(&unsigned, signer)?;
         let commit_cid = signed.cid()?;
 
@@ -338,11 +335,7 @@ impl Repo {
 
     /// Read a record by collection + rkey. Returns `None` if the
     /// key doesn't exist.
-    pub fn get_record(
-        &self,
-        collection: &str,
-        rkey: &str,
-    ) -> Result<Option<LexValue>, RepoError> {
+    pub fn get_record(&self, collection: &str, rkey: &str) -> Result<Option<LexValue>, RepoError> {
         let key = format!("{collection}/{rkey}");
         let Some(cid) = self.mst.get(&key) else {
             return Ok(None);
@@ -432,7 +425,16 @@ mod tests {
             value: record.clone(),
         };
         let data = repo.apply_writes(&[write], &k).unwrap();
-        assert_ne!(data.commit_cid, *repo.commit().unwrap().unsigned().prev.as_ref().unwrap_or(&data.commit_cid));
+        assert_ne!(
+            data.commit_cid,
+            *repo
+                .commit()
+                .unwrap()
+                .unsigned()
+                .prev
+                .as_ref()
+                .unwrap_or(&data.commit_cid)
+        );
 
         let out = repo.get_record("com.example.item", "abc").unwrap();
         assert_eq!(out, Some(record));
@@ -584,6 +586,6 @@ mod tests {
         let new_key = signer();
         let resigned = repo.format_resign_commit(&new_key).unwrap();
         assert_eq!(resigned.commit.data, original_data);
-        assert_ne!(Some(resigned.commit_cid.clone()), repo.commit_cid().cloned());
+        assert_ne!(Some(resigned.commit_cid), repo.commit_cid().cloned());
     }
 }

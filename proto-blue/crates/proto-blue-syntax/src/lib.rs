@@ -1,7 +1,7 @@
 //! AT Protocol identifier types with validation.
 //!
 //! Provides validated newtypes for all AT Protocol identifiers:
-//! DID, Handle, NSID, AT-URI, TID, RecordKey, Datetime, and AtIdentifier.
+//! DID, Handle, NSID, AT-URI, TID, `RecordKey`, Datetime, and `AtIdentifier`.
 //!
 //! # Examples
 //!
@@ -51,8 +51,8 @@ pub use aturi::{AtUri, InvalidAtUriError};
 pub use datetime::{Datetime, InvalidDatetimeError, current_datetime_string, normalize_datetime};
 pub use did::{Did, InvalidDidError};
 pub use handle::{
-    DISALLOWED_TLDS, HANDLE_INVALID, Handle, InvalidHandleError, is_valid_tld, normalize_handle,
-    normalize_and_ensure_valid_handle,
+    DISALLOWED_TLDS, HANDLE_INVALID, Handle, InvalidHandleError, is_valid_tld,
+    normalize_and_ensure_valid_handle, normalize_handle,
 };
 pub use language::is_valid_language;
 pub use nsid::{InvalidNsidError, Nsid};

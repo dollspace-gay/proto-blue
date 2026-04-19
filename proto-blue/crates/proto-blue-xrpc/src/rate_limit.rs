@@ -54,6 +54,7 @@ pub struct RateLimitDecision {
 impl RateLimitDecision {
     /// Format the headers a caller should emit on a successful
     /// response. Returns a vec of `(header, value)` pairs.
+    #[must_use]
     pub fn headers(&self) -> Vec<(String, String)> {
         vec![
             ("ratelimit-limit".into(), self.limit.to_string()),
@@ -65,6 +66,7 @@ impl RateLimitDecision {
 
     /// Additional `Retry-After` header — seconds until reset. Only
     /// meaningful on a 429.
+    #[must_use]
     pub fn retry_after_seconds(&self) -> i64 {
         let now = Utc::now();
         (self.reset - now).num_seconds().max(0)
@@ -106,14 +108,13 @@ pub trait RateLimiter: Send + Sync {
 impl XrpcServerError {
     /// Build a 429 from a rate-limit decision, suitable for returning
     /// from a handler when the limit is exhausted.
+    #[must_use]
     pub fn rate_limit_exceeded(decision: &RateLimitDecision) -> Self {
         let retry = decision.retry_after_seconds();
-        XrpcServerError {
+        Self {
             status: ResponseType::RateLimitExceeded,
             error: Some("RateLimitExceeded".into()),
-            message: Some(format!(
-                "rate limit exceeded (retry after {retry}s)",
-            )),
+            message: Some(format!("rate limit exceeded (retry after {retry}s)")),
             cause: None,
         }
     }
@@ -148,10 +149,11 @@ struct Bucket {
 impl TokenBucketLimiter {
     /// Construct a bucket that allows `limit` requests per
     /// `window_seconds`. E.g. `new(100, 60)` = 100/minute.
+    #[must_use]
     pub fn new(limit: u64, window_seconds: u64) -> Self {
         assert!(limit > 0, "rate limit must be > 0");
         assert!(window_seconds > 0, "window must be > 0");
-        TokenBucketLimiter {
+        Self {
             buckets: Mutex::new(HashMap::new()),
             capacity: limit,
             refill_per_second: limit as f64 / window_seconds as f64,
@@ -192,7 +194,7 @@ impl TokenBucketLimiter {
         bucket.tokens = (bucket.tokens + add).min(self.capacity as f64);
         bucket.last_refill = now;
 
-        let wanted = points as f64;
+        let wanted = f64::from(points);
         let allowed = bucket.tokens >= wanted;
         if allowed {
             bucket.tokens -= wanted;
@@ -204,8 +206,7 @@ impl TokenBucketLimiter {
         // stable under rapid sampling.
         let seconds_to_reset =
             (self.capacity as f64 - bucket.tokens) / self.refill_per_second.max(1e-9);
-        let reset =
-            Utc::now() + chrono::Duration::seconds(seconds_to_reset.ceil() as i64);
+        let reset = Utc::now() + chrono::Duration::seconds(seconds_to_reset.ceil() as i64);
 
         RateLimitDecision {
             allowed,
@@ -238,9 +239,10 @@ pub struct CombinedLimiter {
 }
 
 impl CombinedLimiter {
+    #[must_use]
     pub fn new(limiters: Vec<Arc<dyn RateLimiter>>) -> Self {
         assert!(!limiters.is_empty(), "CombinedLimiter needs ≥ 1 child");
-        CombinedLimiter { limiters }
+        Self { limiters }
     }
 }
 
@@ -306,7 +308,7 @@ mod tests {
         {
             let mut buckets = lim.buckets.lock().unwrap();
             let b = buckets.get_mut("x").unwrap();
-            b.last_refill = Instant::now() - Duration::from_secs(2);
+            b.last_refill = Instant::now().checked_sub(Duration::from_secs(2)).unwrap();
         }
         assert!(lim.check("x").allowed, "bucket should have refilled");
     }
@@ -378,4 +380,3 @@ mod tests {
         assert!(d.retry_after_seconds() > 0);
     }
 }
-

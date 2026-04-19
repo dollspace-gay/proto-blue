@@ -73,7 +73,8 @@ pub struct ModerationBehavior {
 }
 
 impl ModerationBehavior {
-    pub fn get(&self, ctx: UiContext) -> Option<BehaviorValue> {
+    #[must_use]
+    pub const fn get(&self, ctx: UiContext) -> Option<BehaviorValue> {
         match ctx {
             UiContext::ProfileList => self.profile_list,
             UiContext::ProfileView => self.profile_view,
@@ -169,7 +170,8 @@ pub enum ModerationCause {
 }
 
 impl ModerationCause {
-    pub fn priority(&self) -> u8 {
+    #[must_use]
+    pub const fn priority(&self) -> u8 {
         match self {
             Self::Blocking { priority, .. }
             | Self::BlockedBy { priority, .. }
@@ -181,7 +183,8 @@ impl ModerationCause {
         }
     }
 
-    pub fn is_downgraded(&self) -> bool {
+    #[must_use]
+    pub const fn is_downgraded(&self) -> bool {
         match self {
             Self::Blocking { downgraded, .. }
             | Self::BlockedBy { downgraded, .. }
@@ -193,7 +196,7 @@ impl ModerationCause {
         }
     }
 
-    pub fn set_downgraded(&mut self) {
+    pub const fn set_downgraded(&mut self) {
         match self {
             Self::Blocking { downgraded, .. }
             | Self::BlockedBy { downgraded, .. }
@@ -265,15 +268,19 @@ pub struct ModerationUi {
 }
 
 impl ModerationUi {
+    #[must_use]
     pub fn filter(&self) -> bool {
         !self.filters.is_empty()
     }
+    #[must_use]
     pub fn blur(&self) -> bool {
         !self.blurs.is_empty()
     }
+    #[must_use]
     pub fn alert(&self) -> bool {
         !self.alerts.is_empty()
     }
+    #[must_use]
     pub fn inform(&self) -> bool {
         !self.informs.is_empty()
     }

@@ -13,6 +13,7 @@ use crate::error::RepoError;
 /// This determines which layer a key belongs to in the MST.
 /// Approximately 1/4 of keys will have at least 1 leading zero,
 /// giving the tree a ~4-way fanout.
+#[must_use]
 pub fn leading_zeros_on_hash(key: &str) -> usize {
     let hash = Sha256::digest(key.as_bytes());
     let mut total = 0;
@@ -43,6 +44,7 @@ pub fn leading_zeros_on_hash(key: &str) -> usize {
 }
 
 /// Count the common prefix length between two strings.
+#[must_use]
 pub fn count_prefix_len(a: &str, b: &str) -> usize {
     a.bytes().zip(b.bytes()).take_while(|(x, y)| x == y).count()
 }
@@ -51,6 +53,7 @@ pub fn count_prefix_len(a: &str, b: &str) -> usize {
 ///
 /// Valid MST keys have the format `collection/rkey`, with only
 /// allowed characters: a-z, A-Z, 0-9, _, ~, -, :, .
+#[must_use]
 pub fn is_valid_mst_key(key: &str) -> bool {
     if key.len() > 1024 {
         return false;
@@ -107,7 +110,8 @@ pub struct NodeData {
     pub entries: Vec<TreeEntry>,
 }
 
-/// Serialize NodeData to a LexValue for CBOR encoding.
+/// Serialize `NodeData` to a `LexValue` for CBOR encoding.
+#[must_use]
 pub fn serialize_node_data(data: &NodeData) -> LexValue {
     let mut entries_arr = Vec::new();
     for entry in &data.entries {
@@ -140,7 +144,7 @@ pub fn serialize_node_data(data: &NodeData) -> LexValue {
     LexValue::Map(node_map)
 }
 
-/// Deserialize NodeData from a LexValue (decoded from CBOR).
+/// Deserialize `NodeData` from a `LexValue` (decoded from CBOR).
 pub fn deserialize_node_data(value: &LexValue) -> Result<NodeData, RepoError> {
     let map = value
         .as_map()
@@ -165,7 +169,7 @@ pub fn deserialize_node_data(value: &LexValue) -> Result<NodeData, RepoError> {
 
         let prefix_len = e_map
             .get("p")
-            .and_then(|v| v.as_integer())
+            .and_then(proto_blue_lex_data::LexValue::as_integer)
             .ok_or_else(|| RepoError::InvalidMst("Missing prefix length".into()))?
             as usize;
 
@@ -198,6 +202,7 @@ pub fn deserialize_node_data(value: &LexValue) -> Result<NodeData, RepoError> {
 }
 
 /// Reconstruct full keys from prefix-compressed entries.
+#[must_use]
 pub fn entries_to_keys(data: &NodeData) -> Vec<String> {
     let mut keys = Vec::new();
     let mut last_key = String::new();

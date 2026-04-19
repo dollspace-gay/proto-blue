@@ -1,6 +1,6 @@
 //! Integration tests against live AT Protocol XRPC endpoints.
 //!
-//! Run with: cargo test -p proto-blue-xrpc --test integration_tests -- --ignored
+//! Run with: cargo test -p proto-blue-xrpc --test `integration_tests` -- --ignored
 
 use proto_blue_xrpc::{QueryParams, QueryValue};
 

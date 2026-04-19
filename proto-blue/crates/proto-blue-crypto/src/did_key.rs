@@ -33,12 +33,14 @@ pub struct ParsedMultikey {
 ///
 /// The `jwt_alg` must be `"ES256"` (P-256) or `"ES256K"` (secp256k1).
 /// The `compressed_pubkey` must be 33 bytes (compressed SEC1 point).
+#[must_use]
 pub fn format_did_key(jwt_alg: &str, compressed_pubkey: &[u8]) -> String {
     let multikey = format_multikey(jwt_alg, compressed_pubkey);
     format!("{DID_KEY_PREFIX}{multikey}")
 }
 
 /// Format a public key as a multibase-encoded multikey string (`z...`).
+#[must_use]
 pub fn format_multikey(jwt_alg: &str, compressed_pubkey: &[u8]) -> String {
     let prefix = prefix_for_alg(jwt_alg).expect("Unsupported JWT algorithm");
 

@@ -254,7 +254,7 @@ fn large_byte_string_roundtrip() {
 // Deep nesting: must not overflow the stack.
 // ---------------------------------------------------------------
 
-/// Deep nested arrays — a classic recursive-parser DoS target.
+/// Deep nested arrays — a classic recursive-parser `DoS` target.
 /// We cap at 100 (well within any sensible recursion budget) but demonstrate
 /// the shape of the adversarial test. A real fuzzer would push this higher.
 #[test]

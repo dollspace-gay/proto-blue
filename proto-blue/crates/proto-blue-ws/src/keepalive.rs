@@ -65,7 +65,7 @@ pub struct WebSocketKeepAliveOpts {
 
 impl Default for WebSocketKeepAliveOpts {
     fn default() -> Self {
-        WebSocketKeepAliveOpts {
+        Self {
             max_reconnect_seconds: 64,
             heartbeat_interval_ms: 10_000,
         }
@@ -129,7 +129,7 @@ impl WebSocketKeepAlive {
         opts: WebSocketKeepAliveOpts,
         connector: Arc<dyn WebSocketConnector>,
     ) -> Self {
-        WebSocketKeepAlive {
+        Self {
             url: url.into(),
             opts,
             connector,
@@ -290,6 +290,7 @@ impl WebSocketKeepAlive {
     }
 
     /// Check if the WebSocket is currently connected.
+    #[must_use]
     pub fn is_connected(&self) -> bool {
         self.transport.is_some()
     }
@@ -348,7 +349,7 @@ mod tests {
         assert!(ws.initial_setup);
         // Initial setup path is deterministic (no jitter applied).
         let delay = ws.reconnect_delay();
-        assert_eq!(delay, Duration::from_millis(1000));
+        assert_eq!(delay, Duration::from_secs(1));
     }
 
     #[test]
@@ -384,7 +385,7 @@ mod tests {
     /// Cap still applies after jitter. At `reconnects = 20` the uncapped
     /// backoff would be 2^20 seconds; the cap brings it to
     /// `max_reconnect_seconds * 1000`, and adding +500 ms of jitter must
-    /// still not exceed the cap (we clamp final_ms to max_ms).
+    /// still not exceed the cap (we clamp `final_ms` to `max_ms`).
     #[test]
     fn reconnect_delay_capped() {
         let mut ws =
@@ -439,14 +440,14 @@ mod tests {
 
     use crate::transport::{WebSocketConnector, WebSocketTransport, WsFrame};
     use async_trait::async_trait;
-    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
     /// Connector that records every URL it's asked to dial.
     struct RecordingConnector {
         urls: Arc<Mutex<Vec<String>>>,
         /// When `>0`, the first `fail_first_n` connect attempts error;
-        /// subsequent attempts succeed with an ImmediateEofTransport.
+        /// subsequent attempts succeed with an `ImmediateEofTransport`.
         fail_first_n: Arc<AtomicUsize>,
     }
 
@@ -520,7 +521,10 @@ mod tests {
         .with_url_fn(url_fn);
 
         ws.connect().await.unwrap();
-        assert_eq!(urls.lock().unwrap().as_slice(), &["wss://example.com/stream?cursor=0"]);
+        assert_eq!(
+            urls.lock().unwrap().as_slice(),
+            &["wss://example.com/stream?cursor=0"]
+        );
 
         // Force a reconnect by clearing the transport and invoking
         // connect again — mirrors what recv() does on peer close.
@@ -603,6 +607,9 @@ mod tests {
         // expected to be empty here; a future integration test could
         // cover the recv path.
         let seen = err_events.lock().unwrap().clone();
-        assert!(seen.is_empty(), "connect() alone should not fire the recv-loop error hook");
+        assert!(
+            seen.is_empty(),
+            "connect() alone should not fire the recv-loop error hook"
+        );
     }
 }

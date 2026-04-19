@@ -43,7 +43,7 @@ pub struct ReadCarOpts {
     pub skip_cid_verification: bool,
 }
 
-/// Write a CAR file from a root CID and a BlockMap.
+/// Write a CAR file from a root CID and a `BlockMap`.
 pub fn blocks_to_car(root: Option<&Cid>, blocks: &BlockMap) -> Result<Vec<u8>, RepoError> {
     let mut output = Vec::new();
 
@@ -87,10 +87,7 @@ pub fn read_car(data: &[u8]) -> Result<(Vec<Cid>, BlockMap), RepoError> {
 ///
 /// Use `ReadCarOpts { skip_cid_verification: true }` only when the
 /// caller has already verified CIDs upstream.
-pub fn read_car_opts(
-    data: &[u8],
-    opts: ReadCarOpts,
-) -> Result<(Vec<Cid>, BlockMap), RepoError> {
+pub fn read_car_opts(data: &[u8], opts: ReadCarOpts) -> Result<(Vec<Cid>, BlockMap), RepoError> {
     let mut pos = 0;
 
     // Read header
@@ -151,9 +148,7 @@ pub fn read_car_opts(
                 Err(e) => {
                     // Unsupported hash function (e.g. SHA-512 for now).
                     // Don't trust the block if we can't verify it.
-                    return Err(RepoError::Car(format!(
-                        "Cannot verify CID {cid}: {e}"
-                    )));
+                    return Err(RepoError::Car(format!("Cannot verify CID {cid}: {e}")));
                 }
             }
         }
@@ -233,7 +228,7 @@ fn read_varint_from_slice(data: &[u8], pos: &mut usize) -> Result<u64, RepoError
         }
         let byte = data[*pos];
         *pos += 1;
-        result |= ((byte & 0x7F) as u64) << shift;
+        result |= u64::from(byte & 0x7F) << shift;
         if byte & 0x80 == 0 {
             return Ok(result);
         }
@@ -252,9 +247,8 @@ fn write_varint(buf: &mut Vec<u8>, mut value: u64) {
         if value == 0 {
             buf.push(byte);
             break;
-        } else {
-            buf.push(byte | 0x80);
         }
+        buf.push(byte | 0x80);
     }
 }
 
@@ -344,9 +338,11 @@ mod tests {
         // block payload has been tampered — declared CID no longer
         // matches the actual bytes.
         let mut blocks = BlockMap::new();
-        let honest_cid = blocks.add_value(&LexValue::String("honest".into())).unwrap();
-        let tampered_bytes = proto_blue_lex_cbor::encode(&LexValue::String("tampered".into()))
+        let honest_cid = blocks
+            .add_value(&LexValue::String("honest".into()))
             .unwrap();
+        let tampered_bytes =
+            proto_blue_lex_cbor::encode(&LexValue::String("tampered".into())).unwrap();
 
         // Manually frame: header + (varint(cid_bytes + payload_len) + cid_bytes + tampered_bytes)
         let header_value = LexValue::Map({

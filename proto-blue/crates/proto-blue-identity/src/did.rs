@@ -48,6 +48,7 @@ impl DidResolver {
     /// `reqwest::Client` is constructed internally. Otherwise the caller
     /// must use [`Self::with_fetch_handler`].
     #[cfg(feature = "fetch-reqwest")]
+    #[must_use]
     pub fn new(plc_url: Option<&str>, timeout_ms: u64, cache: Option<Arc<dyn DidCache>>) -> Self {
         Self::with_fetch_handler(
             plc_url,
@@ -67,7 +68,7 @@ impl DidResolver {
         cache: Option<Arc<dyn DidCache>>,
         fetcher: Arc<dyn FetchHandler>,
     ) -> Self {
-        DidResolver {
+        Self {
             inner: Arc::new(DidResolverInner {
                 plc_url: plc_url.unwrap_or(DEFAULT_PLC_URL).to_string(),
                 timeout: Duration::from_millis(timeout_ms),
@@ -144,7 +145,7 @@ impl DidResolver {
         }
 
         let resolver = self.clone();
-        let did_for_task = did.clone();
+        let did_for_task = did;
 
         #[cfg(not(target_arch = "wasm32"))]
         tokio::spawn(async move {
@@ -252,8 +253,8 @@ impl DidResolver {
         &self,
         url: &str,
     ) -> Result<proto_blue_common::fetch::HttpResponse, IdentityError> {
-        let req = HttpRequest::get(url)
-            .with_header("accept", "application/did+ld+json,application/json");
+        let req =
+            HttpRequest::get(url).with_header("accept", "application/did+ld+json,application/json");
         let fut = self.inner.fetcher.fetch(req);
         match tokio::time::timeout(self.inner.timeout, fut).await {
             Ok(Ok(resp)) => Ok(resp),
@@ -379,7 +380,7 @@ fn percent_decode(s: &str) -> String {
     result
 }
 
-fn hex_val(b: u8) -> Option<u8> {
+const fn hex_val(b: u8) -> Option<u8> {
     match b {
         b'0'..=b'9' => Some(b - b'0'),
         b'a'..=b'f' => Some(b - b'a' + 10),
@@ -509,11 +510,11 @@ mod tests {
 
     #[test]
     fn validate_did_doc_mismatch() {
-        let json = r##"{
+        let json = r#"{
             "id": "did:plc:other",
             "verificationMethod": [],
             "service": []
-        }"##;
+        }"#;
         let doc = parse_did_document(json).unwrap();
         let err = validate_did_doc("did:plc:expected", &doc).unwrap_err();
         assert!(matches!(
@@ -620,9 +621,7 @@ mod tests {
     mod refresh {
         use super::*;
         use async_trait::async_trait;
-        use proto_blue_common::fetch::{
-            FetchError, FetchHandler, HttpRequest, HttpResponse,
-        };
+        use proto_blue_common::fetch::{FetchError, FetchHandler, HttpRequest, HttpResponse};
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::time::Duration;
 
@@ -634,10 +633,7 @@ mod tests {
 
         #[async_trait]
         impl FetchHandler for CountingFetcher {
-            async fn fetch(
-                &self,
-                _req: HttpRequest,
-            ) -> Result<HttpResponse, FetchError> {
+            async fn fetch(&self, _req: HttpRequest) -> Result<HttpResponse, FetchError> {
                 self.calls.fetch_add(1, Ordering::SeqCst);
                 let mut headers = proto_blue_common::fetch::HttpHeaders::new();
                 headers.insert("content-type".into(), "application/json".into());
@@ -673,16 +669,11 @@ mod tests {
             });
 
             // stale_ttl = 0 → always stale; max_ttl large → not expired.
-            let cache: Arc<dyn DidCache> = Arc::new(
-                crate::cache::MemoryCache::new(Some(0), Some(60_000)),
-            );
+            let cache: Arc<dyn DidCache> =
+                Arc::new(crate::cache::MemoryCache::new(Some(0), Some(60_000)));
 
-            let resolver = DidResolver::with_fetch_handler(
-                None,
-                5000,
-                Some(cache.clone()),
-                fetcher,
-            );
+            let resolver =
+                DidResolver::with_fetch_handler(None, 5000, Some(cache.clone()), fetcher);
 
             // Seed the cache with one fetch.
             let doc1 = resolver.resolve(did, false).await.unwrap();
@@ -717,16 +708,11 @@ mod tests {
                 body: doc_json.clone(),
             });
 
-            let cache: Arc<dyn DidCache> = Arc::new(
-                crate::cache::MemoryCache::new(Some(0), Some(60_000)),
-            );
+            let cache: Arc<dyn DidCache> =
+                Arc::new(crate::cache::MemoryCache::new(Some(0), Some(60_000)));
 
-            let resolver = DidResolver::with_fetch_handler(
-                None,
-                5000,
-                Some(cache.clone()),
-                fetcher,
-            );
+            let resolver =
+                DidResolver::with_fetch_handler(None, 5000, Some(cache.clone()), fetcher);
 
             // Prime.
             let _ = resolver.resolve(did, false).await.unwrap();

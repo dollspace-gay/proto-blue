@@ -11,19 +11,20 @@ pub enum CloseCode {
 
 impl CloseCode {
     /// Convert from a raw u16 close code.
-    pub fn from_raw(code: u16) -> Option<Self> {
+    #[must_use]
+    pub const fn from_raw(code: u16) -> Option<Self> {
         match code {
-            1000 => Some(CloseCode::Normal),
-            1006 => Some(CloseCode::Abnormal),
-            1008 => Some(CloseCode::Policy),
+            1000 => Some(Self::Normal),
+            1006 => Some(Self::Abnormal),
+            1008 => Some(Self::Policy),
             _ => None,
         }
     }
 }
 
 impl From<CloseCode> for u16 {
-    fn from(code: CloseCode) -> u16 {
-        code as u16
+    fn from(code: CloseCode) -> Self {
+        code as Self
     }
 }
 
@@ -39,8 +40,9 @@ pub struct DisconnectError {
 
 impl DisconnectError {
     /// Create a new disconnect error.
-    pub fn new(ws_code: CloseCode, xrpc_code: Option<String>) -> Self {
-        DisconnectError { ws_code, xrpc_code }
+    #[must_use]
+    pub const fn new(ws_code: CloseCode, xrpc_code: Option<String>) -> Self {
+        Self { ws_code, xrpc_code }
     }
 }
 
@@ -72,7 +74,7 @@ pub enum WsError {
 }
 
 /// Check if an error is likely a network error that we should reconnect for.
-pub fn is_reconnectable(err: &WsError) -> bool {
+pub const fn is_reconnectable(err: &WsError) -> bool {
     match err {
         #[cfg(feature = "tungstenite")]
         WsError::WebSocket(e) => {

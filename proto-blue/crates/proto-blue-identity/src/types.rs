@@ -15,7 +15,7 @@ pub struct AtprotoData {
     pub pds: String,
 }
 
-/// Options for creating an IdResolver.
+/// Options for creating an `IdResolver`.
 #[derive(Debug, Clone)]
 pub struct IdentityResolverOpts {
     /// Timeout for requests in milliseconds.
@@ -28,7 +28,7 @@ pub struct IdentityResolverOpts {
 
 impl Default for IdentityResolverOpts {
     fn default() -> Self {
-        IdentityResolverOpts {
+        Self {
             timeout_ms: 3000,
             plc_url: None,
             backup_nameservers: None,

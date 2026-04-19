@@ -10,4 +10,3 @@ pub struct AspectRatio {
     pub height: i64,
     pub width: i64,
 }
-

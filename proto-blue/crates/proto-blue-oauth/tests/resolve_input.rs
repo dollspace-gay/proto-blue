@@ -30,7 +30,7 @@ fn client_metadata_with_id(client_id: &str) -> OAuthClientMetadata {
 }
 
 /// PDS-URL input path: identity resolution is skipped, only
-/// discover_resource + discover_server fire. Assert we get a
+/// `discover_resource` + `discover_server` fire. Assert we get a
 /// `ResolvedInput` with `did=None` and the AS metadata echoed back.
 #[tokio::test]
 async fn resolve_input_with_pds_url_skips_identity_and_returns_metadata() {
@@ -43,9 +43,7 @@ async fn resolve_input_with_pds_url_skips_identity_and_returns_metadata() {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let base = format!("http://127.0.0.1:{port}");
-    let resource_body = format!(
-        r#"{{"resource":"{base}","authorization_servers":["{base}"]}}"#
-    );
+    let resource_body = format!(r#"{{"resource":"{base}","authorization_servers":["{base}"]}}"#);
     let server_body = format!(
         r#"{{
           "issuer":"{base}",
@@ -76,10 +74,7 @@ async fn resolve_input_with_pds_url_skips_identity_and_returns_metadata() {
     assert!(got.did.is_none(), "PDS-URL input: did should be None");
     assert_eq!(got.pds_url, base);
     assert_eq!(got.server_metadata.issuer, base);
-    assert_eq!(
-        got.server_metadata.token_endpoint,
-        format!("{base}/token")
-    );
+    assert_eq!(got.server_metadata.token_endpoint, format!("{base}/token"));
 }
 
 /// Drive `replies` out over an already-bound listener. Returning the
@@ -113,8 +108,7 @@ fn spawn_sequence_on_listener(
                 .headers
                 .iter()
                 .find(|(k, _)| k.eq_ignore_ascii_case("Content-Type"))
-                .map(|(_, v)| v.clone())
-                .unwrap_or_else(|| "application/octet-stream".into());
+                .map_or_else(|| "application/octet-stream".into(), |(_, v)| v.clone());
             let head = format!(
                 "HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n",
                 reply.status,

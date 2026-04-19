@@ -19,11 +19,13 @@ pub struct PkceChallenge {
 }
 
 /// Generate a PKCE challenge/verifier pair using S256.
+#[must_use]
 pub fn generate_pkce() -> PkceChallenge {
     generate_pkce_with_len(32)
 }
 
 /// Generate a PKCE challenge/verifier pair with a specific byte length (32-96).
+#[must_use]
 pub fn generate_pkce_with_len(byte_length: usize) -> PkceChallenge {
     let byte_length = byte_length.clamp(32, 96);
 
@@ -43,7 +45,8 @@ pub fn generate_pkce_with_len(byte_length: usize) -> PkceChallenge {
     }
 }
 
-/// Verify that a code_verifier matches a code_challenge using S256.
+/// Verify that a `code_verifier` matches a `code_challenge` using S256.
+#[must_use]
 pub fn verify_pkce(verifier: &str, challenge: &str) -> bool {
     let mut hasher = Sha256::new();
     hasher.update(verifier.as_bytes());

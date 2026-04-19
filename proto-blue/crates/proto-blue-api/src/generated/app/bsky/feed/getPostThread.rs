@@ -45,9 +45,25 @@ fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
 
 fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     let mut qp = proto_blue_xrpc::QueryParams::new();
-    if let Some(v) = &p.depth { qp.insert("depth".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.parent_height { qp.insert("parentHeight".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    { let v = &p.uri; qp.insert("uri".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.depth {
+        qp.insert(
+            "depth".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.parent_height {
+        qp.insert(
+            "parentHeight".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    {
+        let v = &p.uri;
+        qp.insert(
+            "uri".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
     qp
 }
 
@@ -58,7 +74,10 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<Output, CallError> {
     let qp = params.map(to_query_params);
-    let response = match client.query("app.bsky.feed.getPostThread", qp.as_ref(), opts).await {
+    let response = match client
+        .query("app.bsky.feed.getPostThread", qp.as_ref(), opts)
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -69,12 +88,14 @@ pub async fn call(
 /// Register a typed handler for this method on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.query("app.bsky.feed.getPostThread", move |ctx| {
@@ -82,8 +103,12 @@ where
         async move {
             let params = params_from_ctx(&ctx);
             let out = handler(ctx, params).await?;
-            let value = serde_json::to_value(&out)
-                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            let value = serde_json::to_value(&out).map_err(|e| {
+                proto_blue_xrpc::XrpcServerError::new(
+                    proto_blue_xrpc::ResponseType::InternalServerError,
+                    format!("output serialize: {e}"),
+                )
+            })?;
             Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
         }
     })
@@ -96,8 +121,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         depth: ctx.params.get("depth").and_then(|v| v.parse::<i64>().ok()),
-        parent_height: ctx.params.get("parentHeight").and_then(|v| v.parse::<i64>().ok()),
+        parent_height: ctx
+            .params
+            .get("parentHeight")
+            .and_then(|v| v.parse::<i64>().ok()),
         uri: (ctx.params.get("uri").cloned())?,
     })
 }
-

@@ -48,6 +48,7 @@ pub struct SigningKey {
 }
 
 /// Get the DID from a DID document.
+#[must_use]
 pub fn get_did(doc: &DidDocument) -> &str {
     &doc.id
 }
@@ -55,6 +56,7 @@ pub fn get_did(doc: &DidDocument) -> &str {
 /// Get the handle from a DID document's `alsoKnownAs` array.
 ///
 /// Looks for an entry starting with `at://` and returns the handle portion.
+#[must_use]
 pub fn get_handle(doc: &DidDocument) -> Option<&str> {
     for alias in &doc.also_known_as {
         if let Some(handle) = alias.strip_prefix("at://") {
@@ -67,11 +69,13 @@ pub fn get_handle(doc: &DidDocument) -> Option<&str> {
 /// Get the AT Protocol signing key from a DID document.
 ///
 /// Looks for the verification method with id `#atproto`.
+#[must_use]
 pub fn get_signing_key(doc: &DidDocument) -> Option<SigningKey> {
     get_verification_material(doc, "atproto")
 }
 
 /// Get verification material by key ID.
+#[must_use]
 pub fn get_verification_material(doc: &DidDocument, key_id: &str) -> Option<SigningKey> {
     let target_id = format!("#{key_id}");
     let item = find_item_by_id_vm(doc, &target_id)?;
@@ -83,27 +87,32 @@ pub fn get_verification_material(doc: &DidDocument, key_id: &str) -> Option<Sign
 }
 
 /// Get the `did:key:...` string for the signing key.
+#[must_use]
 pub fn get_signing_did_key(doc: &DidDocument) -> Option<String> {
     let key = get_signing_key(doc)?;
     Some(format!("did:key:{}", key.public_key_multibase))
 }
 
 /// Get the PDS (Personal Data Server) endpoint URL.
+#[must_use]
 pub fn get_pds_endpoint(doc: &DidDocument) -> Option<String> {
     get_service_endpoint(doc, "#atproto_pds", Some("AtprotoPersonalDataServer"))
 }
 
 /// Get the Feed Generator service endpoint URL.
+#[must_use]
 pub fn get_feed_gen_endpoint(doc: &DidDocument) -> Option<String> {
     get_service_endpoint(doc, "#bsky_fg", Some("BskyFeedGenerator"))
 }
 
 /// Get the Notification Service endpoint URL.
+#[must_use]
 pub fn get_notif_endpoint(doc: &DidDocument) -> Option<String> {
     get_service_endpoint(doc, "#bsky_notif", Some("BskyNotificationService"))
 }
 
 /// Get a service endpoint by ID and optional type.
+#[must_use]
 pub fn get_service_endpoint(
     doc: &DidDocument,
     id: &str,
@@ -251,7 +260,7 @@ mod tests {
 
     #[test]
     fn absolute_id_matching() {
-        let json = r##"{
+        let json = r#"{
             "id": "did:plc:abc",
             "verificationMethod": [{
                 "id": "did:plc:abc#atproto",
@@ -260,7 +269,7 @@ mod tests {
                 "publicKeyMultibase": "zAbcDef"
             }],
             "service": []
-        }"##;
+        }"#;
         let doc: DidDocument = serde_json::from_str(json).unwrap();
         let key = get_signing_key(&doc).unwrap();
         assert_eq!(key.public_key_multibase, "zAbcDef");

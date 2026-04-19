@@ -9,4 +9,3 @@ pub const HostStatus_IDLE: &str = "idle";
 pub const HostStatus_OFFLINE: &str = "offline";
 pub const HostStatus_THROTTLED: &str = "throttled";
 pub const HostStatus_BANNED: &str = "banned";
-

@@ -53,7 +53,7 @@ pub use web_impl::WebFetcher;
 /// Ordered map of lowercase header names to values.
 ///
 /// Using `BTreeMap` (not `HashMap`) gives deterministic ordering — useful
-/// for test vectors, DPoP canonicalisation, and request logging.
+/// for test vectors, `DPoP` canonicalisation, and request logging.
 pub type HttpHeaders = BTreeMap<String, String>;
 
 /// HTTP method for an outbound request.
@@ -70,15 +70,16 @@ pub enum HttpMethod {
 
 impl HttpMethod {
     /// Canonical uppercase string (e.g. `"GET"`).
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            HttpMethod::Get => "GET",
-            HttpMethod::Post => "POST",
-            HttpMethod::Put => "PUT",
-            HttpMethod::Delete => "DELETE",
-            HttpMethod::Patch => "PATCH",
-            HttpMethod::Head => "HEAD",
-            HttpMethod::Options => "OPTIONS",
+            Self::Get => "GET",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Delete => "DELETE",
+            Self::Patch => "PATCH",
+            Self::Head => "HEAD",
+            Self::Options => "OPTIONS",
         }
     }
 }
@@ -124,6 +125,7 @@ impl HttpRequest {
     }
 
     /// Attach a request body.
+    #[must_use]
     pub fn with_body(mut self, body: Vec<u8>) -> Self {
         self.body = Some(body);
         self
@@ -140,13 +142,17 @@ pub struct HttpResponse {
 
 impl HttpResponse {
     /// `true` when `status` is in the 2xx range.
+    #[must_use]
     pub fn is_success(&self) -> bool {
         (200..300).contains(&self.status)
     }
 
     /// Look up a header by case-insensitive name.
+    #[must_use]
     pub fn header(&self, key: &str) -> Option<&str> {
-        self.headers.get(&key.to_lowercase()).map(|s| s.as_str())
+        self.headers
+            .get(&key.to_lowercase())
+            .map(std::string::String::as_str)
     }
 }
 
@@ -222,7 +228,10 @@ mod tests {
     #[test]
     fn with_header_lowercases_key() {
         let r = HttpRequest::get("https://example.com").with_header("Accept", "application/json");
-        assert_eq!(r.headers.get("accept").map(String::as_str), Some("application/json"));
+        assert_eq!(
+            r.headers.get("accept").map(String::as_str),
+            Some("application/json")
+        );
         assert!(!r.headers.contains_key("Accept"));
     }
 
@@ -246,11 +255,19 @@ mod tests {
     #[test]
     fn http_response_is_success_covers_2xx() {
         for s in 200u16..300 {
-            let r = HttpResponse { status: s, headers: HttpHeaders::new(), body: vec![] };
+            let r = HttpResponse {
+                status: s,
+                headers: HttpHeaders::new(),
+                body: vec![],
+            };
             assert!(r.is_success(), "{s} should be success");
         }
         for s in [100u16, 199, 300, 400, 500, 599] {
-            let r = HttpResponse { status: s, headers: HttpHeaders::new(), body: vec![] };
+            let r = HttpResponse {
+                status: s,
+                headers: HttpHeaders::new(),
+                body: vec![],
+            };
             assert!(!r.is_success(), "{s} should not be success");
         }
     }
@@ -259,7 +276,11 @@ mod tests {
     fn http_response_header_is_case_insensitive() {
         let mut headers = HttpHeaders::new();
         headers.insert("content-type".into(), "application/json".into());
-        let r = HttpResponse { status: 200, headers, body: vec![] };
+        let r = HttpResponse {
+            status: 200,
+            headers,
+            body: vec![],
+        };
         assert_eq!(r.header("content-type"), Some("application/json"));
         assert_eq!(r.header("Content-Type"), Some("application/json"));
         assert_eq!(r.header("missing"), None);

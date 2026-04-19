@@ -2,10 +2,9 @@
 //!
 //! See: <https://www.rfc-editor.org/rfc/rfc5646>
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 
-static LANGUAGE_REGEX: Lazy<Regex> = Lazy::new(|| {
+static LANGUAGE_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(concat!(
         r"^(",
         // Grandfathered tags

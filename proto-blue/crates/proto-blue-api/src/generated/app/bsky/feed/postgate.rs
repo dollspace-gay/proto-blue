@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 /// Disables embedding of this post.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DisableRule {
-}
+pub struct DisableRule {}
 
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.feed.postgate";
@@ -29,4 +28,3 @@ pub struct Main {
 fn default_type() -> String {
     TYPE.to_string()
 }
-

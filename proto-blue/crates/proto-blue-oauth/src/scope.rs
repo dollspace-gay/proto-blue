@@ -92,25 +92,26 @@ pub enum PermissionNamespace {
 
 impl PermissionNamespace {
     /// The string form used on the wire (`account`, `blob`, ...).
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            PermissionNamespace::Account => "account",
-            PermissionNamespace::Blob => "blob",
-            PermissionNamespace::Identity => "identity",
-            PermissionNamespace::Include => "include",
-            PermissionNamespace::Repo => "repo",
-            PermissionNamespace::Rpc => "rpc",
+            Self::Account => "account",
+            Self::Blob => "blob",
+            Self::Identity => "identity",
+            Self::Include => "include",
+            Self::Repo => "repo",
+            Self::Rpc => "rpc",
         }
     }
 
     fn from_str_exact(s: &str) -> Option<Self> {
         match s {
-            "account" => Some(PermissionNamespace::Account),
-            "blob" => Some(PermissionNamespace::Blob),
-            "identity" => Some(PermissionNamespace::Identity),
-            "include" => Some(PermissionNamespace::Include),
-            "repo" => Some(PermissionNamespace::Repo),
-            "rpc" => Some(PermissionNamespace::Rpc),
+            "account" => Some(Self::Account),
+            "blob" => Some(Self::Blob),
+            "identity" => Some(Self::Identity),
+            "include" => Some(Self::Include),
+            "repo" => Some(Self::Repo),
+            "rpc" => Some(Self::Rpc),
             _ => None,
         }
     }
@@ -137,16 +138,16 @@ impl Scope {
     /// - unknown static tokens,
     /// - unknown namespace prefixes,
     /// - empty parameter part (`repo:` with nothing after).
-    pub fn parse(s: &str) -> Result<Scope, ScopeError> {
+    pub fn parse(s: &str) -> Result<Self, ScopeError> {
         if s.is_empty() {
             return Err(ScopeError::Empty);
         }
 
         match s {
-            "atproto" => return Ok(Scope::Atproto),
-            "transition:email" => return Ok(Scope::TransitionEmail),
-            "transition:generic" => return Ok(Scope::TransitionGeneric),
-            "transition:chat.bsky" => return Ok(Scope::TransitionChatBsky),
+            "atproto" => return Ok(Self::Atproto),
+            "transition:email" => return Ok(Self::TransitionEmail),
+            "transition:generic" => return Ok(Self::TransitionGeneric),
+            "transition:chat.bsky" => return Ok(Self::TransitionChatBsky),
             _ => {}
         }
 
@@ -158,7 +159,7 @@ impl Scope {
                         namespace: ns.as_str(),
                     });
                 }
-                return Ok(Scope::Permission {
+                return Ok(Self::Permission {
                     namespace: ns,
                     parameters: tail.to_string(),
                 });
@@ -169,13 +170,14 @@ impl Scope {
     }
 
     /// `true` iff this is one of the four static scopes.
-    pub fn is_static(&self) -> bool {
+    #[must_use]
+    pub const fn is_static(&self) -> bool {
         matches!(
             self,
-            Scope::Atproto
-                | Scope::TransitionEmail
-                | Scope::TransitionGeneric
-                | Scope::TransitionChatBsky
+            Self::Atproto
+                | Self::TransitionEmail
+                | Self::TransitionGeneric
+                | Self::TransitionChatBsky
         )
     }
 }
@@ -183,11 +185,11 @@ impl Scope {
 impl fmt::Display for Scope {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Scope::Atproto => f.write_str("atproto"),
-            Scope::TransitionEmail => f.write_str("transition:email"),
-            Scope::TransitionGeneric => f.write_str("transition:generic"),
-            Scope::TransitionChatBsky => f.write_str("transition:chat.bsky"),
-            Scope::Permission {
+            Self::Atproto => f.write_str("atproto"),
+            Self::TransitionEmail => f.write_str("transition:email"),
+            Self::TransitionGeneric => f.write_str("transition:generic"),
+            Self::TransitionChatBsky => f.write_str("transition:chat.bsky"),
+            Self::Permission {
                 namespace,
                 parameters,
             } => write!(f, "{}:{}", namespace.as_str(), parameters),
@@ -198,7 +200,7 @@ impl fmt::Display for Scope {
 impl FromStr for Scope {
     type Err = ScopeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Scope::parse(s)
+        Self::parse(s)
     }
 }
 
@@ -217,8 +219,9 @@ pub struct ScopeSet {
 
 impl ScopeSet {
     /// Create an empty scope set.
-    pub fn new() -> Self {
-        ScopeSet {
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
             scopes: BTreeSet::new(),
         }
     }
@@ -227,19 +230,20 @@ impl ScopeSet {
     /// token causes the whole parse to fail. Use `parse_lax` if you
     /// want to silently drop unknown tokens (e.g. for forward-compat
     /// when receiving a scope string from a newer AS).
-    pub fn parse(input: &str) -> Result<ScopeSet, ScopeError> {
+    pub fn parse(input: &str) -> Result<Self, ScopeError> {
         let mut set = BTreeSet::new();
         for token in input.split_whitespace() {
             set.insert(Scope::parse(token)?);
         }
-        Ok(ScopeSet { scopes: set })
+        Ok(Self { scopes: set })
     }
 
     /// Parse a space-separated scope string, silently ignoring tokens
     /// that don't parse. Returns `(set, dropped)` where `dropped` is the
     /// list of tokens that failed to parse so a caller can log or
     /// surface them without failing the whole negotiation.
-    pub fn parse_lax(input: &str) -> (ScopeSet, Vec<String>) {
+    #[must_use]
+    pub fn parse_lax(input: &str) -> (Self, Vec<String>) {
         let mut set = BTreeSet::new();
         let mut dropped = Vec::new();
         for token in input.split_whitespace() {
@@ -250,7 +254,7 @@ impl ScopeSet {
                 Err(_) => dropped.push(token.to_string()),
             }
         }
-        (ScopeSet { scopes: set }, dropped)
+        (Self { scopes: set }, dropped)
     }
 
     /// Insert a scope, returning `true` if it was newly added.
@@ -259,16 +263,19 @@ impl ScopeSet {
     }
 
     /// Check membership.
+    #[must_use]
     pub fn contains(&self, scope: &Scope) -> bool {
         self.scopes.contains(scope)
     }
 
     /// Number of scopes in the set.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.scopes.len()
     }
 
     /// `true` if the set is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.scopes.is_empty()
     }
@@ -287,22 +294,26 @@ impl ScopeSet {
 
     /// `true` if the set contains `transition:generic` (legacy broad
     /// repo + blob + rpc access).
+    #[must_use]
     pub fn has_transition_generic(&self) -> bool {
         self.scopes.contains(&Scope::TransitionGeneric)
     }
 
     /// `true` if the set contains `transition:email` (legacy email read).
+    #[must_use]
     pub fn has_transition_email(&self) -> bool {
         self.scopes.contains(&Scope::TransitionEmail)
     }
 
     /// `true` if the set contains `transition:chat.bsky` (legacy chat).
+    #[must_use]
     pub fn has_transition_chat_bsky(&self) -> bool {
         self.scopes.contains(&Scope::TransitionChatBsky)
     }
 
     /// `true` if the set contains the base `atproto` scope. OAuth clients
     /// must always request this; its absence is usually a client bug.
+    #[must_use]
     pub fn has_atproto(&self) -> bool {
         self.scopes.contains(&Scope::Atproto)
     }
@@ -326,7 +337,7 @@ impl fmt::Display for ScopeSet {
 impl FromStr for ScopeSet {
     type Err = ScopeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        ScopeSet::parse(s)
+        Self::parse(s)
     }
 }
 
@@ -510,7 +521,7 @@ mod tests {
     #[test]
     fn scope_set_iter_is_sorted() {
         let set = ScopeSet::parse("rpc:* atproto repo:foo blob:bar").unwrap();
-        let tokens: Vec<String> = set.iter().map(|s| s.to_string()).collect();
+        let tokens: Vec<String> = set.iter().map(std::string::ToString::to_string).collect();
         let mut expected = tokens.clone();
         expected.sort();
         assert_eq!(tokens, expected);

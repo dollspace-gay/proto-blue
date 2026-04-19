@@ -65,18 +65,83 @@ fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
 
 fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     let mut qp = proto_blue_xrpc::QueryParams::new();
-    if let Some(v) = &p.author { qp.insert("author".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.cursor { qp.insert("cursor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.domain { qp.insert("domain".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.lang { qp.insert("lang".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.limit { qp.insert("limit".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.mentions { qp.insert("mentions".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    { let v = &p.q; qp.insert("q".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.since { qp.insert("since".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.sort { qp.insert("sort".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.tag { qp.insert("tag".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.until { qp.insert("until".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.url { qp.insert("url".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    if let Some(v) = &p.author {
+        qp.insert(
+            "author".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.cursor {
+        qp.insert(
+            "cursor".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.domain {
+        qp.insert(
+            "domain".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.lang {
+        qp.insert(
+            "lang".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.limit {
+        qp.insert(
+            "limit".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.mentions {
+        qp.insert(
+            "mentions".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    {
+        let v = &p.q;
+        qp.insert(
+            "q".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.since {
+        qp.insert(
+            "since".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.sort {
+        qp.insert(
+            "sort".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.tag {
+        qp.insert(
+            "tag".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.until {
+        qp.insert(
+            "until".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.url {
+        qp.insert(
+            "url".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
     qp
 }
 
@@ -87,7 +152,10 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<Output, CallError> {
     let qp = params.map(to_query_params);
-    let response = match client.query("app.bsky.feed.searchPosts", qp.as_ref(), opts).await {
+    let response = match client
+        .query("app.bsky.feed.searchPosts", qp.as_ref(), opts)
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -98,12 +166,14 @@ pub async fn call(
 /// Register a typed handler for this method on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.query("app.bsky.feed.searchPosts", move |ctx| {
@@ -111,8 +181,12 @@ where
         async move {
             let params = params_from_ctx(&ctx);
             let out = handler(ctx, params).await?;
-            let value = serde_json::to_value(&out)
-                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            let value = serde_json::to_value(&out).map_err(|e| {
+                proto_blue_xrpc::XrpcServerError::new(
+                    proto_blue_xrpc::ResponseType::InternalServerError,
+                    format!("output serialize: {e}"),
+                )
+            })?;
             Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
         }
     })
@@ -133,9 +207,13 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
         q: (ctx.params.get("q").cloned())?,
         since: ctx.params.get("since").cloned(),
         sort: ctx.params.get("sort").cloned(),
-        tag: Some(ctx.params.get("tag").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        tag: Some(
+            ctx.params
+                .get("tag")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         until: ctx.params.get("until").cloned(),
         url: ctx.params.get("url").cloned(),
     })
 }
-

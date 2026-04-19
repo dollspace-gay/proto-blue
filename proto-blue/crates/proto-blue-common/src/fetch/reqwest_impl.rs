@@ -16,6 +16,7 @@ pub struct ReqwestFetcher {
 
 impl ReqwestFetcher {
     /// Construct with a fresh default `reqwest::Client`.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -24,12 +25,14 @@ impl ReqwestFetcher {
 
     /// Wrap a user-supplied `reqwest::Client` (useful for shared connection
     /// pools, custom TLS, proxies, etc.).
-    pub fn from_client(client: reqwest::Client) -> Self {
+    #[must_use]
+    pub const fn from_client(client: reqwest::Client) -> Self {
         Self { client }
     }
 
     /// Access the inner `reqwest::Client`.
-    pub fn inner(&self) -> &reqwest::Client {
+    #[must_use]
+    pub const fn inner(&self) -> &reqwest::Client {
         &self.client
     }
 }
@@ -131,7 +134,7 @@ mod tests {
 
         let fetcher = ReqwestFetcher::new();
         let resp = fetcher
-            .fetch(HttpRequest::get(format!("http://{}/test", addr)))
+            .fetch(HttpRequest::get(format!("http://{addr}/test")))
             .await
             .unwrap();
         assert_eq!(resp.status, 200);

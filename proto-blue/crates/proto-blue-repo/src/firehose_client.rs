@@ -55,12 +55,12 @@ impl Firehose {
     /// Uses the default keep-alive options (64s max backoff, 10s
     /// heartbeat).
     pub fn new(url: impl Into<String>) -> Self {
-        Firehose::with_opts(url, WebSocketKeepAliveOpts::default())
+        Self::with_opts(url, WebSocketKeepAliveOpts::default())
     }
 
     /// Create a firehose client with custom keep-alive options.
     pub fn with_opts(url: impl Into<String>, opts: WebSocketKeepAliveOpts) -> Self {
-        Firehose {
+        Self {
             ws: WebSocketKeepAlive::new(url, opts),
         }
     }
@@ -113,6 +113,7 @@ impl Firehose {
     }
 
     /// `true` if the underlying WebSocket is currently connected.
+    #[must_use]
     pub fn is_connected(&self) -> bool {
         self.ws.is_connected()
     }
@@ -155,7 +156,7 @@ mod tests {
         LexValue::Map(m)
     }
 
-    /// The frame-bytes → FirehoseEvent path exercised directly.
+    /// The frame-bytes → `FirehoseEvent` path exercised directly.
     ///
     /// This is the entire decode pipeline that `next_event` runs after
     /// it gets bytes from the WS. If this passes, the only thing left

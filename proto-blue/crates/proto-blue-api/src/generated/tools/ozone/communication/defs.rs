@@ -18,4 +18,3 @@ pub struct TemplateView {
     pub subject: Option<String>,
     pub updated_at: String,
 }
-

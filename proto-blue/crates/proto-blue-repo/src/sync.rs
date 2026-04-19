@@ -44,11 +44,13 @@ pub struct VerifiedRepo {
 
 impl VerifiedRepo {
     /// Convenience: return the repo's DID.
+    #[must_use]
     pub fn did(&self) -> &str {
         &self.commit.did
     }
 
     /// Convenience: return the repo's current revision TID.
+    #[must_use]
     pub fn rev(&self) -> &str {
         &self.commit.rev
     }
@@ -58,6 +60,7 @@ impl VerifiedRepo {
     /// Returns `None` if the record's block isn't in the CAR —
     /// possible for partial CARs that only include the MST structure
     /// without record payloads.
+    #[must_use]
     pub fn get_record_bytes(&self, cid: &Cid) -> Option<&[u8]> {
         self.blocks.get(cid)
     }

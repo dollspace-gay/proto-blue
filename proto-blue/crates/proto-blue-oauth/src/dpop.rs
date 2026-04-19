@@ -1,6 +1,6 @@
-//! DPoP (Demonstrating Proof of Possession) — RFC 9449.
+//! `DPoP` (Demonstrating Proof of Possession) — RFC 9449.
 //!
-//! Generates DPoP proof JWTs for OAuth token requests and API calls.
+//! Generates `DPoP` proof JWTs for OAuth token requests and API calls.
 //!
 //! Supported algorithms:
 //! - `ES256` — ECDSA over NIST P-256 + SHA-256 (the OAuth default).
@@ -22,10 +22,10 @@ use sha2::{Digest, Sha256};
 
 use crate::error::OAuthError;
 
-/// Supported DPoP signing algorithms.
+/// Supported `DPoP` signing algorithms.
 ///
 /// These are the two `alg` values that atproto's OAuth spec permits; the
-/// rest of the JOSE zoo (RSA, EdDSA, etc.) is not applicable.
+/// rest of the JOSE zoo (RSA, `EdDSA`, etc.) is not applicable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DpopAlg {
     /// ECDSA over NIST P-256 + SHA-256.
@@ -36,23 +36,25 @@ pub enum DpopAlg {
 
 impl DpopAlg {
     /// The `alg` string used in the JWT header.
-    pub fn header_alg(&self) -> &'static str {
+    #[must_use]
+    pub const fn header_alg(&self) -> &'static str {
         match self {
-            DpopAlg::Es256 => "ES256",
-            DpopAlg::Es256k => "ES256K",
+            Self::Es256 => "ES256",
+            Self::Es256k => "ES256K",
         }
     }
 
     /// The JWK `crv` value for this curve.
-    pub fn jwk_crv(&self) -> &'static str {
+    #[must_use]
+    pub const fn jwk_crv(&self) -> &'static str {
         match self {
-            DpopAlg::Es256 => "P-256",
-            DpopAlg::Es256k => "secp256k1",
+            Self::Es256 => "P-256",
+            Self::Es256k => "secp256k1",
         }
     }
 }
 
-/// A DPoP key pair for signing proofs.
+/// A `DPoP` key pair for signing proofs.
 ///
 /// Carries the curve in `alg` so `build_dpop_proof` can dispatch to the
 /// right signing routine without re-inferring it from the JWK.
@@ -62,18 +64,18 @@ pub struct DpopKey {
     pub alg: DpopAlg,
     /// The signing key (private key in JWK format).
     pub private_jwk: serde_json::Value,
-    /// The public key (public-only JWK; safe to embed in the DPoP header).
+    /// The public key (public-only JWK; safe to embed in the `DPoP` header).
     pub public_jwk: serde_json::Value,
 }
 
 impl DpopKey {
-    /// Generate a new ES256 DPoP key pair (P-256). This is the default
+    /// Generate a new ES256 `DPoP` key pair (P-256). This is the default
     /// for most atproto accounts today.
     pub fn generate() -> Result<Self, OAuthError> {
         Self::generate_es256()
     }
 
-    /// Generate a new ES256 (P-256) DPoP key pair.
+    /// Generate a new ES256 (P-256) `DPoP` key pair.
     pub fn generate_es256() -> Result<Self, OAuthError> {
         use p256::ecdsa::SigningKey;
         use p256::elliptic_curve::rand_core::OsRng;
@@ -97,7 +99,7 @@ impl DpopKey {
         ))
     }
 
-    /// Generate a new ES256K (secp256k1) DPoP key pair.
+    /// Generate a new ES256K (secp256k1) `DPoP` key pair.
     ///
     /// Use this when the account's signing key is secp256k1 (the
     /// alternative to P-256 in atproto). The JWK `crv` field is
@@ -148,7 +150,7 @@ impl DpopKey {
             "d": d_b64,
         });
 
-        DpopKey {
+        Self {
             alg,
             private_jwk,
             public_jwk,
@@ -156,10 +158,10 @@ impl DpopKey {
     }
 }
 
-/// Build a DPoP proof JWT.
+/// Build a `DPoP` proof JWT.
 ///
 /// Parameters:
-/// - `key`: The DPoP signing key (any supported `DpopAlg`)
+/// - `key`: The `DPoP` signing key (any supported `DpopAlg`)
 /// - `htm`: HTTP method (e.g. `"POST"`)
 /// - `htu`: HTTP URI (without query/fragment)
 /// - `nonce`: Optional server-provided `DPoP-Nonce`
@@ -242,6 +244,7 @@ pub fn build_dpop_proof(
 }
 
 /// Generate a random nonce string (128 bits of entropy, base64url-encoded).
+#[must_use]
 pub fn generate_nonce() -> String {
     let mut bytes = [0u8; 16];
     rand::thread_rng().fill_bytes(&mut bytes);

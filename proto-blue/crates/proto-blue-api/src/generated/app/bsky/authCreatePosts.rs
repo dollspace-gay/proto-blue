@@ -2,4 +2,3 @@
 //! Lexicon: app.bsky.authCreatePosts
 
 use serde::{Deserialize, Serialize};
-

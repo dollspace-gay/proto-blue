@@ -1,6 +1,6 @@
 //! OAuth 2.0 client for AT Protocol.
 //!
-//! Implements the full OAuth authorization code flow with PKCE, DPoP, and PAR.
+//! Implements the full OAuth authorization code flow with PKCE, `DPoP`, and PAR.
 //!
 //! HTTP transport is abstracted behind
 //! [`proto_blue_common::fetch::FetchHandler`] so the same flow drives
@@ -19,18 +19,20 @@ use crate::types::{
     AuthState, OAuthClientMetadata, OAuthServerMetadata, OAuthTokenResponse, ParResponse, TokenSet,
 };
 
-/// Per-origin DPoP nonce cache.
+/// Per-origin `DPoP` nonce cache.
 #[derive(Debug, Clone, Default)]
 pub struct DpopNonceCache {
     nonces: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl DpopNonceCache {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Get the cached nonce for an origin.
+    #[must_use]
     pub fn get(&self, origin: &str) -> Option<String> {
         self.nonces.lock().ok()?.get(origin).cloned()
     }
@@ -47,16 +49,16 @@ impl DpopNonceCache {
 ///
 /// Handles the full authorization code flow:
 /// 1. Discover authorization server metadata
-/// 2. Build authorization URL (with PKCE + DPoP, optional PAR)
+/// 2. Build authorization URL (with PKCE + `DPoP`, optional PAR)
 /// 3. Exchange authorization code for tokens
 /// 4. Refresh tokens when they expire
 /// 5. Revoke tokens on sign-out
 pub struct OAuthClient {
-    /// Client metadata (client_id, redirect_uris, etc.).
+    /// Client metadata (`client_id`, `redirect_uris`, etc.).
     pub client_metadata: OAuthClientMetadata,
     /// HTTP transport.
     fetcher: Arc<dyn FetchHandler>,
-    /// DPoP nonce cache (per-origin).
+    /// `DPoP` nonce cache (per-origin).
     dpop_nonces: DpopNonceCache,
     /// Optional signing keyset for `private_key_jwt` client auth. When
     /// set, token-endpoint requests include a signed `client_assertion`
@@ -71,6 +73,7 @@ impl OAuthClient {
     /// `reqwest::Client` is constructed internally. Otherwise the caller
     /// must use [`Self::with_fetch_handler`].
     #[cfg(feature = "fetch-reqwest")]
+    #[must_use]
     pub fn new(client_metadata: OAuthClientMetadata) -> Self {
         Self::with_fetch_handler(
             client_metadata,
@@ -83,6 +86,7 @@ impl OAuthClient {
     /// Back-compat constructor — wraps the client in a
     /// [`proto_blue_common::fetch::ReqwestFetcher`].
     #[cfg(feature = "fetch-reqwest")]
+    #[must_use]
     pub fn with_http_client(client_metadata: OAuthClientMetadata, http: reqwest::Client) -> Self {
         Self::with_fetch_handler(
             client_metadata,
@@ -98,7 +102,7 @@ impl OAuthClient {
         client_metadata: OAuthClientMetadata,
         fetcher: Arc<dyn FetchHandler>,
     ) -> Self {
-        OAuthClient {
+        Self {
             client_metadata,
             fetcher,
             dpop_nonces: DpopNonceCache::new(),
@@ -115,6 +119,7 @@ impl OAuthClient {
     /// advertise a compatible `token_endpoint_auth_signing_alg_values_supported`
     /// — in that case the client silently falls back to public-client
     /// (DPoP-only) auth, matching the TS SDK's behaviour.
+    #[must_use]
     pub fn with_keyset(mut self, keyset: crate::jwt_assertion::ClientKeyset) -> Self {
         self.keyset = Some(Arc::new(keyset));
         self
@@ -262,8 +267,17 @@ impl OAuthClient {
             )));
         }
         // Content-type validation — atproto requires strict JSON.
-        let ct = resp.header("content-type").unwrap_or("").to_ascii_lowercase();
-        if !ct.split(';').next().unwrap_or("").trim().eq("application/json") {
+        let ct = resp
+            .header("content-type")
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if !ct
+            .split(';')
+            .next()
+            .unwrap_or("")
+            .trim()
+            .eq("application/json")
+        {
             return Err(OAuthError::Other(format!(
                 "protected-resource metadata must be application/json, got {ct:?}",
             )));
@@ -415,7 +429,10 @@ impl OAuthClient {
             .await?;
 
         // Check for DPoP nonce requirement
-        if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
+        if let Some(nonce_str) = resp
+            .header("dpop-nonce")
+            .map(std::string::ToString::to_string)
+        {
             if let Ok(origin) = Url::parse(par_endpoint).map(|u| u.origin().ascii_serialization()) {
                 self.dpop_nonces.set(&origin, &nonce_str);
             }
@@ -494,7 +511,7 @@ impl OAuthClient {
     /// Variant of [`Self::callback_with_iss`] that records the
     /// resource-server (PDS) URL onto the returned [`TokenSet`] as
     /// `aud`. Pass the PDS URL discovered during identity resolution;
-    /// DPoP proofs on subsequent resource-server requests bind `htu`
+    /// `DPoP` proofs on subsequent resource-server requests bind `htu`
     /// to that audience so a stolen token can't be replayed elsewhere.
     pub async fn callback_with_iss_and_aud(
         &self,
@@ -625,7 +642,10 @@ impl OAuthClient {
         //      header, which looks similar but misidentifies genuine
         //      400s (bad form data) as nonce-retry candidates and
         //      silently double-fires the request.
-        if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
+        if let Some(nonce_str) = resp
+            .header("dpop-nonce")
+            .map(std::string::ToString::to_string)
+        {
             if let Ok(origin) = Url::parse(token_endpoint).map(|u| u.origin().ascii_serialization())
             {
                 self.dpop_nonces.set(&origin, &nonce_str);
@@ -681,7 +701,10 @@ impl OAuthClient {
         // Handle DPoP nonce rotation. Same discriminator logic as
         // `exchange_code` — see the comment there for why we inspect
         // the body instead of treating every 400 as a nonce retry.
-        if let Some(nonce_str) = resp.header("dpop-nonce").map(|s| s.to_string()) {
+        if let Some(nonce_str) = resp
+            .header("dpop-nonce")
+            .map(std::string::ToString::to_string)
+        {
             if let Ok(origin) = Url::parse(token_endpoint).map(|u| u.origin().ascii_serialization())
             {
                 self.dpop_nonces.set(&origin, &nonce_str);
@@ -749,12 +772,13 @@ impl OAuthClient {
         Ok(())
     }
 
-    /// Get a reference to the DPoP nonce cache.
-    pub fn dpop_nonces(&self) -> &DpopNonceCache {
+    /// Get a reference to the `DPoP` nonce cache.
+    #[must_use]
+    pub const fn dpop_nonces(&self) -> &DpopNonceCache {
         &self.dpop_nonces
     }
 
-    /// POST an `application/x-www-form-urlencoded` body. Optional DPoP
+    /// POST an `application/x-www-form-urlencoded` body. Optional `DPoP`
     /// proof header is threaded through — the call sites that need it
     /// pass `Some(&proof)`, the revocation endpoint passes `None`.
     async fn post_form(
@@ -783,7 +807,7 @@ fn encode_form<'a>(pairs: impl IntoIterator<Item = (&'a str, &'a str)>) -> Strin
     s.finish()
 }
 
-/// Reconstruct a DpopKey from a stored private JWK.
+/// Reconstruct a `DpopKey` from a stored private JWK.
 ///
 /// Infers the algorithm from the JWK's `crv` field: `P-256` → ES256,
 /// `secp256k1` → ES256K (RFC 8812). Anything else is rejected — we
@@ -895,7 +919,7 @@ pub fn validate_client_metadata(meta: &OAuthClientMetadata) -> Result<(), OAuthE
 }
 
 /// `true` if a 4xx response signals that the client must retry with
-/// the server-supplied DPoP nonce.
+/// the server-supplied `DPoP` nonce.
 ///
 /// RFC 9449 §8.2: the authorization server returns
 /// `{"error":"use_dpop_nonce"}` (400 at AS token/PAR endpoints, 401
@@ -1030,7 +1054,7 @@ mod tests {
         let state = AuthState {
             issuer: "https://bsky.social".into(),
             verifier: "test-verifier".into(),
-            dpop_key: key.private_jwk.clone(),
+            dpop_key: key.private_jwk,
             app_state: Some("state-123".into()),
         };
 

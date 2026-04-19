@@ -16,11 +16,13 @@ pub struct CidSet {
 
 impl CidSet {
     /// Create a new empty CID set.
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Create a CID set from a list of CIDs.
+    #[must_use]
     pub fn from_cids(cids: &[Cid]) -> Self {
         let mut s = Self::new();
         for cid in cids {
@@ -36,7 +38,7 @@ impl CidSet {
     }
 
     /// Merge another set into this one (union).
-    pub fn add_set(&mut self, other: &CidSet) -> &mut Self {
+    pub fn add_set(&mut self, other: &Self) -> &mut Self {
         for (k, v) in &other.set {
             self.set.insert(k.clone(), v.clone());
         }
@@ -44,7 +46,7 @@ impl CidSet {
     }
 
     /// Remove all CIDs in `other` from this set (difference).
-    pub fn subtract_set(&mut self, other: &CidSet) -> &mut Self {
+    pub fn subtract_set(&mut self, other: &Self) -> &mut Self {
         for k in other.set.keys() {
             self.set.remove(k);
         }
@@ -58,16 +60,19 @@ impl CidSet {
     }
 
     /// Check if a CID is in the set.
+    #[must_use]
     pub fn has(&self, cid: &Cid) -> bool {
         self.set.contains_key(&cid.to_string_base32())
     }
 
     /// Get the number of CIDs in the set.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.set.len()
     }
 
     /// Check if the set is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.set.is_empty()
     }
@@ -83,8 +88,9 @@ impl CidSet {
     }
 
     /// Convert to a list of CID strings.
+    #[must_use]
     pub fn to_strings(&self) -> Vec<&str> {
-        self.set.keys().map(|s| s.as_str()).collect()
+        self.set.keys().map(std::string::String::as_str).collect()
     }
 }
 
@@ -150,7 +156,7 @@ mod tests {
         let mut set = CidSet::new();
         let cid = test_cid();
         set.add(cid.clone());
-        set.add(cid.clone());
+        set.add(cid);
         assert_eq!(set.len(), 1);
     }
 }

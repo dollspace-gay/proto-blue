@@ -16,8 +16,9 @@ pub struct ModerationDecision {
 
 impl ModerationDecision {
     /// Create a new empty decision.
+    #[must_use]
     pub fn new(did: &str, is_me: bool) -> Self {
-        ModerationDecision {
+        Self {
             did: did.to_string(),
             is_me,
             causes: Vec::new(),
@@ -25,11 +26,12 @@ impl ModerationDecision {
     }
 
     /// Merge multiple decisions into one (flattening all causes).
-    pub fn merge(decisions: Vec<ModerationDecision>) -> ModerationDecision {
+    #[must_use]
+    pub fn merge(decisions: Vec<Self>) -> Self {
         let did = decisions.first().map(|d| d.did.clone()).unwrap_or_default();
-        let is_me = decisions.first().map(|d| d.is_me).unwrap_or(false);
+        let is_me = decisions.first().is_some_and(|d| d.is_me);
         let causes = decisions.into_iter().flat_map(|d| d.causes).collect();
-        ModerationDecision { did, is_me, causes }
+        Self { did, is_me, causes }
     }
 
     /// Mark all causes as downgraded (used for quoted/embedded content).
@@ -133,12 +135,13 @@ impl ModerationDecision {
     }
 
     /// Generate the moderation UI for a given context.
+    #[must_use]
     pub fn ui(&self, context: UiContext) -> ModerationUi {
         let mut ui = ModerationUi::default();
 
         // Sort causes by priority (lower = higher priority)
         let mut sorted_causes = self.causes.clone();
-        sorted_causes.sort_by_key(|c| c.priority());
+        sorted_causes.sort_by_key(super::types::ModerationCause::priority);
 
         for cause in &sorted_causes {
             match cause {
@@ -311,14 +314,12 @@ fn calculate_label_priority(
         .behaviors
         .account
         .profile_view
-        .map(|v| v == BehaviorValue::Blur)
-        .unwrap_or(false)
+        .is_some_and(|v| v == BehaviorValue::Blur)
         || label_def
             .behaviors
             .account
             .content_view
-            .map(|v| v == BehaviorValue::Blur)
-            .unwrap_or(false);
+            .is_some_and(|v| v == BehaviorValue::Blur);
 
     if has_profile_blur {
         return 5;
@@ -328,14 +329,12 @@ fn calculate_label_priority(
         .behaviors
         .content
         .content_list
-        .map(|v| v == BehaviorValue::Blur)
-        .unwrap_or(false)
+        .is_some_and(|v| v == BehaviorValue::Blur)
         || label_def
             .behaviors
             .content
             .content_media
-            .map(|v| v == BehaviorValue::Blur)
-            .unwrap_or(false);
+            .is_some_and(|v| v == BehaviorValue::Blur);
 
     if has_content_blur {
         return 7;

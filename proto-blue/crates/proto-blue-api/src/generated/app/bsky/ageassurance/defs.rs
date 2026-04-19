@@ -129,4 +129,3 @@ pub const Status_UNKNOWN: &str = "unknown";
 pub const Status_PENDING: &str = "pending";
 pub const Status_ASSURED: &str = "assured";
 pub const Status_BLOCKED: &str = "blocked";
-

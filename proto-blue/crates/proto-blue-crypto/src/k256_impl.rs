@@ -24,19 +24,20 @@ impl K256Keypair {
     /// Generate a new random secp256k1 keypair.
     pub fn generate() -> Self {
         let signing_key = SigningKey::random(&mut OsRng);
-        K256Keypair { signing_key }
+        Self { signing_key }
     }
 
     /// Create a keypair from raw private key bytes (32 bytes).
     pub fn from_private_key(bytes: &[u8]) -> Result<Self, CryptoError> {
         let secret_key =
             SecretKey::from_slice(bytes).map_err(|e| CryptoError::InvalidKey(e.to_string()))?;
-        Ok(K256Keypair {
+        Ok(Self {
             signing_key: SigningKey::from(secret_key),
         })
     }
 
     /// Return the verifying (public) key.
+    #[must_use]
     pub fn verifying_key(&self) -> VerifyingKey {
         *self.signing_key.verifying_key()
     }
@@ -57,7 +58,7 @@ impl K256Keypair {
 }
 
 impl keypair::Signer for K256Keypair {
-    fn jwt_alg(&self) -> &str {
+    fn jwt_alg(&self) -> &'static str {
         "ES256K"
     }
 

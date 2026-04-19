@@ -3,7 +3,6 @@
 //! Handles are domain-name-like identifiers (e.g., `alice.bsky.social`).
 //! See: <https://atproto.com/specs/handle>
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -29,7 +28,7 @@ pub const DISALLOWED_TLDS: &[&str] = &[
     ".onion",
 ];
 
-static HANDLE_REGEX: Lazy<Regex> = Lazy::new(|| {
+static HANDLE_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$",
     )
@@ -53,25 +52,29 @@ impl Handle {
     /// Create a new `Handle` from a string, validating the format.
     pub fn new(s: &str) -> Result<Self, InvalidHandleError> {
         ensure_valid_handle(s)?;
-        Ok(Handle(s.to_ascii_lowercase()))
+        Ok(Self(s.to_ascii_lowercase()))
     }
 
     /// Check whether a string is a valid handle without allocating.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
         ensure_valid_handle(s).is_ok()
     }
 
     /// Return the inner string (always lowercase).
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consume and return the inner string.
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
 
     /// Check if this is the canonical invalid handle.
+    #[must_use]
     pub fn is_invalid_handle(&self) -> bool {
         self.0 == HANDLE_INVALID
     }
@@ -86,14 +89,13 @@ impl Handle {
 pub fn is_valid_tld(handle: impl AsRef<str>) -> bool {
     let h = handle.as_ref();
     let lower = h.to_ascii_lowercase();
-    !DISALLOWED_TLDS
-        .iter()
-        .any(|suffix| lower.ends_with(suffix))
+    !DISALLOWED_TLDS.iter().any(|suffix| lower.ends_with(suffix))
 }
 
 /// Normalise a raw handle string to its canonical form (ASCII
 /// lowercase). Does **not** validate the handle — use [`Handle::new`]
 /// if you want validation. Mirrors TS `normalizeHandle`.
+#[must_use]
 pub fn normalize_handle(s: &str) -> String {
     s.to_ascii_lowercase()
 }
@@ -164,7 +166,7 @@ impl fmt::Display for Handle {
 impl FromStr for Handle {
     type Err = InvalidHandleError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Handle::new(s)
+        Self::new(s)
     }
 }
 
@@ -183,7 +185,7 @@ impl serde::Serialize for Handle {
 impl<'de> serde::Deserialize<'de> for Handle {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Handle::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

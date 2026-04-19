@@ -32,15 +32,15 @@ pub mod tid_gen;
 pub mod times;
 
 pub use cancel::{CancelError, CancellationToken, cancellable, cancellable_infallible};
-pub use fetch::{FetchError, FetchHandler, HttpHeaders, HttpMethod, HttpRequest, HttpResponse};
-pub use obfuscate::{
-    obfuscate_auth_header, obfuscate_basic, obfuscate_bearer, obfuscate_email, obfuscate_headers,
-    obfuscate_jwt, obfuscate_token, obfuscate_word,
-};
 pub use did_doc::{
     DidDocument, Service, SigningKey, VerificationMethod, get_did, get_feed_gen_endpoint,
     get_handle, get_notif_endpoint, get_pds_endpoint, get_signing_did_key, get_signing_key,
     parse_did_document,
+};
+pub use fetch::{FetchError, FetchHandler, HttpHeaders, HttpMethod, HttpRequest, HttpResponse};
+pub use obfuscate::{
+    obfuscate_auth_header, obfuscate_basic, obfuscate_bearer, obfuscate_email, obfuscate_headers,
+    obfuscate_jwt, obfuscate_token, obfuscate_word,
 };
 pub use retry::{RetryOptions, backoff_ms, retry, retry_all};
 pub use strings::{grapheme_len, utf8_len};

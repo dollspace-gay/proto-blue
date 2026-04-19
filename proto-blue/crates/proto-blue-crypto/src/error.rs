@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn debug_formatting() {
         let err = CryptoError::InvalidKey("test".into());
-        let debug = format!("{:?}", err);
+        let debug = format!("{err:?}");
         assert!(
             debug.contains("InvalidKey"),
             "Debug output should contain variant name, got: {debug}"
@@ -121,7 +121,7 @@ mod tests {
             ("DecodeError", CryptoError::DecodeError("x".into())),
         ];
         for (name, err) in &variants {
-            let debug = format!("{:?}", err);
+            let debug = format!("{err:?}");
             assert!(
                 debug.contains(name),
                 "Debug for {name} should contain variant name, got: {debug}"

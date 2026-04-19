@@ -9,7 +9,7 @@
 //!
 //! Every test stands up a one-shot or sequenced mock HTTP server on
 //! 127.0.0.1 and asserts on the wire-level request the client emits
-//! (headers, path, form fields, DPoP proof) and on how the client
+//! (headers, path, form fields, `DPoP` proof) and on how the client
 //! interprets the response (success, nonce rotation, error mapping).
 
 mod common;
@@ -167,8 +167,7 @@ async fn metadata_happy_path() {
     assert!(
         headers
             .get("accept")
-            .map(|v| v.contains("application/json"))
-            .unwrap_or(false),
+            .is_some_and(|v| v.contains("application/json")),
         "expected Accept: application/json in headers: {headers:?}"
     );
 }
@@ -287,7 +286,7 @@ async fn authorize_without_par_builds_direct_url() {
     assert!(!has("request_uri"));
 }
 
-/// With a PAR endpoint, `authorize` must (1) POST to it with a DPoP
+/// With a PAR endpoint, `authorize` must (1) POST to it with a `DPoP`
 /// header and form-encoded auth params, (2) receive the `request_uri`
 /// in the JSON response, and (3) emit an authorization URL carrying
 /// only `request_uri` and `client_id`. This is the whole acceptance
@@ -353,7 +352,7 @@ async fn authorize_with_par_posts_and_uses_request_uri() {
 }
 
 /// RFC 9449 §8: if the PAR endpoint responds 400 with a `DPoP-Nonce`
-/// header, the client must retry with that nonce embedded in the DPoP
+/// header, the client must retry with that nonce embedded in the `DPoP`
 /// proof. A follow-up success must be accepted and the nonce cached.
 #[tokio::test]
 async fn authorize_with_par_retries_on_nonce_challenge() {
@@ -524,8 +523,8 @@ async fn token_exchange_surfaces_server_errors() {
 
 /// Refresh-token flow:
 /// - POST with `grant_type=refresh_token` + `refresh_token` field,
-/// - DPoP proof present,
-/// - new TokenSet returned.
+/// - `DPoP` proof present,
+/// - new `TokenSet` returned.
 #[tokio::test]
 async fn refresh_token_posts_correct_form_and_updates_set() {
     let (token_base, cap) = spawn_oneshot(Reply::json(
@@ -681,7 +680,7 @@ async fn revoke_without_endpoint_errors() {
     assert!(matches!(err, OAuthError::MissingField(_)));
 }
 
-/// `OAuthSession::refresh` must wire a fresh TokenSet into the session's
+/// `OAuthSession::refresh` must wire a fresh `TokenSet` into the session's
 /// mutex and make it visible on the next `session.token_set()` read.
 #[tokio::test]
 async fn session_refresh_updates_token_set_in_place() {

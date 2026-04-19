@@ -8,6 +8,7 @@
 use rand::{Rng, RngCore, SeedableRng};
 
 /// Generate `n` cryptographically secure random bytes.
+#[must_use]
 pub fn random_bytes(n: usize) -> Vec<u8> {
     let mut out = vec![0u8; n];
     rand::rngs::OsRng.fill_bytes(&mut out);
@@ -22,6 +23,7 @@ pub fn random_bytes(n: usize) -> Vec<u8> {
 /// - `"base58"` — bitcoin-style base58btc
 /// - `"base64"` — standard base64 (no padding)
 /// - `"base64url"` — URL-safe base64 (no padding)
+#[must_use]
 pub fn random_str(n: usize, encoding: StrEncoding) -> String {
     let bytes = random_bytes(n);
     match encoding {
@@ -60,9 +62,10 @@ pub enum StrEncoding {
 /// Produce a deterministic pseudo-random integer in `[low, high)` from
 /// a byte seed. Mirrors TS `randomIntFromSeed(seed, high, low)`.
 ///
-/// Uses ChaCha20 seeded from the SHA-256 of `seed`. Not for
+/// Uses `ChaCha20` seeded from the SHA-256 of `seed`. Not for
 /// cryptographic use (that's what [`random_bytes`] is for) — this is
 /// for **reproducible** load-balancing, sharding, and shuffle seeds.
+#[must_use]
 pub fn random_int_from_seed(seed: &[u8], low: i64, high: i64) -> i64 {
     assert!(high > low, "random_int_from_seed: high must exceed low");
     let hash = super::sha::sha256(seed);
@@ -80,7 +83,7 @@ fn base32_encode(bytes: &[u8]) -> String {
     let mut bits: u16 = 0;
     let mut bit_count: u8 = 0;
     for &b in bytes {
-        bits = (bits << 8) | b as u16;
+        bits = (bits << 8) | u16::from(b);
         bit_count += 8;
         while bit_count >= 5 {
             let idx = (bits >> (bit_count - 5)) & 0x1f;
@@ -119,7 +122,10 @@ mod tests {
     fn random_str_hex_length() {
         let s = random_str(16, StrEncoding::Hex);
         assert_eq!(s.len(), 32);
-        assert!(s.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()));
+        assert!(
+            s.chars()
+                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
+        );
     }
 
     #[test]
@@ -152,7 +158,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "high must exceed low")]
     fn random_int_from_seed_panics_on_empty_range() {
-        random_int_from_seed(b"x", 0, 0);
+        let _ = random_int_from_seed(b"x", 0, 0);
     }
 
     #[test]

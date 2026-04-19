@@ -11,6 +11,7 @@
 /// Does *not* attempt full RFC 3986 parsing: atproto needs to match
 /// `did:`, `at:`, `https:`, `mailto:`, `http:`, etc. without pulling
 /// in a full URL parser at the syntax layer.
+#[must_use]
 pub fn is_valid_uri(s: &str) -> bool {
     let Some((scheme, rest)) = s.split_once(':') else {
         return false;

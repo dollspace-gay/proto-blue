@@ -9,7 +9,10 @@ use proto_blue_lex_data::{Cid, LexValue};
 
 use crate::error::{ValidationError, ValidationResult};
 use crate::lexicons::Lexicons;
-use crate::types::*;
+use crate::types::{
+    LexArray, LexBlob, LexBoolean, LexBytes, LexInteger, LexObject, LexRecord, LexRef, LexRefUnion,
+    LexString, LexUserType,
+};
 
 /// Validate a record value against a lexicon record definition.
 ///
@@ -23,7 +26,7 @@ pub fn validate_record(lexicons: &Lexicons, def: &LexRecord, value: &LexValue) -
     validate_object(lexicons, "record", &def.record, map)
 }
 
-/// Validate an object (map) against a LexObject schema.
+/// Validate an object (map) against a `LexObject` schema.
 pub fn validate_object(
     lexicons: &Lexicons,
     path: &str,
@@ -56,7 +59,7 @@ pub fn validate_object(
     Ok(())
 }
 
-/// Validate a value against a LexUserType definition.
+/// Validate a value against a `LexUserType` definition.
 pub fn validate_value(
     lexicons: &Lexicons,
     path: &str,
@@ -305,7 +308,9 @@ fn validate_blob(path: &str, def: &LexBlob, value: &LexValue) -> ValidationResul
     // allowed (matches TS).
     if let Some(accepts) = &def.accept
         && !accepts.is_empty()
-        && !accepts.iter().any(|pat| matches_mime_pattern(pat, mime_type))
+        && !accepts
+            .iter()
+            .any(|pat| matches_mime_pattern(pat, mime_type))
     {
         return Err(ValidationError::new(
             path,
@@ -342,19 +347,14 @@ fn extract_blob_shape<'a>(
     if type_tag == Some("blob") {
         // Typed form — must have `ref` (CID) and `size` (int).
         if map.get("ref").and_then(|v| v.as_cid()).is_none() {
-            return Err(ValidationError::new(
-                path,
-                "typed blob missing \"ref\" CID",
-            ));
+            return Err(ValidationError::new(path, "typed blob missing \"ref\" CID"));
         }
-        let size = map.get("size").and_then(|v| v.as_integer()).ok_or_else(|| {
-            ValidationError::new(path, "typed blob missing \"size\"")
-        })?;
+        let size = map
+            .get("size")
+            .and_then(proto_blue_lex_data::LexValue::as_integer)
+            .ok_or_else(|| ValidationError::new(path, "typed blob missing \"size\""))?;
         if size < 0 {
-            return Err(ValidationError::new(
-                path,
-                "blob size cannot be negative",
-            ));
+            return Err(ValidationError::new(path, "blob size cannot be negative"));
         }
         return Ok((mime_type, Some(size as u64)));
     }
@@ -488,7 +488,7 @@ mod tests {
     fn make_lexicons() -> Lexicons {
         let mut lex = Lexicons::new();
         lex.add_from_json(
-            r##"{
+            r#"{
             "lexicon": 1,
             "id": "com.example.post",
             "defs": {
@@ -517,7 +517,7 @@ mod tests {
                     }
                 }
             }
-        }"##,
+        }"#,
         )
         .unwrap();
         lex
@@ -623,7 +623,7 @@ mod tests {
     fn blob_lex() -> Lexicons {
         let mut lex = Lexicons::new();
         lex.add_from_json(
-            r##"{
+            r#"{
             "lexicon": 1,
             "id": "com.example.upload",
             "defs": {
@@ -639,7 +639,7 @@ mod tests {
                     }
                 }
             }
-        }"##,
+        }"#,
         )
         .unwrap();
         lex
@@ -764,7 +764,7 @@ mod tests {
     fn xrpc_lex() -> Lexicons {
         let mut lex = Lexicons::new();
         lex.add_from_json(
-            r##"{
+            r#"{
             "lexicon": 1,
             "id": "com.example.echo",
             "defs": {
@@ -800,7 +800,7 @@ mod tests {
                     }
                 }
             }
-        }"##,
+        }"#,
         )
         .unwrap();
         lex
@@ -813,7 +813,10 @@ mod tests {
         params.insert("actor".into(), LexValue::String("alice.bsky.social".into()));
         params.insert("limit".into(), LexValue::Integer(42));
         let value = LexValue::Map(params);
-        assert!(lex.assert_valid_xrpc_params("com.example.echo", &value).is_ok());
+        assert!(
+            lex.assert_valid_xrpc_params("com.example.echo", &value)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -821,7 +824,10 @@ mod tests {
         let lex = xrpc_lex();
         let params = BTreeMap::new();
         let value = LexValue::Map(params);
-        assert!(lex.assert_valid_xrpc_params("com.example.echo", &value).is_err());
+        assert!(
+            lex.assert_valid_xrpc_params("com.example.echo", &value)
+                .is_err()
+        );
     }
 
     #[test]
@@ -831,7 +837,10 @@ mod tests {
         params.insert("actor".into(), LexValue::String("alice.bsky.social".into()));
         params.insert("limit".into(), LexValue::Integer(500));
         let value = LexValue::Map(params);
-        assert!(lex.assert_valid_xrpc_params("com.example.echo", &value).is_err());
+        assert!(
+            lex.assert_valid_xrpc_params("com.example.echo", &value)
+                .is_err()
+        );
     }
 
     #[test]
@@ -840,7 +849,10 @@ mod tests {
         let mut body = BTreeMap::new();
         body.insert("text".into(), LexValue::String("hello".into()));
         let value = LexValue::Map(body);
-        assert!(lex.assert_valid_xrpc_input("com.example.echo", &value).is_ok());
+        assert!(
+            lex.assert_valid_xrpc_input("com.example.echo", &value)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -849,7 +861,10 @@ mod tests {
         let mut body = BTreeMap::new();
         body.insert("ok".into(), LexValue::Bool(true));
         let value = LexValue::Map(body);
-        assert!(lex.assert_valid_xrpc_output("com.example.echo", &value).is_ok());
+        assert!(
+            lex.assert_valid_xrpc_output("com.example.echo", &value)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -858,7 +873,8 @@ mod tests {
         let body = LexValue::Map(BTreeMap::new());
         // echo is a procedure, not a subscription — message should fail.
         assert!(
-            lex.assert_valid_xrpc_message("com.example.echo", &body).is_err()
+            lex.assert_valid_xrpc_message("com.example.echo", &body)
+                .is_err()
         );
     }
 
@@ -869,7 +885,7 @@ mod tests {
         let mut lex = Lexicons::new();
         let err = lex
             .add_from_json(
-                r##"{
+                r#"{
                     "lexicon": 1,
                     "id": "com.example.bad",
                     "defs": {
@@ -884,7 +900,7 @@ mod tests {
                             }
                         }
                     }
-                }"##,
+                }"#,
             )
             .unwrap_err();
         assert!(
@@ -898,7 +914,7 @@ mod tests {
         let mut lex = Lexicons::new();
         let err = lex
             .add_from_json(
-                r##"{
+                r#"{
                     "lexicon": 1,
                     "id": "com.example.bad",
                     "defs": {
@@ -907,7 +923,7 @@ mod tests {
                             "record": {"type": "object", "properties": {}}
                         }
                     }
-                }"##,
+                }"#,
             )
             .unwrap_err();
         assert!(matches!(err, crate::LexiconError::InvalidSchema(_)));

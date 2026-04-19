@@ -42,6 +42,7 @@ pub fn parse_data_key(key: &str) -> Result<DataKey, DataKeyError> {
 /// Join an NSID and record key into an MST key. Does not validate —
 /// assumes inputs are already valid (typical usage is building from
 /// known-good `Nsid` / `RecordKey` values).
+#[must_use]
 pub fn format_data_key(collection: &str, rkey: &str) -> String {
     format!("{collection}/{rkey}")
 }

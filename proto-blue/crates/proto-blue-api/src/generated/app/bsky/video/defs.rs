@@ -18,4 +18,3 @@ pub struct JobStatus {
     pub progress: Option<i64>,
     pub state: String,
 }
-

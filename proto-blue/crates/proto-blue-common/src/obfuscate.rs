@@ -24,6 +24,7 @@ const BASE64_URL: base64::engine::GeneralPurpose = base64::engine::GeneralPurpos
 /// # use proto_blue_common::obfuscate::obfuscate_email;
 /// assert_eq!(obfuscate_email("alice@example.com"), "a***e@e***m");
 /// ```
+#[must_use]
 pub fn obfuscate_email(email: &str) -> String {
     match email.split_once('@') {
         Some((local, domain)) => format!("{}@{}", obfuscate_word(local), obfuscate_word(domain)),
@@ -34,22 +35,20 @@ pub fn obfuscate_email(email: &str) -> String {
 /// Redact any word by keeping the first + last character and
 /// replacing the middle with `***`. Short inputs (< 2 chars) fall
 /// back to `***`.
+#[must_use]
 pub fn obfuscate_word(word: &str) -> String {
     let chars: Vec<char> = word.chars().collect();
     match chars.len() {
         0 => String::new(),
         1 => format!("{}***", chars[0]),
-        _ => format!(
-            "{}***{}",
-            chars.first().unwrap(),
-            chars.last().unwrap(),
-        ),
+        _ => format!("{}***{}", chars.first().unwrap(), chars.last().unwrap()),
     }
 }
 
 /// Redact a map of HTTP headers. Keys are compared case-insensitively;
 /// `authorization` and `dpop` get special handling. All other headers
 /// pass through unchanged.
+#[must_use]
 pub fn obfuscate_headers(
     headers: &std::collections::BTreeMap<String, String>,
 ) -> std::collections::BTreeMap<String, String> {
@@ -74,6 +73,7 @@ pub fn obfuscate_headers(
 /// `Basic <base64>`. Unknown auth schemes return `"Invalid"` so the
 /// log line records that an auth header was present without leaking
 /// it.
+#[must_use]
 pub fn obfuscate_auth_header(auth_header: &str) -> String {
     let Some(space_idx) = auth_header.find(' ') else {
         return "Invalid".to_string();
@@ -93,6 +93,7 @@ pub fn obfuscate_auth_header(auth_header: &str) -> String {
 
 /// Redact an HTTP Basic `base64(user:pass)` value to `user:***`.
 /// Returns `None` for invalid base64 or missing `:`.
+#[must_use]
 pub fn obfuscate_basic(token: &str) -> Option<String> {
     if token.is_empty() {
         return None;
@@ -109,6 +110,7 @@ pub fn obfuscate_basic(token: &str) -> Option<String> {
 
 /// Redact a bearer-style token: JWT by `sub`, otherwise by
 /// [`obfuscate_token`].
+#[must_use]
 pub fn obfuscate_bearer(token: &str) -> String {
     obfuscate_jwt(token).unwrap_or_else(|| obfuscate_token(token))
 }
@@ -116,6 +118,7 @@ pub fn obfuscate_bearer(token: &str) -> String {
 /// Redact an opaque bearer token. Long tokens (≥ 12 chars) get the
 /// same first+last treatment as [`obfuscate_word`]; shorter ones
 /// collapse to `***` (empty stays empty).
+#[must_use]
 pub fn obfuscate_token(token: &str) -> String {
     if token.chars().count() >= 12 {
         obfuscate_word(token)
@@ -132,6 +135,7 @@ pub fn obfuscate_token(token: &str) -> String {
 ///
 /// Matches TS's behaviour: an invalid JWT returns `None`; a valid
 /// JWT without a `sub` falls through to `header.payload.obfuscated`.
+#[must_use]
 pub fn obfuscate_jwt(token: &str) -> Option<String> {
     let first_dot = token.find('.')?;
     let rest = &token[first_dot + 1..];
@@ -264,7 +268,10 @@ mod tests {
     #[test]
     fn headers_redacts_auth_and_dpop_only() {
         let mut h = std::collections::BTreeMap::new();
-        h.insert("Authorization".to_string(), "Bearer abcdefghijklmnop".to_string());
+        h.insert(
+            "Authorization".to_string(),
+            "Bearer abcdefghijklmnop".to_string(),
+        );
         h.insert("Content-Type".to_string(), "application/json".to_string());
         h.insert("X-Custom".to_string(), "hello".to_string());
 

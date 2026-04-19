@@ -1,7 +1,7 @@
 //! Integration tests against live AT Protocol infrastructure.
 //!
 //! These tests require network access and hit real services.
-//! Run with: cargo test -p proto-blue-identity --test integration_tests -- --ignored
+//! Run with: cargo test -p proto-blue-identity --test `integration_tests` -- --ignored
 
 use proto_blue_identity::{DidResolver, HandleResolver, IdResolver};
 

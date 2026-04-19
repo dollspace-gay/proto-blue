@@ -1,11 +1,11 @@
-//! AT Protocol OAuth 2.0 client: DPoP, PKCE, PAR, session management.
+//! AT Protocol OAuth 2.0 client: `DPoP`, PKCE, PAR, session management.
 //!
 //! Implements the OAuth 2.0 authorization code flow for AT Protocol with:
 //! - **PKCE** (RFC 7636): Proof Key for Code Exchange with S256 challenge
-//! - **DPoP** (RFC 9449): Demonstrating Proof of Possession with ES256 or
+//! - **`DPoP`** (RFC 9449): Demonstrating Proof of Possession with ES256 or
 //!   ES256K (RFC 8812) JWTs
 //! - **PAR** (RFC 9126): Pushed Authorization Requests
-//! - Token refresh with DPoP nonce rotation
+//! - Token refresh with `DPoP` nonce rotation
 //! - Token revocation
 
 pub mod client;
@@ -20,9 +20,9 @@ pub mod session;
 pub mod store;
 pub mod types;
 
-pub use resolve::{ResolvedInput, verify_token_sub};
 #[cfg(feature = "identity-resolver")]
 pub use resolve::resolve_input;
+pub use resolve::{ResolvedInput, verify_token_sub};
 
 pub use client::{DpopNonceCache, OAuthClient, validate_client_metadata};
 pub use dpop::{DpopAlg, DpopKey, build_dpop_proof};

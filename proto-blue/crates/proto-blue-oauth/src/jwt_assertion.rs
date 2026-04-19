@@ -34,8 +34,7 @@ use crate::dpop::DpopAlg;
 use crate::error::OAuthError;
 
 /// The `client_assertion_type` value required by RFC 7523.
-pub const CLIENT_ASSERTION_TYPE: &str =
-    "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+pub const CLIENT_ASSERTION_TYPE: &str = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
 
 /// A private signing key + its stable `kid` and `alg`.
 ///
@@ -63,10 +62,12 @@ pub struct ClientKeyset {
 }
 
 impl ClientKeyset {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_key(mut self, key: ClientKey) -> Self {
         self.keys.push(key);
         self
@@ -75,6 +76,7 @@ impl ClientKeyset {
     /// Select a key compatible with one of the AS-advertised algs.
     /// Returns `None` if no key in the set matches. Input strings are
     /// the JOSE `alg` names (`"ES256"`, `"ES256K"`).
+    #[must_use]
     pub fn select_for(&self, supported_algs: &[String]) -> Option<&ClientKey> {
         self.keys
             .iter()
@@ -154,23 +156,22 @@ mod tests {
     #[test]
     fn build_client_assertion_emits_three_segment_jws() {
         let key = gen_es256_key("key-1");
-        let jws = build_client_assertion(&key, "https://app.example/cm", "https://as/token").unwrap();
+        let jws =
+            build_client_assertion(&key, "https://app.example/cm", "https://as/token").unwrap();
         assert_eq!(jws.matches('.').count(), 2);
 
         let mut it = jws.split('.');
         let header_b64 = it.next().unwrap();
         let payload_b64 = it.next().unwrap();
 
-        let header: serde_json::Value = serde_json::from_slice(
-            &URL_SAFE_NO_PAD.decode(header_b64).unwrap()
-        ).unwrap();
+        let header: serde_json::Value =
+            serde_json::from_slice(&URL_SAFE_NO_PAD.decode(header_b64).unwrap()).unwrap();
         assert_eq!(header["alg"], "ES256");
         assert_eq!(header["typ"], "JWT");
         assert_eq!(header["kid"], "key-1");
 
-        let payload: serde_json::Value = serde_json::from_slice(
-            &URL_SAFE_NO_PAD.decode(payload_b64).unwrap()
-        ).unwrap();
+        let payload: serde_json::Value =
+            serde_json::from_slice(&URL_SAFE_NO_PAD.decode(payload_b64).unwrap()).unwrap();
         assert_eq!(payload["iss"], "https://app.example/cm");
         assert_eq!(payload["sub"], "https://app.example/cm");
         assert_eq!(payload["aud"], "https://as/token");
@@ -206,7 +207,7 @@ mod tests {
     #[test]
     fn keyset_selects_first_compatible_alg() {
         let k1 = gen_es256_key("a");
-        let ks = ClientKeyset::new().with_key(k1.clone());
+        let ks = ClientKeyset::new().with_key(k1);
 
         // Only ES256K advertised → no match.
         assert!(ks.select_for(&["ES256K".to_string()]).is_none());
@@ -216,7 +217,9 @@ mod tests {
         assert_eq!(picked.kid, "a");
 
         // Both advertised → still ES256 (first match).
-        let picked = ks.select_for(&["RS256".to_string(), "ES256".to_string()]).unwrap();
+        let picked = ks
+            .select_for(&["RS256".to_string(), "ES256".to_string()])
+            .unwrap();
         assert_eq!(picked.kid, "a");
     }
 }

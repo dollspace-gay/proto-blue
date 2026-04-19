@@ -110,7 +110,7 @@ pub struct OAuthTokenResponse {
     pub refresh_token: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_in: Option<u64>,
-    /// DID of the authenticated user (ATproto extension).
+    /// DID of the authenticated user (`ATproto` extension).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sub: Option<String>,
 }
@@ -135,7 +135,7 @@ pub struct TokenSet {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
     /// Intended audience (PDS / resource-server URL) for this token.
-    /// Bound via DPoP `htu` claims on all resource-server requests.
+    /// Bound via `DPoP` `htu` claims on all resource-server requests.
     /// `None` on legacy sessions that predate the field; `aud_or_issuer()`
     /// falls back to `issuer` in that case.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -151,7 +151,7 @@ impl TokenSet {
             dt.to_rfc3339()
         });
 
-        TokenSet {
+        Self {
             issuer: issuer.to_string(),
             sub: response.sub.clone().unwrap_or_default(),
             scope: response.scope.clone().unwrap_or_default(),
@@ -163,13 +163,15 @@ impl TokenSet {
         }
     }
 
-    /// Audience URL for DPoP `htu` binding. Falls back to `issuer` for
+    /// Audience URL for `DPoP` `htu` binding. Falls back to `issuer` for
     /// legacy token sets that predate the `aud` field.
+    #[must_use]
     pub fn aud_or_issuer(&self) -> &str {
         self.aud.as_deref().unwrap_or(&self.issuer)
     }
 
     /// Check if the token is expired or about to expire (within buffer seconds).
+    #[must_use]
     pub fn is_expired(&self, buffer_secs: i64) -> bool {
         match &self.expires_at {
             Some(exp) => {
@@ -185,16 +187,17 @@ impl TokenSet {
         }
     }
 
-    /// Like `is_expired` but jitters the window by +[0, jitter_secs) so
+    /// Like `is_expired` but jitters the window by +[0, `jitter_secs`) so
     /// a fleet of concurrent sessions doesn't stampede the /token
     /// endpoint when their `expires_in` lands in the same second.
+    #[must_use]
     pub fn is_expired_jittered(&self, buffer_secs: i64, jitter_secs: u32) -> bool {
         let jitter = if jitter_secs == 0 {
             0
         } else {
             // `rand::random` returns a uniformly-distributed integer;
             // keep it bounded and deterministic across platforms.
-            (rand::random::<u32>() % jitter_secs) as i64
+            i64::from(rand::random::<u32>() % jitter_secs)
         };
         self.is_expired(buffer_secs + jitter)
     }

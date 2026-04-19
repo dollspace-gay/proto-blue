@@ -24,7 +24,15 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<serde_json::Value, CallError> {
     let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;
-    let response = match client.procedure("com.atproto.identity.requestPlcOperationSignature", qp_ref, None, opts).await {
+    let response = match client
+        .procedure(
+            "com.atproto.identity.requestPlcOperationSignature",
+            qp_ref,
+            None,
+            opts,
+        )
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -35,20 +43,24 @@ pub async fn call(
 /// Register a typed handler for this procedure on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
-    server.procedure("com.atproto.identity.requestPlcOperationSignature", move |ctx| {
-        let handler = handler.clone();
-        async move {
-            let out = handler(ctx).await?;
-            Ok::<_, proto_blue_xrpc::XrpcServerError>(out)
-        }
-    })
+    server.procedure(
+        "com.atproto.identity.requestPlcOperationSignature",
+        move |ctx| {
+            let handler = handler.clone();
+            async move {
+                let out = handler(ctx).await?;
+                Ok::<_, proto_blue_xrpc::XrpcServerError>(out)
+            }
+        },
+    )
 }
-

@@ -1,6 +1,6 @@
 //! Blob reference types for AT Protocol.
 //!
-//! BlobRefs represent references to binary data stored separately from
+//! `BlobRefs` represent references to binary data stored separately from
 //! records. Two on-the-wire shapes exist:
 //!
 //! - **Typed** — current form: `{$type:"blob", ref:{$link: "<cid>"}, mimeType, size}`.
@@ -18,7 +18,7 @@ use crate::cid::Cid;
 /// Serializes to either the typed (`$type:"blob"`) or legacy form
 /// depending on which variant is active. Deserialisation accepts either
 /// shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BlobRef {
     /// Current form: `{$type:"blob", ref:{$link:"<cid>"}, mimeType, size}`.
     Typed(TypedBlobRef),
@@ -27,7 +27,7 @@ pub enum BlobRef {
 }
 
 /// The current, strictly-validated blob-reference shape.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TypedBlobRef {
     /// The CID of the blob data (typically a raw CID).
     pub r#ref: Cid,
@@ -39,9 +39,9 @@ pub struct TypedBlobRef {
 
 /// The pre-typed blob-reference shape, preserved so historical atproto
 /// records round-trip. The `cid` field is a string because legacy refs
-/// sometimes carried CIDv0 / non-standard encodings the strict
+/// sometimes carried `CIDv0` / non-standard encodings the strict
 /// [`Cid`] parser would reject.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LegacyBlobRef {
     /// Multibase CID string exactly as found in the source record.
     pub cid: String,
@@ -54,8 +54,9 @@ impl BlobRef {
     ///
     /// For legacy-form records, construct `BlobRef::Legacy(LegacyBlobRef{..})`
     /// directly.
-    pub fn new(r#ref: Cid, mime_type: String, size: u64) -> Self {
-        BlobRef::Typed(TypedBlobRef {
+    #[must_use]
+    pub const fn new(r#ref: Cid, mime_type: String, size: u64) -> Self {
+        Self::Typed(TypedBlobRef {
             r#ref,
             mime_type,
             size,
@@ -63,49 +64,56 @@ impl BlobRef {
     }
 
     /// Construct a legacy-form blob reference.
-    pub fn new_legacy(cid: String, mime_type: String) -> Self {
-        BlobRef::Legacy(LegacyBlobRef { cid, mime_type })
+    #[must_use]
+    pub const fn new_legacy(cid: String, mime_type: String) -> Self {
+        Self::Legacy(LegacyBlobRef { cid, mime_type })
     }
 
     /// `true` when this is a typed (`$type:"blob"`) ref.
-    pub fn is_typed(&self) -> bool {
-        matches!(self, BlobRef::Typed(_))
+    #[must_use]
+    pub const fn is_typed(&self) -> bool {
+        matches!(self, Self::Typed(_))
     }
 
     /// `true` when this is a legacy (`{cid,mimeType}`) ref.
-    pub fn is_legacy(&self) -> bool {
-        matches!(self, BlobRef::Legacy(_))
+    #[must_use]
+    pub const fn is_legacy(&self) -> bool {
+        matches!(self, Self::Legacy(_))
     }
 
     /// Borrow the MIME type regardless of variant.
+    #[must_use]
     pub fn mime_type(&self) -> &str {
         match self {
-            BlobRef::Typed(t) => &t.mime_type,
-            BlobRef::Legacy(l) => &l.mime_type,
+            Self::Typed(t) => &t.mime_type,
+            Self::Legacy(l) => &l.mime_type,
         }
     }
 
     /// Size of the blob in bytes. Legacy refs don't carry a size — `None`.
-    pub fn size(&self) -> Option<u64> {
+    #[must_use]
+    pub const fn size(&self) -> Option<u64> {
         match self {
-            BlobRef::Typed(t) => Some(t.size),
-            BlobRef::Legacy(_) => None,
+            Self::Typed(t) => Some(t.size),
+            Self::Legacy(_) => None,
         }
     }
 
     /// Borrow the typed variant, if this ref is typed.
-    pub fn as_typed(&self) -> Option<&TypedBlobRef> {
+    #[must_use]
+    pub const fn as_typed(&self) -> Option<&TypedBlobRef> {
         match self {
-            BlobRef::Typed(t) => Some(t),
-            BlobRef::Legacy(_) => None,
+            Self::Typed(t) => Some(t),
+            Self::Legacy(_) => None,
         }
     }
 
     /// Borrow the legacy variant, if this ref is legacy.
-    pub fn as_legacy(&self) -> Option<&LegacyBlobRef> {
+    #[must_use]
+    pub const fn as_legacy(&self) -> Option<&LegacyBlobRef> {
         match self {
-            BlobRef::Typed(_) => None,
-            BlobRef::Legacy(l) => Some(l),
+            Self::Typed(_) => None,
+            Self::Legacy(l) => Some(l),
         }
     }
 
@@ -115,16 +123,18 @@ impl BlobRef {
     /// additionally require a non-zero size (zero-byte blobs are
     /// permitted by the spec but TS treats `-1` as a legacy sentinel —
     /// Rust uses `u64` so negative sizes are unreachable).
+    #[must_use]
     pub fn is_valid(&self) -> bool {
         self.mime_type().contains('/')
     }
 
     /// Check if the CID uses the raw codec (strict mode). Returns `false`
     /// for legacy refs, which don't carry structured codec information.
-    pub fn is_strict_ref(&self) -> bool {
+    #[must_use]
+    pub const fn is_strict_ref(&self) -> bool {
         match self {
-            BlobRef::Typed(t) => t.r#ref.codec == crate::RAW_CODEC,
-            BlobRef::Legacy(_) => false,
+            Self::Typed(t) => t.r#ref.codec == crate::RAW_CODEC,
+            Self::Legacy(_) => false,
         }
     }
 }
@@ -133,7 +143,7 @@ impl serde::Serialize for BlobRef {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeMap;
         match self {
-            BlobRef::Typed(t) => {
+            Self::Typed(t) => {
                 let mut map = serializer.serialize_map(Some(4))?;
                 map.serialize_entry("$type", "blob")?;
                 map.serialize_entry("ref", &t.r#ref)?;
@@ -141,7 +151,7 @@ impl serde::Serialize for BlobRef {
                 map.serialize_entry("size", &t.size)?;
                 map.end()
             }
-            BlobRef::Legacy(l) => {
+            Self::Legacy(l) => {
                 let mut map = serializer.serialize_map(Some(2))?;
                 map.serialize_entry("cid", &l.cid)?;
                 map.serialize_entry("mimeType", &l.mime_type)?;
@@ -189,7 +199,7 @@ impl<'de> serde::Deserialize<'de> for BlobRef {
             let size = h.size.ok_or_else(|| {
                 serde::de::Error::custom("Typed BlobRef missing required field \"size\"")
             })?;
-            return Ok(BlobRef::Typed(TypedBlobRef {
+            return Ok(Self::Typed(TypedBlobRef {
                 r#ref,
                 mime_type,
                 size,
@@ -198,7 +208,7 @@ impl<'de> serde::Deserialize<'de> for BlobRef {
 
         // Legacy form: top-level `cid` string, no `$type`.
         if let Some(cid) = h.cid {
-            return Ok(BlobRef::Legacy(LegacyBlobRef { cid, mime_type }));
+            return Ok(Self::Legacy(LegacyBlobRef { cid, mime_type }));
         }
 
         Err(serde::de::Error::custom(
@@ -225,10 +235,7 @@ mod tests {
 
     #[test]
     fn legacy_blob_ref_creation() {
-        let blob = BlobRef::new_legacy(
-            "bafyreidyxyabc".to_string(),
-            "image/png".to_string(),
-        );
+        let blob = BlobRef::new_legacy("bafyreidyxyabc".to_string(), "image/png".to_string());
         assert!(blob.is_valid());
         assert!(blob.is_legacy());
         assert!(!blob.is_strict_ref());
@@ -246,7 +253,7 @@ mod tests {
     #[test]
     fn typed_blob_ref_json_roundtrip() {
         let cid = Cid::for_raw(b"image data");
-        let original = BlobRef::new(cid.clone(), "image/jpeg".to_string(), 1024);
+        let original = BlobRef::new(cid, "image/jpeg".to_string(), 1024);
         let json = serde_json::to_string(&original).unwrap();
         assert!(json.contains("\"$type\":\"blob\""));
         assert!(json.contains("\"mimeType\":\"image/jpeg\""));
@@ -257,10 +264,7 @@ mod tests {
 
     #[test]
     fn legacy_blob_ref_json_roundtrip() {
-        let original = BlobRef::new_legacy(
-            "bafyreidyxyabc".to_string(),
-            "image/png".to_string(),
-        );
+        let original = BlobRef::new_legacy("bafyreidyxyabc".to_string(), "image/png".to_string());
         let json = serde_json::to_string(&original).unwrap();
         assert_eq!(json, r#"{"cid":"bafyreidyxyabc","mimeType":"image/png"}"#);
         let parsed: BlobRef = serde_json::from_str(&json).unwrap();
@@ -272,9 +276,8 @@ mod tests {
         // Serde can't assume field order; exercise both orderings.
         let cid = Cid::for_raw(b"x");
         let s = cid.to_string();
-        let shuffled = format!(
-            r#"{{"size":7,"mimeType":"image/webp","ref":"{s}","$type":"blob"}}"#
-        );
+        let shuffled =
+            format!(r#"{{"size":7,"mimeType":"image/webp","ref":"{s}","$type":"blob"}}"#);
         let parsed: BlobRef = serde_json::from_str(&shuffled).unwrap();
         assert!(parsed.is_typed());
         assert_eq!(parsed.size(), Some(7));
@@ -295,9 +298,7 @@ mod tests {
     fn reject_unknown_type_name() {
         let cid = Cid::for_raw(b"x");
         let s = cid.to_string();
-        let input = format!(
-            r#"{{"$type":"notblob","ref":"{s}","mimeType":"x/y","size":0}}"#
-        );
+        let input = format!(r#"{{"$type":"notblob","ref":"{s}","mimeType":"x/y","size":0}}"#);
         let err = serde_json::from_str::<BlobRef>(&input).unwrap_err();
         assert!(
             err.to_string().contains("Expected $type \"blob\""),

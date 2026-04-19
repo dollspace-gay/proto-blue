@@ -37,4 +37,3 @@ pub enum Message {
     #[serde(other)]
     Other,
 }
-

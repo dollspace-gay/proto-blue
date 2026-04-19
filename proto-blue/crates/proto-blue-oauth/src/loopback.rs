@@ -27,7 +27,7 @@
 //!   `http://127.0.0.1` URI (loopback interface, not the literal
 //!   "localhost" hostname — per RFC 8252 §7.3).
 //! - `token_endpoint_auth_method` is fixed at `"none"` — loopback
-//!   clients are public and use DPoP for request-binding.
+//!   clients are public and use `DPoP` for request-binding.
 //! - `dpop_bound_access_tokens` is fixed at `true`.
 
 use url::Url;
@@ -53,8 +53,9 @@ impl LoopbackClientId {
     /// valid loopback identifier (non-http scheme, non-loopback host,
     /// malformed redirect URI, etc.).
     pub fn parse(client_id: &str) -> Result<Self, OAuthError> {
-        let url = Url::parse(client_id)
-            .map_err(|e| OAuthError::InvalidClientMetadata(format!("invalid client_id URL: {e}")))?;
+        let url = Url::parse(client_id).map_err(|e| {
+            OAuthError::InvalidClientMetadata(format!("invalid client_id URL: {e}"))
+        })?;
 
         if url.scheme() != "http" {
             return Err(OAuthError::InvalidClientMetadata(format!(
@@ -102,7 +103,7 @@ impl LoopbackClientId {
             redirect_uris.push("http://127.0.0.1/".to_string());
         }
 
-        Ok(LoopbackClientId {
+        Ok(Self {
             client_id: client_id.to_string(),
             scope,
             redirect_uris,
@@ -113,10 +114,10 @@ impl LoopbackClientId {
 /// True iff `client_id` looks like a loopback client identifier.
 /// Returns false on parse errors — callers can cheaply pre-check
 /// before invoking [`LoopbackClientId::parse`].
+#[must_use]
 pub fn is_loopback_client_id(client_id: &str) -> bool {
     Url::parse(client_id)
-        .map(|u| u.scheme() == "http" && u.host_str().is_some_and(is_loopback_host))
-        .unwrap_or(false)
+        .is_ok_and(|u| u.scheme() == "http" && u.host_str().is_some_and(is_loopback_host))
 }
 
 /// Synthesize the implicit [`OAuthClientMetadata`] for a loopback
@@ -177,7 +178,9 @@ mod tests {
         assert!(is_loopback_client_id("http://127.0.0.1/"));
         assert!(is_loopback_client_id("http://localhost:8080/"));
 
-        assert!(!is_loopback_client_id("https://app.example.com/metadata.json"));
+        assert!(!is_loopback_client_id(
+            "https://app.example.com/metadata.json"
+        ));
         assert!(!is_loopback_client_id("http://example.com/"));
         assert!(!is_loopback_client_id("not a url"));
     }
@@ -226,10 +229,9 @@ mod tests {
     #[test]
     fn parse_rejects_localhost_redirect_uri() {
         // "localhost" as a *redirect URI* host is RFC 8252 §7.3 forbidden.
-        let err = LoopbackClientId::parse(
-            "http://localhost/?redirect_uri=http://localhost:8080/cb",
-        )
-        .unwrap_err();
+        let err =
+            LoopbackClientId::parse("http://localhost/?redirect_uri=http://localhost:8080/cb")
+                .unwrap_err();
         assert!(matches!(err, OAuthError::InvalidClientMetadata(_)));
     }
 

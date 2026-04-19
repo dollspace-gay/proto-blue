@@ -39,7 +39,7 @@
 //! | `api`      | `api`                                  | 🚧 |
 //! | `full`     | everything                             | ❌ (default — native only) |
 
-/// AT Protocol identifier types: DID, Handle, NSID, AT-URI, TID, RecordKey, Datetime.
+/// AT Protocol identifier types: DID, Handle, NSID, AT-URI, TID, `RecordKey`, Datetime.
 pub use proto_blue_syntax as syntax;
 
 /// Cryptographic primitives: P-256/K-256 key pairs, signing, did:key, SHA-256.
@@ -82,6 +82,6 @@ pub use proto_blue_identity as identity;
 #[cfg(feature = "api")]
 pub use proto_blue_api as api;
 
-/// OAuth 2.0 client: DPoP, PKCE, PAR, token management.
+/// OAuth 2.0 client: `DPoP`, PKCE, PAR, token management.
 #[cfg(feature = "oauth")]
 pub use proto_blue_oauth as oauth;

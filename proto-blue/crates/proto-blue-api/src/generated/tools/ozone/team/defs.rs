@@ -31,4 +31,3 @@ pub const ROLE_TRIAGE: &str = "tools.ozone.team.defs#roleTriage";
 
 /// Verifier role. Only allowed to issue verifications.
 pub const ROLE_VERIFIER: &str = "tools.ozone.team.defs#roleVerifier";
-

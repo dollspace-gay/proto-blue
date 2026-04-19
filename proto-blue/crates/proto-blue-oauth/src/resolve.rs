@@ -45,7 +45,7 @@ pub struct ResolvedInput {
     /// post-token `sub` verification.
     pub did: Option<String>,
     /// The resource-server (PDS) URL. Becomes `TokenSet.aud` and the
-    /// `htu` binding on resource-server DPoP proofs.
+    /// `htu` binding on resource-server `DPoP` proofs.
     pub pds_url: String,
     /// The authorization server metadata the client will drive the
     /// flow against.
@@ -77,7 +77,7 @@ pub async fn resolve_input(
         let pds = proto_blue_common::get_pds_endpoint(&doc).ok_or_else(|| {
             OAuthError::Other(format!("DID document {input:?} has no PDS endpoint"))
         })?;
-        (Some(input.to_string()), pds.to_string())
+        (Some(input.to_string()), pds)
     } else if input.starts_with("http://") || input.starts_with("https://") {
         (None, input.trim_end_matches('/').to_string())
     } else {
@@ -88,7 +88,7 @@ pub async fn resolve_input(
         let pds = proto_blue_common::get_pds_endpoint(&doc).ok_or_else(|| {
             OAuthError::Other(format!("DID document {did:?} has no PDS endpoint"))
         })?;
-        (Some(did), pds.to_string())
+        (Some(did), pds)
     };
 
     let resource = client.discover_resource(&pds_url).await?;
@@ -114,10 +114,7 @@ pub async fn resolve_input(
 ///
 /// When the input didn't produce a DID (bare PDS URL flow), there's
 /// nothing to compare against — the function returns `Ok(())`.
-pub fn verify_token_sub(
-    expected: Option<&str>,
-    token_sub: &str,
-) -> Result<(), OAuthError> {
+pub fn verify_token_sub(expected: Option<&str>, token_sub: &str) -> Result<(), OAuthError> {
     match expected {
         None => Ok(()),
         Some(did) if did == token_sub => Ok(()),

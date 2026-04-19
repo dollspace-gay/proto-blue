@@ -107,42 +107,242 @@ fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
 
 fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     let mut qp = proto_blue_xrpc::QueryParams::new();
-    if let Some(v) = &p.age_assurance_state { qp.insert("ageAssuranceState".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.appealed { qp.insert("appealed".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
-    if let Some(v) = &p.collections { qp.insert("collections".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.comment { qp.insert("comment".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.cursor { qp.insert("cursor".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.exclude_tags { qp.insert("excludeTags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.hosting_deleted_after { qp.insert("hostingDeletedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.hosting_deleted_before { qp.insert("hostingDeletedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.hosting_statuses { qp.insert("hostingStatuses".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.hosting_updated_after { qp.insert("hostingUpdatedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.hosting_updated_before { qp.insert("hostingUpdatedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.ignore_subjects { qp.insert("ignoreSubjects".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.include_all_user_records { qp.insert("includeAllUserRecords".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
-    if let Some(v) = &p.include_muted { qp.insert("includeMuted".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
-    if let Some(v) = &p.last_reviewed_by { qp.insert("lastReviewedBy".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.limit { qp.insert("limit".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.min_account_suspend_count { qp.insert("minAccountSuspendCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.min_priority_score { qp.insert("minPriorityScore".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.min_reported_records_count { qp.insert("minReportedRecordsCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.min_strike_count { qp.insert("minStrikeCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.min_takendown_records_count { qp.insert("minTakendownRecordsCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.only_muted { qp.insert("onlyMuted".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
-    if let Some(v) = &p.queue_count { qp.insert("queueCount".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.queue_index { qp.insert("queueIndex".to_string(), proto_blue_xrpc::QueryValue::Integer(*v)); }
-    if let Some(v) = &p.queue_seed { qp.insert("queueSeed".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.reported_after { qp.insert("reportedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.reported_before { qp.insert("reportedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.review_state { qp.insert("reviewState".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.reviewed_after { qp.insert("reviewedAfter".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.reviewed_before { qp.insert("reviewedBefore".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.sort_direction { qp.insert("sortDirection".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.sort_field { qp.insert("sortField".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.subject { qp.insert("subject".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.subject_type { qp.insert("subjectType".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    if let Some(v) = &p.tags { qp.insert("tags".to_string(), proto_blue_xrpc::QueryValue::Array(v.iter().map(|x| proto_blue_xrpc::QueryValue::String(x.clone())).collect())); }
-    if let Some(v) = &p.takendown { qp.insert("takendown".to_string(), proto_blue_xrpc::QueryValue::Boolean(*v)); }
+    if let Some(v) = &p.age_assurance_state {
+        qp.insert(
+            "ageAssuranceState".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.appealed {
+        qp.insert(
+            "appealed".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
+    if let Some(v) = &p.collections {
+        qp.insert(
+            "collections".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.comment {
+        qp.insert(
+            "comment".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.cursor {
+        qp.insert(
+            "cursor".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.exclude_tags {
+        qp.insert(
+            "excludeTags".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.hosting_deleted_after {
+        qp.insert(
+            "hostingDeletedAfter".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.hosting_deleted_before {
+        qp.insert(
+            "hostingDeletedBefore".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.hosting_statuses {
+        qp.insert(
+            "hostingStatuses".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.hosting_updated_after {
+        qp.insert(
+            "hostingUpdatedAfter".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.hosting_updated_before {
+        qp.insert(
+            "hostingUpdatedBefore".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.ignore_subjects {
+        qp.insert(
+            "ignoreSubjects".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.include_all_user_records {
+        qp.insert(
+            "includeAllUserRecords".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
+    if let Some(v) = &p.include_muted {
+        qp.insert(
+            "includeMuted".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
+    if let Some(v) = &p.last_reviewed_by {
+        qp.insert(
+            "lastReviewedBy".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.limit {
+        qp.insert(
+            "limit".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.min_account_suspend_count {
+        qp.insert(
+            "minAccountSuspendCount".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.min_priority_score {
+        qp.insert(
+            "minPriorityScore".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.min_reported_records_count {
+        qp.insert(
+            "minReportedRecordsCount".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.min_strike_count {
+        qp.insert(
+            "minStrikeCount".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.min_takendown_records_count {
+        qp.insert(
+            "minTakendownRecordsCount".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.only_muted {
+        qp.insert(
+            "onlyMuted".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
+    if let Some(v) = &p.queue_count {
+        qp.insert(
+            "queueCount".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.queue_index {
+        qp.insert(
+            "queueIndex".to_string(),
+            proto_blue_xrpc::QueryValue::Integer(*v),
+        );
+    }
+    if let Some(v) = &p.queue_seed {
+        qp.insert(
+            "queueSeed".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.reported_after {
+        qp.insert(
+            "reportedAfter".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.reported_before {
+        qp.insert(
+            "reportedBefore".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.review_state {
+        qp.insert(
+            "reviewState".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.reviewed_after {
+        qp.insert(
+            "reviewedAfter".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.reviewed_before {
+        qp.insert(
+            "reviewedBefore".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.sort_direction {
+        qp.insert(
+            "sortDirection".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.sort_field {
+        qp.insert(
+            "sortField".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.subject {
+        qp.insert(
+            "subject".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.subject_type {
+        qp.insert(
+            "subjectType".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    if let Some(v) = &p.tags {
+        qp.insert(
+            "tags".to_string(),
+            proto_blue_xrpc::QueryValue::Array(
+                v.iter()
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .collect(),
+            ),
+        );
+    }
+    if let Some(v) = &p.takendown {
+        qp.insert(
+            "takendown".to_string(),
+            proto_blue_xrpc::QueryValue::Boolean(*v),
+        );
+    }
     qp
 }
 
@@ -153,7 +353,10 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<Output, CallError> {
     let qp = params.map(to_query_params);
-    let response = match client.query("tools.ozone.moderation.queryStatuses", qp.as_ref(), opts).await {
+    let response = match client
+        .query("tools.ozone.moderation.queryStatuses", qp.as_ref(), opts)
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -164,12 +367,14 @@ pub async fn call(
 /// Register a typed handler for this method on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.query("tools.ozone.moderation.queryStatuses", move |ctx| {
@@ -177,8 +382,12 @@ where
         async move {
             let params = params_from_ctx(&ctx);
             let out = handler(ctx, params).await?;
-            let value = serde_json::to_value(&out)
-                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            let value = serde_json::to_value(&out).map_err(|e| {
+                proto_blue_xrpc::XrpcServerError::new(
+                    proto_blue_xrpc::ResponseType::InternalServerError,
+                    format!("output serialize: {e}"),
+                )
+            })?;
             Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
         }
     })
@@ -191,29 +400,82 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         age_assurance_state: ctx.params.get("ageAssuranceState").cloned(),
-        appealed: ctx.params.get("appealed").and_then(|v| v.parse::<bool>().ok()),
-        collections: Some(ctx.params.get("collections").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        appealed: ctx
+            .params
+            .get("appealed")
+            .and_then(|v| v.parse::<bool>().ok()),
+        collections: Some(
+            ctx.params
+                .get("collections")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         comment: ctx.params.get("comment").cloned(),
         cursor: ctx.params.get("cursor").cloned(),
-        exclude_tags: Some(ctx.params.get("excludeTags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        exclude_tags: Some(
+            ctx.params
+                .get("excludeTags")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         hosting_deleted_after: ctx.params.get("hostingDeletedAfter").cloned(),
         hosting_deleted_before: ctx.params.get("hostingDeletedBefore").cloned(),
-        hosting_statuses: Some(ctx.params.get("hostingStatuses").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
+        hosting_statuses: Some(
+            ctx.params
+                .get("hostingStatuses")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
         hosting_updated_after: ctx.params.get("hostingUpdatedAfter").cloned(),
         hosting_updated_before: ctx.params.get("hostingUpdatedBefore").cloned(),
-        ignore_subjects: Some(ctx.params.get("ignoreSubjects").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        include_all_user_records: ctx.params.get("includeAllUserRecords").and_then(|v| v.parse::<bool>().ok()),
-        include_muted: ctx.params.get("includeMuted").and_then(|v| v.parse::<bool>().ok()),
+        ignore_subjects: Some(
+            ctx.params
+                .get("ignoreSubjects")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        include_all_user_records: ctx
+            .params
+            .get("includeAllUserRecords")
+            .and_then(|v| v.parse::<bool>().ok()),
+        include_muted: ctx
+            .params
+            .get("includeMuted")
+            .and_then(|v| v.parse::<bool>().ok()),
         last_reviewed_by: ctx.params.get("lastReviewedBy").cloned(),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        min_account_suspend_count: ctx.params.get("minAccountSuspendCount").and_then(|v| v.parse::<i64>().ok()),
-        min_priority_score: ctx.params.get("minPriorityScore").and_then(|v| v.parse::<i64>().ok()),
-        min_reported_records_count: ctx.params.get("minReportedRecordsCount").and_then(|v| v.parse::<i64>().ok()),
-        min_strike_count: ctx.params.get("minStrikeCount").and_then(|v| v.parse::<i64>().ok()),
-        min_takendown_records_count: ctx.params.get("minTakendownRecordsCount").and_then(|v| v.parse::<i64>().ok()),
-        only_muted: ctx.params.get("onlyMuted").and_then(|v| v.parse::<bool>().ok()),
-        queue_count: ctx.params.get("queueCount").and_then(|v| v.parse::<i64>().ok()),
-        queue_index: ctx.params.get("queueIndex").and_then(|v| v.parse::<i64>().ok()),
+        min_account_suspend_count: ctx
+            .params
+            .get("minAccountSuspendCount")
+            .and_then(|v| v.parse::<i64>().ok()),
+        min_priority_score: ctx
+            .params
+            .get("minPriorityScore")
+            .and_then(|v| v.parse::<i64>().ok()),
+        min_reported_records_count: ctx
+            .params
+            .get("minReportedRecordsCount")
+            .and_then(|v| v.parse::<i64>().ok()),
+        min_strike_count: ctx
+            .params
+            .get("minStrikeCount")
+            .and_then(|v| v.parse::<i64>().ok()),
+        min_takendown_records_count: ctx
+            .params
+            .get("minTakendownRecordsCount")
+            .and_then(|v| v.parse::<i64>().ok()),
+        only_muted: ctx
+            .params
+            .get("onlyMuted")
+            .and_then(|v| v.parse::<bool>().ok()),
+        queue_count: ctx
+            .params
+            .get("queueCount")
+            .and_then(|v| v.parse::<i64>().ok()),
+        queue_index: ctx
+            .params
+            .get("queueIndex")
+            .and_then(|v| v.parse::<i64>().ok()),
         queue_seed: ctx.params.get("queueSeed").cloned(),
         reported_after: ctx.params.get("reportedAfter").cloned(),
         reported_before: ctx.params.get("reportedBefore").cloned(),
@@ -224,8 +486,15 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
         sort_field: ctx.params.get("sortField").cloned(),
         subject: ctx.params.get("subject").cloned(),
         subject_type: ctx.params.get("subjectType").cloned(),
-        tags: Some(ctx.params.get("tags").map(|v| v.split(',').map(String::from).collect::<Vec<_>>()).unwrap_or_default()),
-        takendown: ctx.params.get("takendown").and_then(|v| v.parse::<bool>().ok()),
+        tags: Some(
+            ctx.params
+                .get("tags")
+                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
+                .unwrap_or_default(),
+        ),
+        takendown: ctx
+            .params
+            .get("takendown")
+            .and_then(|v| v.parse::<bool>().ok()),
     })
 }
-

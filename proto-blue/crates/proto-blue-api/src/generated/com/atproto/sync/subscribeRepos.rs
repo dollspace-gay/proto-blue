@@ -100,4 +100,3 @@ pub struct Sync {
     pub seq: i64,
     pub time: String,
 }
-

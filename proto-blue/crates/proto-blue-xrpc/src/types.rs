@@ -17,55 +17,56 @@ pub enum QueryValue {
     Float(f64),
     Boolean(bool),
     /// Array of values (for repeated parameters like `?tag=a&tag=b`).
-    Array(Vec<QueryValue>),
+    Array(Vec<Self>),
 }
 
 impl QueryValue {
     /// Encode this value as a query string value.
+    #[must_use]
     pub fn encode(&self) -> String {
         match self {
-            QueryValue::String(s) => s.clone(),
-            QueryValue::Integer(i) => i.to_string(),
-            QueryValue::Float(f) => f.to_string(),
-            QueryValue::Boolean(b) => if *b { "true" } else { "false" }.to_string(),
-            QueryValue::Array(_) => String::new(), // handled separately
+            Self::String(s) => s.clone(),
+            Self::Integer(i) => i.to_string(),
+            Self::Float(f) => f.to_string(),
+            Self::Boolean(b) => if *b { "true" } else { "false" }.to_string(),
+            Self::Array(_) => String::new(), // handled separately
         }
     }
 }
 
 impl From<&str> for QueryValue {
     fn from(s: &str) -> Self {
-        QueryValue::String(s.to_string())
+        Self::String(s.to_string())
     }
 }
 
 impl From<String> for QueryValue {
     fn from(s: String) -> Self {
-        QueryValue::String(s)
+        Self::String(s)
     }
 }
 
 impl From<i64> for QueryValue {
     fn from(i: i64) -> Self {
-        QueryValue::Integer(i)
+        Self::Integer(i)
     }
 }
 
 impl From<f64> for QueryValue {
     fn from(f: f64) -> Self {
-        QueryValue::Float(f)
+        Self::Float(f)
     }
 }
 
 impl From<bool> for QueryValue {
     fn from(b: bool) -> Self {
-        QueryValue::Boolean(b)
+        Self::Boolean(b)
     }
 }
 
-impl<T: Into<QueryValue>> From<Vec<T>> for QueryValue {
+impl<T: Into<Self>> From<Vec<T>> for QueryValue {
     fn from(v: Vec<T>) -> Self {
-        QueryValue::Array(v.into_iter().map(Into::into).collect())
+        Self::Array(v.into_iter().map(Into::into).collect())
     }
 }
 

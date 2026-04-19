@@ -4,7 +4,6 @@
 //! See: <https://atproto.com/specs/lexicon#datetime>
 
 use chrono::{DateTime, FixedOffset, SecondsFormat, Utc};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -12,7 +11,7 @@ use std::str::FromStr;
 /// Maximum length of a datetime string.
 const MAX_DATETIME_LENGTH: usize = 64;
 
-static DATETIME_REGEX: Lazy<Regex> = Lazy::new(|| {
+static DATETIME_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"^[0-9]{4}-[01][0-9]-[0-3][0-9]T[0-2][0-9]:[0-6][0-9]:[0-6][0-9](\.[0-9]{1,20})?(Z|([+-][0-2][0-9]:[0-5][0-9]))$",
     )
@@ -36,20 +35,23 @@ impl Datetime {
     /// Create a new `Datetime` from a string, validating the format.
     pub fn new(s: &str) -> Result<Self, InvalidDatetimeError> {
         ensure_valid_datetime(s)?;
-        Ok(Datetime(s.to_string()))
+        Ok(Self(s.to_string()))
     }
 
     /// Check whether a string is a valid datetime.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
         ensure_valid_datetime(s).is_ok()
     }
 
     /// Return the inner string.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consume and return the inner string.
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
@@ -58,21 +60,24 @@ impl Datetime {
     /// precision and a UTC `Z` suffix — the canonical shape used by
     /// atproto record `createdAt` fields. Mirrors TS
     /// `currentDatetimeString`.
+    #[must_use]
     pub fn now() -> Self {
         let s = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
         // Safe — the formatter emits a valid atproto datetime shape.
-        Datetime(s)
+        Self(s)
     }
 
     /// Convert a `chrono::DateTime<Utc>` to a canonical atproto
     /// datetime string (millisecond precision, `Z` suffix). Mirrors TS
     /// `toDatetimeString(date)`.
+    #[must_use]
     pub fn from_utc(dt: DateTime<Utc>) -> Self {
-        Datetime(dt.to_rfc3339_opts(SecondsFormat::Millis, true))
+        Self(dt.to_rfc3339_opts(SecondsFormat::Millis, true))
     }
 }
 
 /// Free-function shortcut for [`Datetime::now`], matching TS naming.
+#[must_use]
 pub fn current_datetime_string() -> String {
     Datetime::now().into_inner()
 }
@@ -149,7 +154,7 @@ impl fmt::Display for Datetime {
 impl FromStr for Datetime {
     type Err = InvalidDatetimeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Datetime::new(s)
+        Self::new(s)
     }
 }
 
@@ -168,7 +173,7 @@ impl serde::Serialize for Datetime {
 impl<'de> serde::Deserialize<'de> for Datetime {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Datetime::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

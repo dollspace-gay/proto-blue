@@ -35,4 +35,3 @@ pub struct ViewExternal {
     pub title: String,
     pub uri: String,
 }
-

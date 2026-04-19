@@ -14,7 +14,7 @@ pub struct RetryOptions {
 
 impl Default for RetryOptions {
     fn default() -> Self {
-        RetryOptions {
+        Self {
             max_retries: 3,
             get_wait_ms: None,
         }
@@ -70,6 +70,7 @@ where
 /// Calculate exponential backoff delay with jitter.
 ///
 /// Produces delays: ~100ms, ~200ms, ~400ms, ~800ms, ~1000ms, ~1000ms, ...
+#[must_use]
 pub fn backoff_ms(n: usize, multiplier: u64, max: u64) -> u64 {
     let exponential = (2u64.pow(n as u32)).saturating_mul(multiplier);
     let ms = exponential.min(max);

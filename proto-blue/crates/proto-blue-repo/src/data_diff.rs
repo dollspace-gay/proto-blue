@@ -76,7 +76,7 @@ pub struct DataDiff {
 impl DataDiff {
     /// Diff `curr` against `prev`. Pass `prev = None` for a "null diff"
     /// (the new tree as an add-only view). This matches TS `mstDiff`.
-    pub fn of(curr: &MstNode, prev: Option<&MstNode>) -> Result<DataDiff, RepoError> {
+    pub fn of(curr: &MstNode, prev: Option<&MstNode>) -> Result<Self, RepoError> {
         match prev {
             None => null_diff(curr),
             Some(prev) => full_diff(curr, prev),
@@ -84,22 +84,26 @@ impl DataDiff {
     }
 
     /// Return the add list (in sorted-by-key order).
+    #[must_use]
     pub fn add_list(&self) -> Vec<&DataAdd> {
         self.adds.values().collect()
     }
 
     /// Return the update list (in sorted-by-key order).
+    #[must_use]
     pub fn update_list(&self) -> Vec<&DataUpdate> {
         self.updates.values().collect()
     }
 
     /// Return the delete list (in sorted-by-key order).
+    #[must_use]
     pub fn delete_list(&self) -> Vec<&DataDelete> {
         self.deletes.values().collect()
     }
 
     /// Union of all keys touched by this diff (adds ∪ updates ∪ deletes),
     /// deduplicated.
+    #[must_use]
     pub fn updated_keys(&self) -> Vec<String> {
         let mut keys: Vec<String> = Vec::new();
         keys.extend(self.adds.keys().cloned());
@@ -111,6 +115,7 @@ impl DataDiff {
     }
 
     /// `true` if this diff is empty (nothing added, updated, or deleted).
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.adds.is_empty() && self.updates.is_empty() && self.deletes.is_empty()
     }
@@ -297,7 +302,7 @@ mod tests {
     fn full_diff_add_one_key() {
         let cid = cid_for(b"v");
         let prev = MstNode::empty();
-        let curr = prev.clone().add("coll/k", cid.clone()).unwrap();
+        let curr = prev.add("coll/k", cid.clone()).unwrap();
 
         let diff = DataDiff::of(&curr, Some(&prev)).unwrap();
         assert_eq!(diff.adds.len(), 1);
@@ -404,12 +409,11 @@ mod tests {
     fn updated_keys_dedupe() {
         let cid1 = cid_for(b"1");
         let cid2 = cid_for(b"2");
-        let prev = MstNode::empty().add("coll/x", cid1.clone()).unwrap();
+        let prev = MstNode::empty().add("coll/x", cid1).unwrap();
         let curr = prev
-            .clone()
             .update("coll/x", cid2.clone())
             .unwrap()
-            .add("coll/y", cid2.clone())
+            .add("coll/y", cid2)
             .unwrap();
         let diff = DataDiff::of(&curr, Some(&prev)).unwrap();
         let keys = diff.updated_keys();
@@ -424,7 +428,7 @@ mod tests {
         let cid_a = cid_for(b"a");
         let cid_b = cid_for(b"b");
         let prev = MstNode::empty().add("coll/a", cid_a).unwrap();
-        let curr = prev.clone().add("coll/b", cid_b).unwrap();
+        let curr = prev.add("coll/b", cid_b).unwrap();
 
         let diff = DataDiff::of(&curr, Some(&prev)).unwrap();
         let (_, prev_blocks) = prev.get_all_blocks().unwrap();

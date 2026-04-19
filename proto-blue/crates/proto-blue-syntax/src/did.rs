@@ -3,7 +3,6 @@
 //! DIDs follow the format: `did:method:method-specific-id`
 //! See: <https://www.w3.org/TR/did-core/>
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -11,8 +10,9 @@ use std::str::FromStr;
 /// Maximum length of a DID string.
 const MAX_DID_LENGTH: usize = 2048;
 
-static DID_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$").unwrap());
+static DID_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+    Regex::new(r"^did:[a-z]+:[a-zA-Z0-9._:%-]*[a-zA-Z0-9._-]$").unwrap()
+});
 
 /// A validated DID (Decentralized Identifier).
 ///
@@ -31,26 +31,30 @@ impl Did {
     /// Create a new `Did` from a string, validating the format.
     pub fn new(s: &str) -> Result<Self, InvalidDidError> {
         ensure_valid_did(s)?;
-        Ok(Did(s.to_string()))
+        Ok(Self(s.to_string()))
     }
 
     /// Check whether a string is a valid DID without allocating.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
         ensure_valid_did(s).is_ok()
     }
 
     /// Return the DID method (e.g., `"plc"` for `did:plc:...`).
+    #[must_use]
     pub fn method(&self) -> &str {
         // Safe: we validated the format in the constructor
         self.0.split(':').nth(1).unwrap()
     }
 
     /// Return the inner string.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consume and return the inner string.
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
@@ -101,7 +105,7 @@ impl fmt::Display for Did {
 impl FromStr for Did {
     type Err = InvalidDidError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Did::new(s)
+        Self::new(s)
     }
 }
 
@@ -120,7 +124,7 @@ impl serde::Serialize for Did {
 impl<'de> serde::Deserialize<'de> for Did {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Did::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

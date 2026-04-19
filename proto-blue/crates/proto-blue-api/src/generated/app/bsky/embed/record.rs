@@ -58,4 +58,3 @@ pub struct ViewRecord {
     pub uri: String,
     pub value: serde_json::Value,
 }
-

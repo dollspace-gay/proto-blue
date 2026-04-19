@@ -1,6 +1,6 @@
 //! OAuth session for making authenticated API requests.
 //!
-//! Wraps a token set and DPoP key to automatically add authorization headers
+//! Wraps a token set and `DPoP` key to automatically add authorization headers
 //! and handle token refresh when needed. HTTP transport is abstracted
 //! behind [`proto_blue_common::fetch::FetchHandler`].
 
@@ -16,16 +16,16 @@ use crate::types::{OAuthServerMetadata, TokenSet};
 /// An authenticated OAuth session.
 ///
 /// Provides methods for making authenticated HTTP requests to AT Protocol
-/// resource servers. Automatically handles DPoP proof generation and can
+/// resource servers. Automatically handles `DPoP` proof generation and can
 /// refresh tokens when they expire.
 pub struct OAuthSession {
     /// The current token set.
     token_set: Arc<Mutex<TokenSet>>,
-    /// The DPoP key for signing proofs.
+    /// The `DPoP` key for signing proofs.
     dpop_key: DpopKey,
     /// HTTP transport.
     fetcher: Arc<dyn FetchHandler>,
-    /// DPoP nonce cache (shared with OAuthClient).
+    /// `DPoP` nonce cache (shared with `OAuthClient`).
     dpop_nonces: DpopNonceCache,
     /// Serializes concurrent `/token` refresh requests so N callers
     /// that hit an expired access token at once share a single
@@ -35,9 +35,10 @@ pub struct OAuthSession {
 }
 
 impl OAuthSession {
-    /// Create a new session from a token set and DPoP key, using the
+    /// Create a new session from a token set and `DPoP` key, using the
     /// crate's default native fetch handler (`reqwest`).
     #[cfg(feature = "fetch-reqwest")]
+    #[must_use]
     pub fn new(token_set: TokenSet, dpop_key: DpopKey, dpop_nonces: DpopNonceCache) -> Self {
         Self::with_fetch_handler(
             token_set,
@@ -52,6 +53,7 @@ impl OAuthSession {
     /// Back-compat constructor — wraps the client in a
     /// [`proto_blue_common::fetch::ReqwestFetcher`].
     #[cfg(feature = "fetch-reqwest")]
+    #[must_use]
     pub fn with_http_client(
         token_set: TokenSet,
         dpop_key: DpopKey,
@@ -75,7 +77,7 @@ impl OAuthSession {
         dpop_nonces: DpopNonceCache,
         fetcher: Arc<dyn FetchHandler>,
     ) -> Self {
-        OAuthSession {
+        Self {
             token_set: Arc::new(Mutex::new(token_set)),
             dpop_key,
             fetcher,
@@ -85,12 +87,14 @@ impl OAuthSession {
     }
 
     /// Get the DID of the authenticated user.
+    #[must_use]
     pub fn did(&self) -> String {
         self.token_set.lock().unwrap().sub.clone()
     }
 
     /// Check if the current access token is expired, treating a token
     /// within 10 seconds of expiry as already expired.
+    #[must_use]
     pub fn is_expired(&self) -> bool {
         self.token_set.lock().unwrap().is_expired(10)
     }
@@ -98,11 +102,13 @@ impl OAuthSession {
     /// Like [`Self::is_expired`] but jitters the refresh window by
     /// +[0, 30s) so a fleet of sessions with synchronized lifetimes
     /// doesn't stampede the `/token` endpoint.
+    #[must_use]
     pub fn is_expired_jittered(&self) -> bool {
         self.token_set.lock().unwrap().is_expired_jittered(10, 30)
     }
 
     /// Get a clone of the current token set.
+    #[must_use]
     pub fn token_set(&self) -> TokenSet {
         self.token_set.lock().unwrap().clone()
     }
@@ -243,7 +249,7 @@ fn parse_http_method(method: &str) -> Result<HttpMethod, OAuthError> {
     })
 }
 
-/// Strip query string and fragment from a URL (for DPoP htu claim).
+/// Strip query string and fragment from a URL (for `DPoP` htu claim).
 fn strip_query_fragment(url: &str) -> Result<String, OAuthError> {
     let mut parsed = url::Url::parse(url)?;
     parsed.set_query(None);

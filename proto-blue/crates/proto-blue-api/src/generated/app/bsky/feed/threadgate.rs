@@ -6,14 +6,12 @@ use serde::{Deserialize, Serialize};
 /// Allow replies from actors who follow you.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FollowerRule {
-}
+pub struct FollowerRule {}
 
 /// Allow replies from actors you follow.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FollowingRule {
-}
+pub struct FollowingRule {}
 
 /// Allow replies from actors on a list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +44,4 @@ fn default_type() -> String {
 /// Allow replies from actors mentioned in your post.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MentionRule {
-}
-
+pub struct MentionRule {}

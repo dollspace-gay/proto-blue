@@ -3,7 +3,6 @@
 //! AT-URIs follow the format: `at://authority/collection/rkey`
 //! See: <https://atproto.com/specs/at-uri-scheme>
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -21,7 +20,7 @@ const MAX_ATURI_LENGTH: usize = 8 * 1024;
 // classes already include both upper and lower where the spec allows
 // mixed case (e.g. authority percent-encoding, rkeys); a global `(?i)`
 // flag would weaken those constraints for no benefit. See issue #3.
-static ATURI_REGEX: Lazy<Regex> = Lazy::new(|| {
+static ATURI_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(
         r"^at://(?P<authority>[a-zA-Z0-9._:%-]+)(/(?P<collection>[a-zA-Z0-9-.]+)(/(?P<rkey>[a-zA-Z0-9._~:@!$&%')(*+,;=-]+))?)?(#(?P<fragment>/[a-zA-Z0-9._~:@!$&%')(*+,;=\[\]/-]*))?$"
     )
@@ -101,7 +100,7 @@ impl AtUri {
             return Err(err("AT-URI cannot have rkey without collection"));
         }
 
-        Ok(AtUri {
+        Ok(Self {
             authority,
             collection,
             rkey,
@@ -110,8 +109,9 @@ impl AtUri {
     }
 
     /// Check whether a string is a valid AT-URI.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
-        AtUri::new(s).is_ok()
+        Self::new(s).is_ok()
     }
 
     /// Build an AT-URI from individual parts. The collection and rkey
@@ -137,36 +137,42 @@ impl AtUri {
                 reason: "AT-URI cannot have rkey without collection".to_string(),
             });
         }
-        AtUri::new(&s)
+        Self::new(&s)
     }
 
     /// Return the authority (DID or handle).
+    #[must_use]
     pub fn authority(&self) -> &str {
         &self.authority
     }
 
     /// Return the collection NSID, if present.
+    #[must_use]
     pub fn collection(&self) -> Option<&str> {
         self.collection.as_deref()
     }
 
     /// Return the record key, if present.
+    #[must_use]
     pub fn rkey(&self) -> Option<&str> {
         self.rkey.as_deref()
     }
 
     /// Return the fragment, if present.
+    #[must_use]
     pub fn fragment(&self) -> Option<&str> {
         self.fragment.as_deref()
     }
 
     /// The URI protocol — always `"at:"`.
-    pub fn protocol(&self) -> &'static str {
+    #[must_use]
+    pub const fn protocol(&self) -> &'static str {
         "at:"
     }
 
     /// The URI origin — `at://<authority>`. Analogous to `URL.origin`
     /// in browsers (and to the TS `AtUri.origin` getter).
+    #[must_use]
     pub fn origin(&self) -> String {
         format!("at://{}", self.authority)
     }
@@ -193,17 +199,14 @@ impl AtUri {
     /// collection and rkey (an rkey without a collection is not a
     /// valid AT-URI, so setting collection to `None` also drops rkey).
     pub fn set_collection(&mut self, v: Option<&str>) -> Result<(), InvalidAtUriError> {
-        match v {
-            Some(coll) => {
-                Nsid::new(coll).map_err(|e| InvalidAtUriError {
-                    reason: format!("Invalid collection NSID: {e}"),
-                })?;
-                self.collection = Some(coll.to_string());
-            }
-            None => {
-                self.collection = None;
-                self.rkey = None;
-            }
+        if let Some(coll) = v {
+            Nsid::new(coll).map_err(|e| InvalidAtUriError {
+                reason: format!("Invalid collection NSID: {e}"),
+            })?;
+            self.collection = Some(coll.to_string());
+        } else {
+            self.collection = None;
+            self.rkey = None;
         }
         Ok(())
     }
@@ -243,7 +246,7 @@ impl AtUri {
                 // checks — build a throwaway URI with just this
                 // fragment and see if it parses.
                 let probe = format!("at://{}#{}", self.authority, f);
-                AtUri::new(&probe).map_err(|e| InvalidAtUriError {
+                Self::new(&probe).map_err(|e| InvalidAtUriError {
                     reason: format!("Invalid fragment: {e}"),
                 })?;
                 self.fragment = Some(f.to_string());
@@ -273,7 +276,7 @@ impl AtUri {
     /// yak-shaving.
     pub fn resolve(&self, reference: &str) -> Result<Self, InvalidAtUriError> {
         if reference.starts_with("at://") {
-            return AtUri::new(reference);
+            return Self::new(reference);
         }
         if let Some(frag) = reference.strip_prefix('#') {
             let mut cloned = self.clone();
@@ -340,7 +343,7 @@ impl fmt::Display for AtUri {
 impl FromStr for AtUri {
     type Err = InvalidAtUriError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        AtUri::new(s)
+        Self::new(s)
     }
 }
 
@@ -353,7 +356,7 @@ impl serde::Serialize for AtUri {
 impl<'de> serde::Deserialize<'de> for AtUri {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        AtUri::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

@@ -48,30 +48,32 @@ pub enum FirehoseEvent {
 impl FirehoseEvent {
     /// Sequence number, if present. Every event except some `Info`
     /// variants carries one.
-    pub fn seq(&self) -> Option<i64> {
+    #[must_use]
+    pub const fn seq(&self) -> Option<i64> {
         match self {
-            FirehoseEvent::Commit(e) => Some(e.seq),
-            FirehoseEvent::Sync(e) => Some(e.seq),
-            FirehoseEvent::Identity(e) => Some(e.seq),
-            FirehoseEvent::Account(e) => Some(e.seq),
-            FirehoseEvent::Info(_) | FirehoseEvent::Unknown { .. } => None,
+            Self::Commit(e) => Some(e.seq),
+            Self::Sync(e) => Some(e.seq),
+            Self::Identity(e) => Some(e.seq),
+            Self::Account(e) => Some(e.seq),
+            Self::Info(_) | Self::Unknown { .. } => None,
         }
     }
 
     /// DID of the repo this event is about, if applicable.
+    #[must_use]
     pub fn did(&self) -> Option<&str> {
         match self {
-            FirehoseEvent::Commit(e) => Some(&e.repo),
-            FirehoseEvent::Sync(e) => Some(&e.did),
-            FirehoseEvent::Identity(e) => Some(&e.did),
-            FirehoseEvent::Account(e) => Some(&e.did),
-            FirehoseEvent::Info(_) | FirehoseEvent::Unknown { .. } => None,
+            Self::Commit(e) => Some(&e.repo),
+            Self::Sync(e) => Some(&e.did),
+            Self::Identity(e) => Some(&e.did),
+            Self::Account(e) => Some(&e.did),
+            Self::Info(_) | Self::Unknown { .. } => None,
         }
     }
 }
 
 /// A `#commit` event: repo state changed.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommitEvent {
     pub seq: i64,
     pub rebase: bool,
@@ -97,7 +99,7 @@ pub struct CommitEvent {
 }
 
 /// A `#sync` event: full-state recovery message.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyncEvent {
     pub seq: i64,
     pub did: String,
@@ -107,7 +109,7 @@ pub struct SyncEvent {
 }
 
 /// An `#identity` event: handle / DID doc changed.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IdentityEvent {
     pub seq: i64,
     pub did: String,
@@ -116,7 +118,7 @@ pub struct IdentityEvent {
 }
 
 /// An `#account` event: account activation / takedown / etc.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AccountEvent {
     pub seq: i64,
     pub did: String,
@@ -126,14 +128,14 @@ pub struct AccountEvent {
 }
 
 /// An `#info` event: server status / cursor warning.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InfoEvent {
     pub name: String,
     pub message: Option<String>,
 }
 
 /// A single mutation inside a `#commit` event.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RepoOp {
     pub action: RepoOpAction,
     pub path: String,
@@ -152,11 +154,12 @@ pub enum RepoOpAction {
 }
 
 impl RepoOpAction {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            RepoOpAction::Create => "create",
-            RepoOpAction::Update => "update",
-            RepoOpAction::Delete => "delete",
+            Self::Create => "create",
+            Self::Update => "update",
+            Self::Delete => "delete",
         }
     }
 }

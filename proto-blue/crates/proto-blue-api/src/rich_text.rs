@@ -42,6 +42,7 @@ pub struct RichTextSegment {
 }
 
 impl RichTextSegment {
+    #[must_use]
     pub fn is_mention(&self) -> bool {
         self.facet.as_ref().is_some_and(|f| {
             f.features
@@ -50,6 +51,7 @@ impl RichTextSegment {
         })
     }
 
+    #[must_use]
     pub fn is_link(&self) -> bool {
         self.facet.as_ref().is_some_and(|f| {
             f.features
@@ -58,6 +60,7 @@ impl RichTextSegment {
         })
     }
 
+    #[must_use]
     pub fn is_tag(&self) -> bool {
         self.facet.as_ref().is_some_and(|f| {
             f.features
@@ -78,37 +81,42 @@ pub struct RichText {
 }
 
 impl RichText {
-    /// Create a new RichText from text, optionally with pre-detected facets.
+    /// Create a new `RichText` from text, optionally with pre-detected facets.
     pub fn new(text: impl Into<String>, facets: Option<Vec<Facet>>) -> Self {
         let text = text.into();
         let mut facets = facets.unwrap_or_default();
         // Filter invalid facets and sort by byte_start
         facets.retain(|f| f.index.byte_start < f.index.byte_end);
         facets.sort_by_key(|f| f.index.byte_start);
-        RichText { text, facets }
+        Self { text, facets }
     }
 
     /// The raw text.
+    #[must_use]
     pub fn text(&self) -> &str {
         &self.text
     }
 
     /// The facets.
+    #[must_use]
     pub fn facets(&self) -> &[Facet] {
         &self.facets
     }
 
     /// UTF-8 byte length.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.text.len()
     }
 
     /// Whether the text is empty.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.text.is_empty()
     }
 
     /// Grapheme cluster count (user-perceived characters).
+    #[must_use]
     pub fn grapheme_length(&self) -> usize {
         self.text.graphemes(true).count()
     }
@@ -178,6 +186,7 @@ impl RichText {
     }
 
     /// Iterate over segments of the rich text.
+    #[must_use]
     pub fn segments(&self) -> Vec<RichTextSegment> {
         if self.facets.is_empty() {
             return vec![RichTextSegment {
@@ -203,15 +212,15 @@ impl RichText {
 
             // The faceted segment
             let seg_text = &self.text[start..end];
-            if !seg_text.trim().is_empty() {
+            if seg_text.trim().is_empty() {
                 segments.push(RichTextSegment {
                     text: seg_text.to_string(),
-                    facet: Some(facet.clone()),
+                    facet: None,
                 });
             } else {
                 segments.push(RichTextSegment {
                     text: seg_text.to_string(),
-                    facet: None,
+                    facet: Some(facet.clone()),
                 });
             }
 

@@ -39,4 +39,3 @@ pub struct Mention {
 pub struct Tag {
     pub tag: String,
 }
-

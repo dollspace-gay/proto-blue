@@ -1,4 +1,4 @@
-//! Bidirectional conversion between JSON and LexValue.
+//! Bidirectional conversion between JSON and `LexValue`.
 //!
 //! In JSON representation:
 //! - CIDs are encoded as `{"$link": "bafy..."}`
@@ -59,36 +59,38 @@ pub struct LexParseOptions {
 
 impl LexParseOptions {
     /// Strict mode — rejects every TS-strict violation.
-    pub fn strict() -> Self {
-        LexParseOptions { strict: true }
+    #[must_use]
+    pub const fn strict() -> Self {
+        Self { strict: true }
     }
 }
 
-/// Serialize a LexValue to a JSON string.
+/// Serialize a `LexValue` to a JSON string.
+#[must_use]
 pub fn lex_stringify(value: &LexValue) -> String {
     let json = lex_to_json(value);
     serde_json::to_string(&json).expect("LexValue should always serialize to valid JSON")
 }
 
-/// Parse a JSON string to a LexValue (lenient).
+/// Parse a JSON string to a `LexValue` (lenient).
 pub fn lex_parse(input: &str) -> Result<LexValue, JsonError> {
     lex_parse_with(input, LexParseOptions::default())
 }
 
-/// Parse a JSON string to a LexValue with caller-supplied options.
+/// Parse a JSON string to a `LexValue` with caller-supplied options.
 pub fn lex_parse_with(input: &str, opts: LexParseOptions) -> Result<LexValue, JsonError> {
     let json: JsonValue = serde_json::from_str(input)?;
     json_to_lex_with(&json, opts)
 }
 
-/// Parse a UTF-8 byte slice containing JSON into a LexValue (lenient).
+/// Parse a UTF-8 byte slice containing JSON into a `LexValue` (lenient).
 ///
 /// Mirrors TS `lexParseJsonBytes`.
 pub fn lex_parse_json_bytes(bytes: &[u8]) -> Result<LexValue, JsonError> {
     lex_parse_json_bytes_with(bytes, LexParseOptions::default())
 }
 
-/// Parse a UTF-8 byte slice containing JSON into a LexValue with
+/// Parse a UTF-8 byte slice containing JSON into a `LexValue` with
 /// caller-supplied options.
 pub fn lex_parse_json_bytes_with(
     bytes: &[u8],
@@ -98,12 +100,13 @@ pub fn lex_parse_json_bytes_with(
     json_to_lex_with(&json, opts)
 }
 
-/// Convert a JSON value to a LexValue (lenient — never fails).
+/// Convert a JSON value to a `LexValue` (lenient — never fails).
 ///
 /// Recognizes special object patterns:
 /// - `{"$link": "..."}` (exactly one key) → `LexValue::Cid`
 /// - `{"$bytes": "..."}` (exactly one key) → `LexValue::Bytes`
 /// - Objects with `$type`, `$link`, or `$bytes` alongside other keys are kept as maps
+#[must_use]
 pub fn json_to_lex(json: &JsonValue) -> LexValue {
     // Lenient mode never errors — this unwrap is infallible by
     // construction (every `strict`-gated error path returns a plain
@@ -112,7 +115,7 @@ pub fn json_to_lex(json: &JsonValue) -> LexValue {
         .expect("json_to_lex in lenient mode is infallible")
 }
 
-/// Convert a JSON value to a LexValue with caller-supplied options.
+/// Convert a JSON value to a `LexValue` with caller-supplied options.
 ///
 /// In strict mode, returns [`JsonError`] for every TS-strict
 /// violation; in lenient mode, falls back to plain maps / strings /
@@ -124,8 +127,7 @@ pub fn json_to_lex_with(json: &JsonValue, opts: LexParseOptions) -> Result<LexVa
         JsonValue::Number(n) => convert_number(n, opts),
         JsonValue::String(s) => Ok(LexValue::String(s.clone())),
         JsonValue::Array(arr) => {
-            let items: Result<Vec<_>, _> =
-                arr.iter().map(|v| json_to_lex_with(v, opts)).collect();
+            let items: Result<Vec<_>, _> = arr.iter().map(|v| json_to_lex_with(v, opts)).collect();
             Ok(LexValue::Array(items?))
         }
         JsonValue::Object(obj) => convert_object(obj, opts),
@@ -200,18 +202,17 @@ fn convert_object(
 /// Interpret a single-key `{"$link": x}` object.
 fn convert_link(link_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
     // $link MUST be a string.
-    let s = match link_val {
-        JsonValue::String(s) => s,
-        _ => {
-            if opts.strict {
-                return Err(JsonError::InvalidLink(format!(
-                    "expected string, got {}",
-                    json_shape(link_val),
-                )));
-            }
-            // Lenient fallback: emit as plain map.
-            return Ok(LexValue::Map(make_single_key_map("$link", link_val)));
+    let s = if let JsonValue::String(s) = link_val {
+        s
+    } else {
+        if opts.strict {
+            return Err(JsonError::InvalidLink(format!(
+                "expected string, got {}",
+                json_shape(link_val),
+            )));
         }
+        // Lenient fallback: emit as plain map.
+        return Ok(LexValue::Map(make_single_key_map("$link", link_val)));
     };
 
     if s.len() > MAX_LINK_LEN {
@@ -243,17 +244,16 @@ fn convert_link(link_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue,
 
 /// Interpret a single-key `{"$bytes": x}` object.
 fn convert_bytes(bytes_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
-    let s = match bytes_val {
-        JsonValue::String(s) => s,
-        _ => {
-            if opts.strict {
-                return Err(JsonError::InvalidBytes(format!(
-                    "expected string, got {}",
-                    json_shape(bytes_val),
-                )));
-            }
-            return Ok(LexValue::Map(make_single_key_map("$bytes", bytes_val)));
+    let s = if let JsonValue::String(s) = bytes_val {
+        s
+    } else {
+        if opts.strict {
+            return Err(JsonError::InvalidBytes(format!(
+                "expected string, got {}",
+                json_shape(bytes_val),
+            )));
         }
+        return Ok(LexValue::Map(make_single_key_map("$bytes", bytes_val)));
     };
 
     match BASE64_ENGINE.decode(s) {
@@ -278,7 +278,7 @@ fn make_single_key_map(key: &str, value: &JsonValue) -> BTreeMap<String, LexValu
 }
 
 /// Human-readable shape for error messages.
-fn json_shape(v: &JsonValue) -> &'static str {
+const fn json_shape(v: &JsonValue) -> &'static str {
     match v {
         JsonValue::Null => "null",
         JsonValue::Bool(_) => "boolean",
@@ -289,7 +289,7 @@ fn json_shape(v: &JsonValue) -> &'static str {
     }
 }
 
-/// Convert a LexValue to a JSON value.
+/// Convert a `LexValue` to a JSON value.
 ///
 /// CIDs become `{"$link": "..."}`, byte arrays become `{"$bytes": "..."}`.
 pub fn lex_to_json(value: &LexValue) -> JsonValue {
@@ -525,9 +525,8 @@ mod tests {
 
     #[test]
     fn strict_rejects_non_safe_integer() {
-        let input = format!(r#"{}"#, i64::MAX);
-        let err =
-            lex_parse_with(&input, LexParseOptions::strict()).unwrap_err();
+        let input = format!(r"{}", i64::MAX);
+        let err = lex_parse_with(&input, LexParseOptions::strict()).unwrap_err();
         assert!(matches!(err, JsonError::UnsafeInteger(_)));
 
         // Lenient still accepts.
@@ -538,8 +537,7 @@ mod tests {
     #[test]
     fn strict_rejects_non_integer_float() {
         let input = "1.5";
-        let err =
-            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        let err = lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
         assert!(matches!(err, JsonError::UnsafeInteger(_)));
 
         let v = lex_parse(input).unwrap();
@@ -549,8 +547,7 @@ mod tests {
     #[test]
     fn strict_rejects_malformed_link() {
         let input = r#"{"$link":"not-a-valid-cid"}"#;
-        let err =
-            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        let err = lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
         assert!(matches!(err, JsonError::InvalidCid(_)));
 
         // Lenient keeps as map.
@@ -562,8 +559,7 @@ mod tests {
     fn strict_rejects_link_exceeding_cap() {
         let long = "z".repeat(MAX_LINK_LEN + 1);
         let input = format!(r#"{{"$link":"{long}"}}"#);
-        let err =
-            lex_parse_with(&input, LexParseOptions::strict()).unwrap_err();
+        let err = lex_parse_with(&input, LexParseOptions::strict()).unwrap_err();
         assert!(
             matches!(&err, JsonError::InvalidLink(msg) if msg.contains("exceeds max")),
             "unexpected: {err:?}",
@@ -573,16 +569,14 @@ mod tests {
     #[test]
     fn strict_rejects_non_string_link() {
         let input = r#"{"$link":42}"#;
-        let err =
-            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        let err = lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
         assert!(matches!(err, JsonError::InvalidLink(_)));
     }
 
     #[test]
     fn strict_rejects_malformed_bytes() {
         let input = r#"{"$bytes":"!!!not valid base64!!!"}"#;
-        let err =
-            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        let err = lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
         assert!(matches!(err, JsonError::InvalidBytes(_)));
 
         // Lenient keeps as map.
@@ -593,8 +587,7 @@ mod tests {
     #[test]
     fn strict_rejects_proto_pollution() {
         let input = r#"{"__proto__":{"polluted":true}}"#;
-        let err =
-            lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
+        let err = lex_parse_with(input, LexParseOptions::strict()).unwrap_err();
         assert!(matches!(err, JsonError::ProtoPollution));
 
         // Lenient drops the key silently.

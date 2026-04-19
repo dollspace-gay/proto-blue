@@ -38,7 +38,7 @@ pub enum OAuthError {
     #[error("PKCE verification failed")]
     PkceVerificationFailed,
 
-    /// DPoP nonce was required but not provided.
+    /// `DPoP` nonce was required but not provided.
     #[error("DPoP nonce required: {0}")]
     DpopNonceRequired(String),
 
@@ -54,7 +54,7 @@ pub enum OAuthError {
     #[error("Missing required field: {0}")]
     MissingField(String),
 
-    /// Client metadata failed validation (malformed client_id, bad
+    /// Client metadata failed validation (malformed `client_id`, bad
     /// redirect URI, unsupported auth method, etc.).
     #[error("Invalid client metadata: {0}")]
     InvalidClientMetadata(String),

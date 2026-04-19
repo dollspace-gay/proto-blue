@@ -21,4 +21,3 @@ pub struct SetView {
     pub set_size: i64,
     pub updated_at: String,
 }
-

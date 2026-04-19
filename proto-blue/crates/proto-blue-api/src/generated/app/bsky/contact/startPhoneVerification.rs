@@ -13,8 +13,7 @@ pub struct Input {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Output {
-}
+pub struct Output {}
 
 /// Errors a `call()` on this method can return.
 #[derive(Debug, thiserror::Error)]
@@ -53,7 +52,15 @@ pub async fn call(
 ) -> Result<Output, CallError> {
     let qp_ref: Option<&proto_blue_xrpc::QueryParams> = None;
     let body = proto_blue_xrpc::XrpcBody::Json(serde_json::to_value(input)?);
-    let response = match client.procedure("app.bsky.contact.startPhoneVerification", qp_ref, Some(body), opts).await {
+    let response = match client
+        .procedure(
+            "app.bsky.contact.startPhoneVerification",
+            qp_ref,
+            Some(body),
+            opts,
+        )
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -64,26 +71,36 @@ pub async fn call(
 /// Register a typed handler for this procedure on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Input>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<Output, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.procedure("app.bsky.contact.startPhoneVerification", move |ctx| {
         let handler = handler.clone();
         async move {
             let input = match ctx.json_body()? {
-                Some(v) => Some(serde_json::from_value::<Input>(v).map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InvalidRequest, format!("input deserialize: {e}")))?),
+                Some(v) => Some(serde_json::from_value::<Input>(v).map_err(|e| {
+                    proto_blue_xrpc::XrpcServerError::new(
+                        proto_blue_xrpc::ResponseType::InvalidRequest,
+                        format!("input deserialize: {e}"),
+                    )
+                })?),
                 None => None,
             };
             let out = handler(ctx, input).await?;
-            let value = serde_json::to_value(&out)
-                .map_err(|e| proto_blue_xrpc::XrpcServerError::new(proto_blue_xrpc::ResponseType::InternalServerError, format!("output serialize: {e}")))?;
+            let value = serde_json::to_value(&out).map_err(|e| {
+                proto_blue_xrpc::XrpcServerError::new(
+                    proto_blue_xrpc::ResponseType::InternalServerError,
+                    format!("output serialize: {e}"),
+                )
+            })?;
             Ok::<_, proto_blue_xrpc::XrpcServerError>(value)
         }
     })
 }
-

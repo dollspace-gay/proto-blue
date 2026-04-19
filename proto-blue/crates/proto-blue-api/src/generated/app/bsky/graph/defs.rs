@@ -141,4 +141,3 @@ pub struct StarterPackViewBasic {
     pub record: serde_json::Value,
     pub uri: String,
 }
-

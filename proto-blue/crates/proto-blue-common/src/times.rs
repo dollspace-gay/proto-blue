@@ -15,6 +15,7 @@ pub const HOUR: u64 = 60 * MINUTE;
 pub const DAY: u64 = 24 * HOUR;
 
 /// Check if a timestamp (in milliseconds) is less than `range_ms` ago.
+#[must_use]
 pub fn less_than_ago_ms(time_ms: u64, range_ms: u64) -> bool {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -24,7 +25,8 @@ pub fn less_than_ago_ms(time_ms: u64, range_ms: u64) -> bool {
 }
 
 /// Create a Duration from milliseconds.
-pub fn duration_ms(ms: u64) -> Duration {
+#[must_use]
+pub const fn duration_ms(ms: u64) -> Duration {
     Duration::from_millis(ms)
 }
 

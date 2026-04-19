@@ -1,7 +1,7 @@
-//! AT Protocol core data types: CID, LexValue, BlobRef.
+//! AT Protocol core data types: CID, `LexValue`, `BlobRef`.
 //!
 //! This crate provides the foundational IPLD/Lexicon data model types used throughout
-//! the AT Protocol. These include content identifiers (CIDs), the recursive LexValue
+//! the AT Protocol. These include content identifiers (CIDs), the recursive `LexValue`
 //! type, and blob references.
 //!
 //! # Examples

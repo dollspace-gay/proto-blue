@@ -47,9 +47,27 @@ fn map_xrpc_error(err: proto_blue_xrpc::XrpcError) -> CallError {
 
 fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     let mut qp = proto_blue_xrpc::QueryParams::new();
-    { let v = &p.collection; qp.insert("collection".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    { let v = &p.did; qp.insert("did".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
-    { let v = &p.rkey; qp.insert("rkey".to_string(), proto_blue_xrpc::QueryValue::String(v.clone())); }
+    {
+        let v = &p.collection;
+        qp.insert(
+            "collection".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    {
+        let v = &p.did;
+        qp.insert(
+            "did".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
+    {
+        let v = &p.rkey;
+        qp.insert(
+            "rkey".to_string(),
+            proto_blue_xrpc::QueryValue::String(v.clone()),
+        );
+    }
     qp
 }
 
@@ -60,7 +78,10 @@ pub async fn call(
     opts: Option<&proto_blue_xrpc::CallOptions>,
 ) -> Result<serde_json::Value, CallError> {
     let qp = params.map(to_query_params);
-    let response = match client.query("com.atproto.sync.getRecord", qp.as_ref(), opts).await {
+    let response = match client
+        .query("com.atproto.sync.getRecord", qp.as_ref(), opts)
+        .await
+    {
         Ok(r) => r,
         Err(proto_blue_xrpc::Error::Xrpc(x)) => return Err(map_xrpc_error(x)),
         Err(e) => return Err(CallError::Transport(e)),
@@ -71,12 +92,14 @@ pub async fn call(
 /// Register a typed handler for this method on an [`XrpcServer`].
 #[cfg(feature = "server")]
 pub fn register<F, Fut>(
-server: proto_blue_xrpc::XrpcServer,
-handler: F,
+    server: proto_blue_xrpc::XrpcServer,
+    handler: F,
 ) -> proto_blue_xrpc::XrpcServer
 where
     F: Fn(proto_blue_xrpc::HandlerContext, Option<Params>) -> Fut + Send + Sync + 'static,
-    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>> + Send + 'static,
+    Fut: std::future::Future<Output = Result<serde_json::Value, proto_blue_xrpc::XrpcServerError>>
+        + Send
+        + 'static,
 {
     let handler = std::sync::Arc::new(handler);
     server.query("com.atproto.sync.getRecord", move |ctx| {
@@ -100,4 +123,3 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
         rkey: (ctx.params.get("rkey").cloned())?,
     })
 }
-

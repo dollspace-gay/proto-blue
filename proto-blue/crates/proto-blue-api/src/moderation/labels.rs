@@ -3,6 +3,7 @@
 use super::types::*;
 
 /// Predefined behavior for block causes.
+#[must_use]
 pub fn block_behavior() -> ModerationBehavior {
     ModerationBehavior {
         profile_list: Some(BehaviorValue::Blur),
@@ -16,6 +17,7 @@ pub fn block_behavior() -> ModerationBehavior {
 }
 
 /// Predefined behavior for mute causes.
+#[must_use]
 pub fn mute_behavior() -> ModerationBehavior {
     ModerationBehavior {
         profile_list: Some(BehaviorValue::Inform),
@@ -27,6 +29,7 @@ pub fn mute_behavior() -> ModerationBehavior {
 }
 
 /// Predefined behavior for mute word causes.
+#[must_use]
 pub fn mute_word_behavior() -> ModerationBehavior {
     ModerationBehavior {
         content_list: Some(BehaviorValue::Blur),
@@ -36,6 +39,7 @@ pub fn mute_word_behavior() -> ModerationBehavior {
 }
 
 /// Predefined behavior for hidden post causes.
+#[must_use]
 pub fn hide_behavior() -> ModerationBehavior {
     ModerationBehavior {
         content_list: Some(BehaviorValue::Blur),
@@ -45,6 +49,7 @@ pub fn hide_behavior() -> ModerationBehavior {
 }
 
 /// Build the list of known (system) label definitions.
+#[must_use]
 pub fn known_labels() -> Vec<LabelValueDefinition> {
     vec![
         // Imperative labels (non-configurable)
@@ -212,6 +217,7 @@ fn media_label_behaviors() -> LabelBehaviors {
 }
 
 /// Look up a label definition by identifier from known labels + custom defs.
+#[must_use]
 pub fn find_label_def(
     identifier: &str,
     custom_defs: &std::collections::HashMap<String, Vec<LabelValueDefinition>>,

@@ -8,7 +8,10 @@ use proto_blue_lex_data::Cid;
 use crate::block_map::BlockMap;
 use crate::cid_set::CidSet;
 use crate::error::RepoError;
-use crate::mst::util::*;
+use crate::mst::util::{
+    NodeData, TreeEntry, count_prefix_len, deserialize_node_data, ensure_valid_mst_key,
+    entries_to_keys, leading_zeros_on_hash, serialize_node_data,
+};
 
 /// A leaf entry in the MST — a key-value pair.
 #[derive(Debug, Clone)]
@@ -25,17 +28,20 @@ pub enum NodeEntry {
 }
 
 impl NodeEntry {
-    pub fn is_leaf(&self) -> bool {
-        matches!(self, NodeEntry::Leaf(_))
+    #[must_use]
+    pub const fn is_leaf(&self) -> bool {
+        matches!(self, Self::Leaf(_))
     }
 
-    pub fn is_tree(&self) -> bool {
-        matches!(self, NodeEntry::Tree(_))
+    #[must_use]
+    pub const fn is_tree(&self) -> bool {
+        matches!(self, Self::Tree(_))
     }
 
-    pub fn as_leaf(&self) -> Option<&Leaf> {
+    #[must_use]
+    pub const fn as_leaf(&self) -> Option<&Leaf> {
         match self {
-            NodeEntry::Leaf(l) => Some(l),
+            Self::Leaf(l) => Some(l),
             _ => None,
         }
     }
@@ -55,8 +61,9 @@ pub struct MstNode {
 
 impl MstNode {
     /// Create a new empty MST node.
-    pub fn empty() -> Self {
-        MstNode {
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self {
             entries: Vec::new(),
             layer: Some(0),
             pointer: None,
@@ -64,20 +71,21 @@ impl MstNode {
     }
 
     /// Create an MST node from entries.
+    #[must_use]
     pub fn from_entries(entries: Vec<NodeEntry>) -> Self {
         let layer = Self::detect_layer(&entries);
-        MstNode {
+        Self {
             entries,
             layer,
             pointer: None,
         }
     }
 
-    /// Create an MST node from a CID and loaded NodeData.
+    /// Create an MST node from a CID and loaded `NodeData`.
     pub fn from_data(data: &NodeData, blocks: &BlockMap) -> Result<Self, RepoError> {
         let entries = Self::deserialize_entries(data, blocks)?;
         let layer = Self::detect_layer(&entries);
-        Ok(MstNode {
+        Ok(Self {
             entries,
             layer,
             pointer: None,
@@ -113,7 +121,7 @@ impl MstNode {
         let keys = entries_to_keys(data);
 
         if let Some(left_cid) = &data.left {
-            let subtree = MstNode::load(left_cid, blocks)?;
+            let subtree = Self::load(left_cid, blocks)?;
             entries.push(NodeEntry::Tree(subtree));
         }
 
@@ -123,7 +131,7 @@ impl MstNode {
                 value: tree_entry.value.clone(),
             }));
             if let Some(tree_cid) = &tree_entry.tree {
-                let subtree = MstNode::load(tree_cid, blocks)?;
+                let subtree = Self::load(tree_cid, blocks)?;
                 entries.push(NodeEntry::Tree(subtree));
             }
         }
@@ -132,11 +140,13 @@ impl MstNode {
     }
 
     /// Get the layer of this node.
+    #[must_use]
     pub fn get_layer(&self) -> usize {
         self.layer.unwrap_or(0)
     }
 
     /// Get all entries.
+    #[must_use]
     pub fn entries(&self) -> &[NodeEntry] {
         &self.entries
     }
@@ -146,6 +156,7 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Get a value by key.
+    #[must_use]
     pub fn get(&self, key: &str) -> Option<Cid> {
         for entry in &self.entries {
             match entry {
@@ -173,7 +184,7 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Add a new key-value pair. Returns error if key already exists.
-    pub fn add(&self, key: &str, value: Cid) -> Result<MstNode, RepoError> {
+    pub fn add(&self, key: &str, value: Cid) -> Result<Self, RepoError> {
         ensure_valid_mst_key(key)?;
         if self.get(key).is_some() {
             return Err(RepoError::KeyAlreadyExists(key.to_string()));
@@ -192,7 +203,7 @@ impl MstNode {
     }
 
     /// Insert a leaf at this node's layer.
-    fn insert_at_this_layer(&self, key: &str, value: Cid) -> Result<MstNode, RepoError> {
+    fn insert_at_this_layer(&self, key: &str, value: Cid) -> Result<Self, RepoError> {
         // Find the position to insert. Walk entries and find the right spot.
         let new_leaf = NodeEntry::Leaf(Leaf {
             key: key.to_string(),
@@ -268,11 +279,11 @@ impl MstNode {
             }
         }
 
-        Ok(MstNode::from_entries(new_entries))
+        Ok(Self::from_entries(new_entries))
     }
 
-    /// Insert a key that belongs in a child subtree (key_zeros < layer).
-    fn insert_into_child(&self, key: &str, value: Cid) -> Result<MstNode, RepoError> {
+    /// Insert a key that belongs in a child subtree (`key_zeros` < layer).
+    fn insert_into_child(&self, key: &str, value: Cid) -> Result<Self, RepoError> {
         // Find the subtree that should contain this key.
         let mut new_entries = Vec::new();
         let mut inserted = false;
@@ -286,7 +297,7 @@ impl MstNode {
                 NodeEntry::Leaf(leaf) => {
                     if key < leaf.key.as_str() && !inserted {
                         // Key should go before this leaf, in a new subtree
-                        let child = MstNode::empty().add(key, value.clone())?;
+                        let child = Self::empty().add(key, value.clone())?;
                         new_entries.push(NodeEntry::Tree(child));
                         inserted = true;
                     }
@@ -314,20 +325,20 @@ impl MstNode {
         }
 
         if !inserted {
-            let child = MstNode::empty().add(key, value)?;
+            let child = Self::empty().add(key, value)?;
             new_entries.push(NodeEntry::Tree(child));
         }
 
-        Ok(MstNode::from_entries(new_entries))
+        Ok(Self::from_entries(new_entries))
     }
 
-    /// Create parent layers when key_zeros > current layer.
+    /// Create parent layers when `key_zeros` > current layer.
     fn create_parent_layers(
         &self,
         key: &str,
         value: Cid,
         key_zeros: usize,
-    ) -> Result<MstNode, RepoError> {
+    ) -> Result<Self, RepoError> {
         let (left, right) = self.split_around(key);
 
         let mut new_entries = Vec::new();
@@ -346,7 +357,7 @@ impl MstNode {
             }
         }
 
-        let mut node = MstNode::from_entries(new_entries);
+        let mut node = Self::from_entries(new_entries);
         node.layer = Some(key_zeros);
         Ok(node)
     }
@@ -356,7 +367,7 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Update an existing key's value. Returns error if key doesn't exist.
-    pub fn update(&self, key: &str, value: Cid) -> Result<MstNode, RepoError> {
+    pub fn update(&self, key: &str, value: Cid) -> Result<Self, RepoError> {
         ensure_valid_mst_key(key)?;
         let mut new_entries = Vec::new();
         let mut found = false;
@@ -388,7 +399,7 @@ impl MstNode {
         if !found {
             return Err(RepoError::KeyNotFound(key.to_string()));
         }
-        Ok(MstNode::from_entries(new_entries))
+        Ok(Self::from_entries(new_entries))
     }
 
     // -----------------------------------------------------------------------
@@ -396,7 +407,7 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Delete a key. Returns error if key doesn't exist.
-    pub fn delete(&self, key: &str) -> Result<MstNode, RepoError> {
+    pub fn delete(&self, key: &str) -> Result<Self, RepoError> {
         ensure_valid_mst_key(key)?;
         let result = self.delete_recurse(key)?;
         match result {
@@ -405,8 +416,8 @@ impl MstNode {
         }
     }
 
-    /// Recursively delete a key. Returns Some(new_node) if found, None if not found.
-    fn delete_recurse(&self, key: &str) -> Result<Option<MstNode>, RepoError> {
+    /// Recursively delete a key. Returns `Some(new_node)` if found, None if not found.
+    fn delete_recurse(&self, key: &str) -> Result<Option<Self>, RepoError> {
         let mut new_entries = Vec::new();
         let mut found = false;
 
@@ -422,13 +433,11 @@ impl MstNode {
                 NodeEntry::Leaf(leaf) if leaf.key == key => {
                     found = true;
                     // Check if we need to merge neighboring subtrees
-                    let prev_tree = if !new_entries.is_empty() {
-                        if let Some(NodeEntry::Tree(_)) = new_entries.last() {
-                            if let NodeEntry::Tree(t) = new_entries.pop().unwrap() {
-                                Some(t)
-                            } else {
-                                None
-                            }
+                    let prev_tree = if new_entries.is_empty() {
+                        None
+                    } else if let Some(NodeEntry::Tree(_)) = new_entries.last() {
+                        if let NodeEntry::Tree(t) = new_entries.pop().unwrap() {
+                            Some(t)
                         } else {
                             None
                         }
@@ -480,7 +489,7 @@ impl MstNode {
         }
 
         if found {
-            Ok(Some(MstNode::from_entries(new_entries)))
+            Ok(Some(Self::from_entries(new_entries)))
         } else {
             Ok(None)
         }
@@ -491,7 +500,7 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Split the tree around a key. Returns (entries < key, entries >= key).
-    fn split_around(&self, key: &str) -> (Option<MstNode>, Option<MstNode>) {
+    fn split_around(&self, key: &str) -> (Option<Self>, Option<Self>) {
         let mut left_entries = Vec::new();
         let mut right_entries = Vec::new();
         let mut past_key = false;
@@ -555,25 +564,25 @@ impl MstNode {
         let left = if left_entries.is_empty() {
             None
         } else {
-            Some(MstNode::from_entries(left_entries))
+            Some(Self::from_entries(left_entries))
         };
         let right = if right_entries.is_empty() {
             None
         } else {
-            Some(MstNode::from_entries(right_entries))
+            Some(Self::from_entries(right_entries))
         };
         (left, right)
     }
 
     /// Merge two trees (all keys in `other` must be > all keys in `self`).
-    fn append_merge(&self, other: &MstNode) -> MstNode {
+    fn append_merge(&self, other: &Self) -> Self {
         let mut entries = self.entries.clone();
         entries.extend(other.entries.iter().cloned());
-        MstNode::from_entries(entries)
+        Self::from_entries(entries)
     }
 
     /// If root only has a single tree child, trim to that child.
-    fn trim_top(self) -> MstNode {
+    fn trim_top(self) -> Self {
         if self.entries.len() == 1 {
             if let NodeEntry::Tree(subtree) = &self.entries[0] {
                 return subtree.clone().trim_top();
@@ -587,6 +596,7 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Collect all leaves (key-value pairs) in order.
+    #[must_use]
     pub fn leaves(&self) -> Vec<Leaf> {
         let mut result = Vec::new();
         self.collect_leaves(&mut result);
@@ -606,6 +616,7 @@ impl MstNode {
     ///
     /// Mirrors TS `MST.listWithPrefix`. A prefix of `"app.bsky.feed.post/"`
     /// returns every post record; `""` returns all leaves.
+    #[must_use]
     pub fn leaves_with_prefix(&self, prefix: &str) -> Vec<Leaf> {
         self.leaves()
             .into_iter()
@@ -617,6 +628,7 @@ impl MstNode {
     ///
     /// Mirrors TS `MST.paths`. Cheaper than `leaves()` when the caller
     /// only cares about keys (no value CID cloning).
+    #[must_use]
     pub fn paths(&self) -> Vec<String> {
         self.leaves().into_iter().map(|l| l.key).collect()
     }
@@ -629,6 +641,7 @@ impl MstNode {
     ///
     /// Mirrors TS `MST.list(count, after, before)`. Useful for
     /// implementing `listRecords`-style paginated APIs.
+    #[must_use]
     pub fn list(
         &self,
         count: Option<usize>,
@@ -663,6 +676,7 @@ impl MstNode {
     /// rather than a lazy iterator because the current MST stores the
     /// whole tree eagerly — lazy iteration is part of #38/#51's
     /// larger "lazy MST" work.
+    #[must_use]
     pub fn walk_leaves_from(&self, from: &str) -> Vec<Leaf> {
         self.leaves()
             .into_iter()
@@ -674,7 +688,7 @@ impl MstNode {
     // SERIALIZATION
     // -----------------------------------------------------------------------
 
-    /// Serialize this node and all children into a BlockMap.
+    /// Serialize this node and all children into a `BlockMap`.
     /// Returns the root CID and the blocks.
     pub fn get_all_blocks(&self) -> Result<(Cid, BlockMap), RepoError> {
         let mut blocks = BlockMap::new();
@@ -701,7 +715,7 @@ impl MstNode {
         Ok(cid)
     }
 
-    /// Convert to NodeData for serialization.
+    /// Convert to `NodeData` for serialization.
     /// `child_cids` is indexed by position in `self.entries` (one entry per entry).
     fn to_node_data(&self, child_cids: &[Option<Cid>]) -> NodeData {
         let mut left = None;
@@ -968,7 +982,7 @@ mod tests {
         tree = tree.add("a/b", cid.clone()).unwrap();
         tree = tree.delete("a/b").unwrap();
         assert!(tree.get("a/b").is_none());
-        tree = tree.add("a/b", cid.clone()).unwrap();
+        tree = tree.add("a/b", cid).unwrap();
         assert!(tree.get("a/b").is_some());
     }
 }

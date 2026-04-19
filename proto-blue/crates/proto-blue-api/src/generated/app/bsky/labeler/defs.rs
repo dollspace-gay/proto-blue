@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct LabelerPolicies {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub label_value_definitions: Option<Vec<crate::com::atproto::label::defs::LabelValueDefinition>>,
+    pub label_value_definitions:
+        Option<Vec<crate::com::atproto::label::defs::LabelValueDefinition>>,
     pub label_values: Vec<crate::com::atproto::label::defs::LabelValue>,
 }
 
@@ -54,4 +55,3 @@ pub struct LabelerViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub like: Option<String>,
 }
-

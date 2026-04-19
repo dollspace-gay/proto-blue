@@ -11,6 +11,7 @@ const SUBSTRING_LANGUAGES: &[&str] = &["ja", "zh", "ko", "th", "vi"];
 /// Check if any muted words match the given text, facets, and tags.
 ///
 /// Returns the list of matching muted words, or empty vec if none match.
+#[must_use]
 pub fn check_muted_words(
     muted_words: &[MutedWord],
     text: &str,
@@ -203,19 +204,17 @@ fn trim_punctuation(word: &str) -> &str {
     let start = word
         .char_indices()
         .find(|(_, c)| !is_punctuation(*c))
-        .map(|(i, _)| i)
-        .unwrap_or(word.len());
+        .map_or(word.len(), |(i, _)| i);
     let end = word
         .char_indices()
         .rev()
         .find(|(_, c)| !is_punctuation(*c))
-        .map(|(i, c)| i + c.len_utf8())
-        .unwrap_or(0);
+        .map_or(0, |(i, c)| i + c.len_utf8());
     if start >= end { "" } else { &word[start..end] }
 }
 
 /// Unicode general category group helper.
-/// Rust's char doesn't have a built-in general_category_group(), so we check manually.
+/// Rust's char doesn't have a built-in `general_category_group()`, so we check manually.
 trait UnicodeCategory {
     fn general_category_group(&self) -> UnicodeGeneralCategoryGroup;
 }

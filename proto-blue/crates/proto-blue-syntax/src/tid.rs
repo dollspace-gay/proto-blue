@@ -3,7 +3,6 @@
 //! TIDs are 13-character base32-sortable timestamp identifiers.
 //! See: <https://atproto.com/specs/record-key#record-key-type-tid>
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
@@ -14,7 +13,7 @@ const TID_LENGTH: usize = 13;
 /// Base32-sortable alphabet used by TIDs.
 const S32_CHARSET: &[u8] = b"234567abcdefghijklmnopqrstuvwxyz";
 
-static TID_REGEX: Lazy<Regex> = Lazy::new(|| {
+static TID_REGEX: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
     Regex::new(r"^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$").unwrap()
 });
 
@@ -35,37 +34,42 @@ impl Tid {
     /// Create a new `Tid` from a string, validating the format.
     pub fn new(s: &str) -> Result<Self, InvalidTidError> {
         ensure_valid_tid(s)?;
-        Ok(Tid(s.to_string()))
+        Ok(Self(s.to_string()))
     }
 
     /// Check whether a string is a valid TID.
+    #[must_use]
     pub fn is_valid(s: &str) -> bool {
         ensure_valid_tid(s).is_ok()
     }
 
     /// Return the inner string.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consume and return the inner string.
+    #[must_use]
     pub fn into_inner(self) -> String {
         self.0
     }
 
     /// Decode the TID to its underlying microsecond timestamp.
+    #[must_use]
     pub fn timestamp_micros(&self) -> u64 {
         s32_decode(&self.0[..11])
     }
 
     /// Encode a microsecond timestamp and clock ID into a TID.
+    #[must_use]
     pub fn from_timestamp(timestamp_micros: u64, clock_id: u16) -> Self {
         // Upper 53 bits: timestamp, lower 10 bits: clock_id
-        let tid_int = (timestamp_micros << 10) | (clock_id as u64 & 0x3FF);
+        let tid_int = (timestamp_micros << 10) | (u64::from(clock_id) & 0x3FF);
         // Ensure top bit is 0
         let tid_int = tid_int & 0x7FFFFFFFFFFFFFFF;
         let encoded = s32_encode(tid_int);
-        Tid(encoded)
+        Self(encoded)
     }
 }
 
@@ -88,7 +92,7 @@ fn s32_decode(s: &str) -> u64 {
             b'a'..=b'z' => byte - b'a' + 6,
             _ => 0,
         };
-        result = (result << 5) | val as u64;
+        result = (result << 5) | u64::from(val);
     }
     result
 }
@@ -124,7 +128,7 @@ impl fmt::Display for Tid {
 impl FromStr for Tid {
     type Err = InvalidTidError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Tid::new(s)
+        Self::new(s)
     }
 }
 
@@ -143,7 +147,7 @@ impl serde::Serialize for Tid {
 impl<'de> serde::Deserialize<'de> for Tid {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
-        Tid::new(&s).map_err(serde::de::Error::custom)
+        Self::new(&s).map_err(serde::de::Error::custom)
     }
 }
 

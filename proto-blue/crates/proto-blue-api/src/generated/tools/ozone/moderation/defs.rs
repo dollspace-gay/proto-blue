@@ -654,10 +654,12 @@ pub struct SubjectView {
 pub const TIMELINE_EVENT_PLC_CREATE: &str = "tools.ozone.moderation.defs#timelineEventPlcCreate";
 
 /// Moderation event timeline event for generic PLC operation
-pub const TIMELINE_EVENT_PLC_OPERATION: &str = "tools.ozone.moderation.defs#timelineEventPlcOperation";
+pub const TIMELINE_EVENT_PLC_OPERATION: &str =
+    "tools.ozone.moderation.defs#timelineEventPlcOperation";
 
 /// Moderation event timeline event for a PLC tombstone operation
-pub const TIMELINE_EVENT_PLC_TOMBSTONE: &str = "tools.ozone.moderation.defs#timelineEventPlcTombstone";
+pub const TIMELINE_EVENT_PLC_TOMBSTONE: &str =
+    "tools.ozone.moderation.defs#timelineEventPlcTombstone";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -666,4 +668,3 @@ pub struct VideoDetails {
     pub length: i64,
     pub width: i64,
 }
-

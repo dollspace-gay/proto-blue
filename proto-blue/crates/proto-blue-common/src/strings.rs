@@ -6,12 +6,14 @@ use unicode_segmentation::UnicodeSegmentation;
 ///
 /// This is the correct way to count "user-visible characters" for
 /// AT Protocol text length validation (e.g., post character limits).
+#[must_use]
 pub fn grapheme_len(s: &str) -> usize {
     s.graphemes(true).count()
 }
 
 /// Count the UTF-8 byte length of a string.
-pub fn utf8_len(s: &str) -> usize {
+#[must_use]
+pub const fn utf8_len(s: &str) -> usize {
     s.len()
 }
 

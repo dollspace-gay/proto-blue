@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-/// Errors that can occur during JSON <-> LexValue conversion.
+/// Errors that can occur during JSON <-> `LexValue` conversion.
 ///
 /// Most variants are only produced in **strict** mode
 /// ([`crate::LexParseOptions::strict`]); in the default lenient mode

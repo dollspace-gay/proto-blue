@@ -30,49 +30,51 @@ pub enum ResponseType {
 }
 
 impl ResponseType {
-    /// Convert an HTTP status code to a ResponseType.
+    /// Convert an HTTP status code to a `ResponseType`.
+    #[must_use]
     pub fn from_http_status(status: u16) -> Self {
         match status {
-            200 => ResponseType::Success,
-            400 => ResponseType::InvalidRequest,
-            401 => ResponseType::AuthenticationRequired,
-            403 => ResponseType::Forbidden,
-            404 => ResponseType::XRPCNotSupported,
-            406 => ResponseType::NotAcceptable,
-            413 => ResponseType::PayloadTooLarge,
-            415 => ResponseType::UnsupportedMediaType,
-            429 => ResponseType::RateLimitExceeded,
-            500 => ResponseType::InternalServerError,
-            501 => ResponseType::MethodNotImplemented,
-            502 => ResponseType::UpstreamFailure,
-            503 => ResponseType::NotEnoughResources,
-            504 => ResponseType::UpstreamTimeout,
-            s if (200..300).contains(&s) => ResponseType::Success,
-            s if (400..500).contains(&s) => ResponseType::InvalidRequest,
-            s if s >= 500 => ResponseType::InternalServerError,
-            _ => ResponseType::XRPCNotSupported,
+            200 => Self::Success,
+            400 => Self::InvalidRequest,
+            401 => Self::AuthenticationRequired,
+            403 => Self::Forbidden,
+            404 => Self::XRPCNotSupported,
+            406 => Self::NotAcceptable,
+            413 => Self::PayloadTooLarge,
+            415 => Self::UnsupportedMediaType,
+            429 => Self::RateLimitExceeded,
+            500 => Self::InternalServerError,
+            501 => Self::MethodNotImplemented,
+            502 => Self::UpstreamFailure,
+            503 => Self::NotEnoughResources,
+            504 => Self::UpstreamTimeout,
+            s if (200..300).contains(&s) => Self::Success,
+            s if (400..500).contains(&s) => Self::InvalidRequest,
+            s if s >= 500 => Self::InternalServerError,
+            _ => Self::XRPCNotSupported,
         }
     }
 
     /// Human-readable name for the response type.
-    pub fn name(&self) -> &'static str {
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
         match self {
-            ResponseType::Unknown => "Unknown",
-            ResponseType::InvalidResponse => "Invalid Response",
-            ResponseType::Success => "Success",
-            ResponseType::InvalidRequest => "Invalid Request",
-            ResponseType::AuthenticationRequired => "Authentication Required",
-            ResponseType::Forbidden => "Forbidden",
-            ResponseType::XRPCNotSupported => "XRPC Not Supported",
-            ResponseType::NotAcceptable => "Not Acceptable",
-            ResponseType::PayloadTooLarge => "Payload Too Large",
-            ResponseType::UnsupportedMediaType => "Unsupported Media Type",
-            ResponseType::RateLimitExceeded => "Rate Limit Exceeded",
-            ResponseType::InternalServerError => "Internal Server Error",
-            ResponseType::MethodNotImplemented => "Method Not Implemented",
-            ResponseType::UpstreamFailure => "Upstream Failure",
-            ResponseType::NotEnoughResources => "Not Enough Resources",
-            ResponseType::UpstreamTimeout => "Upstream Timeout",
+            Self::Unknown => "Unknown",
+            Self::InvalidResponse => "Invalid Response",
+            Self::Success => "Success",
+            Self::InvalidRequest => "Invalid Request",
+            Self::AuthenticationRequired => "Authentication Required",
+            Self::Forbidden => "Forbidden",
+            Self::XRPCNotSupported => "XRPC Not Supported",
+            Self::NotAcceptable => "Not Acceptable",
+            Self::PayloadTooLarge => "Payload Too Large",
+            Self::UnsupportedMediaType => "Unsupported Media Type",
+            Self::RateLimitExceeded => "Rate Limit Exceeded",
+            Self::InternalServerError => "Internal Server Error",
+            Self::MethodNotImplemented => "Method Not Implemented",
+            Self::UpstreamFailure => "Upstream Failure",
+            Self::NotEnoughResources => "Not Enough Resources",
+            Self::UpstreamTimeout => "Upstream Timeout",
         }
     }
 }
@@ -88,7 +90,7 @@ impl fmt::Display for ResponseType {
 pub struct XrpcError {
     /// Response type / status category.
     pub status: ResponseType,
-    /// Machine-readable error code from the server (e.g. "InvalidToken").
+    /// Machine-readable error code from the server (e.g. "`InvalidToken`").
     pub error: Option<String>,
     /// Human-readable error message.
     pub message: Option<String>,
@@ -99,9 +101,9 @@ pub struct XrpcError {
 impl fmt::Display for XrpcError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if let Some(msg) = &self.message {
-            write!(f, "{}", msg)
+            write!(f, "{msg}")
         } else if let Some(err) = &self.error {
-            write!(f, "{}", err)
+            write!(f, "{err}")
         } else {
             write!(f, "{}", self.status)
         }
@@ -109,9 +111,10 @@ impl fmt::Display for XrpcError {
 }
 
 impl XrpcError {
-    /// Create a new XrpcError from an HTTP status code.
+    /// Create a new `XrpcError` from an HTTP status code.
+    #[must_use]
     pub fn from_status(status_code: u16, error: Option<String>, message: Option<String>) -> Self {
-        XrpcError {
+        Self {
             status: ResponseType::from_http_status(status_code),
             error,
             message,
@@ -119,9 +122,9 @@ impl XrpcError {
         }
     }
 
-    /// Create a new XrpcError with the given ResponseType.
+    /// Create a new `XrpcError` with the given `ResponseType`.
     pub fn new(status: ResponseType, message: impl Into<String>) -> Self {
-        XrpcError {
+        Self {
             status,
             error: Some(status.name().to_string()),
             message: Some(message.into()),
@@ -130,6 +133,7 @@ impl XrpcError {
     }
 
     /// Check if this error matches a specific error string.
+    #[must_use]
     pub fn is_error(&self, error_name: &str) -> bool {
         self.error.as_deref() == Some(error_name)
     }
@@ -143,6 +147,7 @@ impl XrpcError {
     /// Returns `None` if the header is absent, malformed, or points to the
     /// past. For an HTTP-date the duration is measured from "now" (i.e.
     /// `header_time - Utc::now()`, clamped at zero).
+    #[must_use]
     pub fn retry_after(&self) -> Option<Duration> {
         let raw = self.header("retry-after")?;
 
@@ -166,6 +171,7 @@ impl XrpcError {
     /// absolute Unix timestamp (seconds) in `RateLimit-Reset`; we expose it
     /// as a `DateTime<Utc>` so callers don't have to reconstruct the time
     /// base from a relative number.
+    #[must_use]
     pub fn rate_limit(&self) -> Option<RateLimit> {
         let limit: u64 = self.header("ratelimit-limit")?.parse().ok()?;
         let remaining: u64 = self.header("ratelimit-remaining")?.parse().ok()?;
@@ -188,7 +194,7 @@ impl XrpcError {
 
 /// Parsed draft `RateLimit-*` response headers.
 ///
-/// See the IETF draft "RateLimit Fields for HTTP"
+/// See the IETF draft "`RateLimit` Fields for HTTP"
 /// (<https://datatracker.ietf.org/doc/draft-ietf-httpapi-ratelimit-headers/>)
 /// and atproto's use of the same fields in PDS responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -506,19 +512,19 @@ mod tests {
     fn display_with_message() {
         let err =
             XrpcError::from_status(400, Some("BadInput".into()), Some("invalid field".into()));
-        assert_eq!(format!("{}", err), "invalid field");
+        assert_eq!(format!("{err}"), "invalid field");
     }
 
     #[test]
     fn display_with_error_only() {
         let err = XrpcError::from_status(400, Some("BadInput".into()), None);
-        assert_eq!(format!("{}", err), "BadInput");
+        assert_eq!(format!("{err}"), "BadInput");
     }
 
     #[test]
     fn display_with_neither() {
         let err = XrpcError::from_status(500, None, None);
-        assert_eq!(format!("{}", err), "Internal Server Error");
+        assert_eq!(format!("{err}"), "Internal Server Error");
     }
 
     // ── Error enum From conversions ──────────────────────────────────

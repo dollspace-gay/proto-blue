@@ -20,4 +20,3 @@ pub struct Main {
 fn default_type() -> String {
     TYPE.to_string()
 }
-

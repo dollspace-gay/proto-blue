@@ -101,7 +101,8 @@ mod tungstenite_impl {
     pub struct TungsteniteConnector;
 
     impl TungsteniteConnector {
-        pub fn new() -> Self {
+        #[must_use]
+        pub const fn new() -> Self {
             Self
         }
     }
@@ -152,10 +153,7 @@ mod tungstenite_impl {
 
     #[async_trait]
     impl WebSocketConnector for TungsteniteConnector {
-        async fn connect(
-            &self,
-            url: &str,
-        ) -> Result<Box<dyn WebSocketTransport>, WsError> {
+        async fn connect(&self, url: &str) -> Result<Box<dyn WebSocketTransport>, WsError> {
             let (stream, _) = connect_async(url).await?;
             Ok(Box::new(TungsteniteTransport { stream }))
         }
@@ -237,10 +235,7 @@ mod gloo_impl {
 
     #[async_trait(?Send)]
     impl WebSocketConnector for GlooWsConnector {
-        async fn connect(
-            &self,
-            url: &str,
-        ) -> Result<Box<dyn WebSocketTransport>, WsError> {
+        async fn connect(&self, url: &str) -> Result<Box<dyn WebSocketTransport>, WsError> {
             let ws = WebSocket::open(url).map_err(|e| WsError::Transport(e.to_string()))?;
             Ok(Box::new(GlooTransport { ws: Some(ws) }))
         }

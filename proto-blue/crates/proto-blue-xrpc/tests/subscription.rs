@@ -14,8 +14,8 @@ use std::time::Duration;
 
 use futures::{SinkExt, StreamExt, stream};
 use proto_blue_lex_data::LexValue;
-use proto_blue_xrpc::server::{XrpcServer, XrpcServerError};
 use proto_blue_xrpc::ResponseType;
+use proto_blue_xrpc::server::{XrpcServer, XrpcServerError};
 use serde_json::json;
 use tokio_tungstenite::tungstenite::Message;
 
@@ -44,22 +44,18 @@ fn decode_frame(bytes: &[u8]) -> (LexValue, LexValue) {
 
 #[tokio::test]
 async fn subscription_delivers_each_yielded_value_as_message_frame() {
-    let server = XrpcServer::new().stream_method(
-        "com.example.feed.stream",
-        |_ctx| {
-            stream::iter(vec![
-                Ok(json!({"seq": 1, "text": "hello"})),
-                Ok(json!({"seq": 2, "text": "world"})),
-            ])
-        },
-    );
+    let server = XrpcServer::new().stream_method("com.example.feed.stream", |_ctx| {
+        stream::iter(vec![
+            Ok(json!({"seq": 1, "text": "hello"})),
+            Ok(json!({"seq": 2, "text": "world"})),
+        ])
+    });
 
     let (ws_url, _) = spawn_server(server.into_router()).await;
-    let (mut ws, _) = tokio_tungstenite::connect_async(format!(
-        "{ws_url}/xrpc/com.example.feed.stream",
-    ))
-    .await
-    .unwrap();
+    let (mut ws, _) =
+        tokio_tungstenite::connect_async(format!("{ws_url}/xrpc/com.example.feed.stream"))
+            .await
+            .unwrap();
 
     let mut received = Vec::new();
     while let Some(msg) = ws.next().await {
@@ -78,32 +74,30 @@ async fn subscription_delivers_each_yielded_value_as_message_frame() {
         assert_eq!(header_map.get("op"), Some(&LexValue::Integer(1)));
         // Body carries the yielded JSON value.
         let body_map = body.as_map().unwrap();
-        assert_eq!(body_map.get("seq"), Some(&LexValue::Integer((i + 1) as i64)));
+        assert_eq!(
+            body_map.get("seq"),
+            Some(&LexValue::Integer((i + 1) as i64))
+        );
     }
 }
 
 #[tokio::test]
 async fn subscription_handler_error_becomes_error_frame_and_closes() {
-    let server = XrpcServer::new().stream_method(
-        "com.example.feed.err",
-        |_ctx| {
-            stream::iter(vec![
-                Ok(json!({"seq": 1})),
-                Err(XrpcServerError::new(
-                    ResponseType::InvalidRequest,
-                    "something broke",
-                )
-                .with_error_name("Broken")),
-            ])
-        },
-    );
+    let server = XrpcServer::new().stream_method("com.example.feed.err", |_ctx| {
+        stream::iter(vec![
+            Ok(json!({"seq": 1})),
+            Err(
+                XrpcServerError::new(ResponseType::InvalidRequest, "something broke")
+                    .with_error_name("Broken"),
+            ),
+        ])
+    });
 
     let (ws_url, _) = spawn_server(server.into_router()).await;
-    let (mut ws, _) = tokio_tungstenite::connect_async(format!(
-        "{ws_url}/xrpc/com.example.feed.err",
-    ))
-    .await
-    .unwrap();
+    let (mut ws, _) =
+        tokio_tungstenite::connect_async(format!("{ws_url}/xrpc/com.example.feed.err"))
+            .await
+            .unwrap();
 
     let mut binary = Vec::new();
     let mut saw_close = false;
@@ -136,15 +130,13 @@ async fn subscription_handler_error_becomes_error_frame_and_closes() {
 
 #[tokio::test]
 async fn subscription_clean_exhaustion_closes_socket() {
-    let server = XrpcServer::new()
-        .stream_method("com.example.empty", |_ctx| stream::iter(Vec::new()));
+    let server =
+        XrpcServer::new().stream_method("com.example.empty", |_ctx| stream::iter(Vec::new()));
 
     let (ws_url, _) = spawn_server(server.into_router()).await;
-    let (mut ws, _) = tokio_tungstenite::connect_async(format!(
-        "{ws_url}/xrpc/com.example.empty",
-    ))
-    .await
-    .unwrap();
+    let (mut ws, _) = tokio_tungstenite::connect_async(format!("{ws_url}/xrpc/com.example.empty"))
+        .await
+        .unwrap();
 
     // No binary frames — should close cleanly.
     let mut saw_close = false;
@@ -161,22 +153,17 @@ async fn subscription_clean_exhaustion_closes_socket() {
 async fn subscription_client_disconnect_ends_pump() {
     // Slow infinite stream — server would run forever without the
     // client-disconnect watchdog in run_subscription_pump.
-    let server = XrpcServer::new().stream_method(
-        "com.example.slow",
-        |_ctx| {
-            stream::unfold(0_i64, |seq| async move {
-                tokio::time::sleep(Duration::from_millis(10)).await;
-                Some((Ok(json!({"seq": seq})), seq + 1))
-            })
-        },
-    );
+    let server = XrpcServer::new().stream_method("com.example.slow", |_ctx| {
+        stream::unfold(0_i64, |seq| async move {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            Some((Ok(json!({"seq": seq})), seq + 1))
+        })
+    });
 
     let (ws_url, _) = spawn_server(server.into_router()).await;
-    let (mut ws, _) = tokio_tungstenite::connect_async(format!(
-        "{ws_url}/xrpc/com.example.slow",
-    ))
-    .await
-    .unwrap();
+    let (mut ws, _) = tokio_tungstenite::connect_async(format!("{ws_url}/xrpc/com.example.slow"))
+        .await
+        .unwrap();
 
     // Read one frame so we know the stream is live.
     let first = ws.next().await.unwrap().unwrap();
@@ -199,10 +186,9 @@ async fn body_limit_rejects_oversized_procedure_bodies() {
     // 256-byte body limit; handler should never run for oversized
     // input because axum rejects upstream.
     let server = XrpcServer::new()
-        .procedure(
-            "com.example.upload",
-            |_ctx| async { Ok::<_, XrpcServerError>(serde_json::json!({"ok": true})) },
-        )
+        .procedure("com.example.upload", |_ctx| async {
+            Ok::<_, XrpcServerError>(serde_json::json!({"ok": true}))
+        })
         .with_body_limit(256);
 
     let (_, http_url) = spawn_server(server.into_router()).await;
@@ -233,8 +219,8 @@ async fn body_limit_rejects_oversized_procedure_bodies() {
 async fn subscription_get_without_upgrade_header_returns_invalid_request() {
     use reqwest::Client;
 
-    let server = XrpcServer::new()
-        .stream_method("com.example.get", |_ctx| stream::iter(Vec::new()));
+    let server =
+        XrpcServer::new().stream_method("com.example.get", |_ctx| stream::iter(Vec::new()));
 
     let (_, http_url) = spawn_server(server.into_router()).await;
     let resp = Client::new()

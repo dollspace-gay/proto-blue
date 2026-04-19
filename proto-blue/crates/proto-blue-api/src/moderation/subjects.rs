@@ -82,6 +82,7 @@ pub struct QuoteEmbed<'a> {
 /// Aggregates blocks / mutes / labels. The result is a single
 /// [`ModerationDecision`] suitable for feeding into [`ModerationUi`]
 /// via the existing behavior priority machinery.
+#[must_use]
 pub fn decide_account(subject: &SubjectAccount, opts: &ModerationOpts) -> ModerationDecision {
     let is_me = opts.user_did.as_deref() == Some(subject.did);
     let mut d = ModerationDecision::new(subject.did, is_me);
@@ -123,6 +124,7 @@ pub fn decide_account(subject: &SubjectAccount, opts: &ModerationOpts) -> Modera
 /// Profile-level labels are separate from account-level: a user can
 /// label their own profile (e.g. `porn`) without that label propagating
 /// to account interactions.
+#[must_use]
 pub fn decide_profile(subject: &SubjectProfile, opts: &ModerationOpts) -> ModerationDecision {
     let is_me = opts.user_did.as_deref() == Some(subject.did);
     let mut d = ModerationDecision::new(subject.did, is_me);
@@ -147,6 +149,7 @@ pub fn decide_profile(subject: &SubjectProfile, opts: &ModerationOpts) -> Modera
 /// The downgrade step is what makes a quote of a blocked user render
 /// with a warning instead of a hard filter — the outer post hasn't
 /// done anything wrong.
+#[must_use]
 pub fn decide_post(subject: &SubjectPost, opts: &ModerationOpts) -> ModerationDecision {
     let mut d = decide_account(&subject.author, opts);
 
@@ -204,15 +207,14 @@ pub fn decide_post(subject: &SubjectPost, opts: &ModerationOpts) -> ModerationDe
 /// extract only the record half; media moderation happens at the
 /// account/label level on the outer post).
 ///
-/// This probes raw JSON because `PostView.embed` is a serde_json
+/// This probes raw JSON because `PostView.embed` is a `serde_json`
 /// `Value` — the embed is a union of several unrelated view types.
+#[must_use]
 pub fn extract_quote_embed(embed: &JsonValue) -> Option<EmbedView<'_>> {
     let ty = embed.get("$type")?.as_str()?;
     let record = match ty {
         "app.bsky.embed.record#view" => embed.get("record")?,
-        "app.bsky.embed.recordWithMedia#view" => {
-            embed.get("record")?.get("record")?
-        }
+        "app.bsky.embed.recordWithMedia#view" => embed.get("record")?.get("record")?,
         _ => return None,
     };
     // A quoted record can itself be a `viewRecord`, `viewNotFound`,
@@ -233,14 +235,17 @@ pub struct EmbedView<'a> {
 }
 
 impl<'a> EmbedView<'a> {
+    #[must_use]
     pub fn author_did(&self) -> Option<&'a str> {
         self.record.get("author")?.get("did")?.as_str()
     }
 
+    #[must_use]
     pub fn text(&self) -> Option<&'a str> {
         self.record.get("value")?.get("text")?.as_str()
     }
 
+    #[must_use]
     pub fn languages(&self) -> Vec<String> {
         self.record
             .get("value")
@@ -254,6 +259,7 @@ impl<'a> EmbedView<'a> {
             .unwrap_or_default()
     }
 
+    #[must_use]
     pub fn labels(&self) -> Vec<LabelData> {
         self.record
             .get("labels")
@@ -357,7 +363,11 @@ mod tests {
             embed: None,
         };
         let d = decide_post(&post, &base_opts());
-        assert!(d.causes.iter().any(|c| matches!(c, ModerationCause::Hidden { .. })));
+        assert!(
+            d.causes
+                .iter()
+                .any(|c| matches!(c, ModerationCause::Hidden { .. }))
+        );
     }
 
     #[test]
@@ -415,7 +425,11 @@ mod tests {
             embed: None,
         };
         let d = decide_post(&post, &opts);
-        assert!(d.causes.iter().any(|c| matches!(c, ModerationCause::MuteWord { .. })));
+        assert!(
+            d.causes
+                .iter()
+                .any(|c| matches!(c, ModerationCause::MuteWord { .. }))
+        );
     }
 
     #[test]

@@ -85,8 +85,8 @@ impl<K: Keypair> SealedKeypair<K> {
     /// Wrap a keypair to drop its export capability at the type level.
     /// Accepts any `Keypair` — including non-exportable ones — so you
     /// can re-seal something that's already sealed (no-op semantically).
-    pub fn seal(inner: K) -> Self {
-        SealedKeypair { inner }
+    pub const fn seal(inner: K) -> Self {
+        Self { inner }
     }
 }
 

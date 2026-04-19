@@ -33,4 +33,3 @@ pub struct ViewImage {
     pub fullsize: String,
     pub thumb: String,
 }
-

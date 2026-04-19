@@ -15,15 +15,15 @@ use proto_blue_common::fetch::{FetchHandler, HttpRequest};
 use crate::error::IdentityError;
 
 #[cfg(feature = "dns")]
-use std::future::Future;
-#[cfg(feature = "dns")]
-use std::net::IpAddr;
-#[cfg(feature = "dns")]
 use futures::future::{self, Either};
 #[cfg(feature = "dns")]
 use hickory_resolver::TokioResolver;
 #[cfg(feature = "dns")]
 use hickory_resolver::config::{NameServerConfigGroup, ResolverConfig};
+#[cfg(feature = "dns")]
+use std::future::Future;
+#[cfg(feature = "dns")]
+use std::net::IpAddr;
 
 #[cfg(feature = "dns")]
 const SUBDOMAIN: &str = "_atproto";
@@ -54,6 +54,7 @@ impl HandleResolver {
     /// Create a new handle resolver with only the system DNS resolver (on
     /// native) and the default fetch backend.
     #[cfg(feature = "fetch-reqwest")]
+    #[must_use]
     pub fn new(timeout_ms: u64) -> Self {
         Self::with_fetch_handler(
             timeout_ms,
@@ -67,8 +68,9 @@ impl HandleResolver {
     /// that will be consulted in order if the system resolver fails or
     /// returns no matching TXT record. Port 53 / UDP is assumed.
     #[cfg(all(feature = "fetch-reqwest", feature = "dns"))]
+    #[must_use]
     pub fn with_backup_nameservers(timeout_ms: u64, backup_nameservers: Vec<IpAddr>) -> Self {
-        HandleResolver {
+        Self {
             timeout: Duration::from_millis(timeout_ms),
             fetcher: Arc::new(proto_blue_common::fetch::ReqwestFetcher::new()),
             backup_nameservers,
@@ -77,7 +79,7 @@ impl HandleResolver {
 
     /// Create a new handle resolver with a user-supplied [`FetchHandler`].
     pub fn with_fetch_handler(timeout_ms: u64, fetcher: Arc<dyn FetchHandler>) -> Self {
-        HandleResolver {
+        Self {
             timeout: Duration::from_millis(timeout_ms),
             fetcher,
             #[cfg(feature = "dns")]

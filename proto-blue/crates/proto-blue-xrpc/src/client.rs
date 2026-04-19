@@ -61,7 +61,7 @@ impl XrpcClient {
         if !service_url.path().ends_with('/') {
             service_url.set_path(&format!("{}/", service_url.path()));
         }
-        Ok(XrpcClient {
+        Ok(Self {
             service: service_url,
             fetcher,
             headers: HashMap::new(),
@@ -72,18 +72,18 @@ impl XrpcClient {
     ///
     /// Feature-gated behind `fetch-reqwest`.
     #[cfg(feature = "fetch-reqwest")]
-    pub fn with_client(
-        service: impl AsRef<str>,
-        client: reqwest::Client,
-    ) -> Result<Self, Error> {
+    pub fn with_client(service: impl AsRef<str>, client: reqwest::Client) -> Result<Self, Error> {
         Self::with_fetch_handler(
             service,
-            Arc::new(proto_blue_common::fetch::ReqwestFetcher::from_client(client)),
+            Arc::new(proto_blue_common::fetch::ReqwestFetcher::from_client(
+                client,
+            )),
         )
     }
 
     /// Get the service URL.
-    pub fn service_url(&self) -> &Url {
+    #[must_use]
+    pub const fn service_url(&self) -> &Url {
         &self.service
     }
 
@@ -154,7 +154,7 @@ impl XrpcClient {
 
     /// Build the full URL for an XRPC call.
     fn build_url(&self, nsid: &str, params: Option<&QueryParams>) -> Result<Url, Error> {
-        let path = format!("xrpc/{}", nsid);
+        let path = format!("xrpc/{nsid}");
         let mut url = self.service.join(&path)?;
 
         if let Some(params) = params {
@@ -213,9 +213,8 @@ impl XrpcClient {
                     req.headers
                         .entry("content-type".to_string())
                         .or_insert_with(|| "application/json".to_string());
-                    req.body = Some(
-                        serde_json::to_vec(&value).expect("JSON serialization cannot fail"),
-                    );
+                    req.body =
+                        Some(serde_json::to_vec(&value).expect("JSON serialization cannot fail"));
                 }
                 XrpcBody::Bytes(data) => {
                     let encoding = opts
@@ -240,7 +239,7 @@ impl XrpcClient {
     /// - **cancel**: races the fetch against the token; cancellation
     ///   drops the in-flight connection and returns
     ///   [`Error::Cancelled`].
-    /// - **max_response_bytes**: if the body exceeds the cap, returns
+    /// - **`max_response_bytes`**: if the body exceeds the cap, returns
     ///   [`Error::ResponseTooLarge`] without attempting to parse it.
     /// - **validate**: after a successful call, runs
     ///   [`Lexicons::assert_valid_xrpc_output`] against the response
@@ -258,7 +257,7 @@ impl XrpcClient {
         let response = if let Some(token) = opts.and_then(|o| o.cancel.as_ref()) {
             tokio::select! {
                 r = fetch_fut => r.map_err(Error::Fetch)?,
-                _ = token.cancelled() => return Err(Error::Cancelled),
+                () = token.cancelled() => return Err(Error::Cancelled),
             }
         } else {
             fetch_fut.await.map_err(Error::Fetch)?
@@ -267,10 +266,14 @@ impl XrpcClient {
         let status = response.status;
         let response_type = ResponseType::from_http_status(status);
 
-        let headers: HeadersMap = response.headers.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+        let headers: HeadersMap = response
+            .headers
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         let content_type = response
             .header("content-type")
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
 
         let body_bytes = response.body;
 
@@ -332,7 +335,11 @@ fn default_fetcher() -> proto_blue_common::fetch::ReqwestFetcher {
     proto_blue_common::fetch::ReqwestFetcher::new()
 }
 
-#[cfg(all(feature = "fetch-web", not(feature = "fetch-reqwest"), target_arch = "wasm32"))]
+#[cfg(all(
+    feature = "fetch-web",
+    not(feature = "fetch-reqwest"),
+    target_arch = "wasm32"
+))]
 fn default_fetcher() -> proto_blue_common::fetch::WebFetcher {
     proto_blue_common::fetch::WebFetcher::new()
 }
@@ -391,9 +398,17 @@ fn base64_encode(data: &[u8]) -> String {
     const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut result = String::new();
     for chunk in data.chunks(3) {
-        let b0 = chunk[0] as u32;
-        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
+        let b0 = u32::from(chunk[0]);
+        let b1 = if chunk.len() > 1 {
+            u32::from(chunk[1])
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            u32::from(chunk[2])
+        } else {
+            0
+        };
         let n = (b0 << 16) | (b1 << 8) | b2;
         result.push(CHARS[(n >> 18 & 63) as usize] as char);
         result.push(CHARS[(n >> 12 & 63) as usize] as char);
@@ -668,9 +683,7 @@ mod tests {
 
     use async_trait::async_trait;
     use proto_blue_common::cancel::CancellationToken;
-    use proto_blue_common::fetch::{
-        FetchError, FetchHandler, HttpRequest, HttpResponse,
-    };
+    use proto_blue_common::fetch::{FetchError, FetchHandler, HttpRequest, HttpResponse};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -700,11 +713,7 @@ mod tests {
             delay: Duration::from_secs(5),
             body: br#"{"ok":true}"#.to_vec(),
         });
-        let client = XrpcClient::with_fetch_handler(
-            "https://example.com",
-            fetcher,
-        )
-        .unwrap();
+        let client = XrpcClient::with_fetch_handler("https://example.com", fetcher).unwrap();
 
         let token = CancellationToken::new();
         let opts = CallOptions {
@@ -720,7 +729,10 @@ mod tests {
         });
 
         let t0 = std::time::Instant::now();
-        let err = client.query("com.example.x", None, Some(&opts)).await.unwrap_err();
+        let err = client
+            .query("com.example.x", None, Some(&opts))
+            .await
+            .unwrap_err();
         let elapsed = t0.elapsed();
 
         assert!(
@@ -740,11 +752,7 @@ mod tests {
             delay: Duration::from_millis(1),
             body: vec![0u8; 1024],
         });
-        let client = XrpcClient::with_fetch_handler(
-            "https://example.com",
-            fetcher,
-        )
-        .unwrap();
+        let client = XrpcClient::with_fetch_handler("https://example.com", fetcher).unwrap();
 
         let opts = CallOptions {
             max_response_bytes: Some(100),
@@ -773,11 +781,7 @@ mod tests {
             delay: Duration::from_millis(1),
             body: br#"{"ok":true}"#.to_vec(),
         });
-        let client = XrpcClient::with_fetch_handler(
-            "https://example.com",
-            fetcher,
-        )
-        .unwrap();
+        let client = XrpcClient::with_fetch_handler("https://example.com", fetcher).unwrap();
 
         let resp = client.query("com.example.x", None, None).await.unwrap();
         assert_eq!(resp.data["ok"], true);
@@ -788,7 +792,7 @@ mod tests {
         let mut lexicons = proto_blue_lexicon::Lexicons::new();
         lexicons
             .add_from_json(
-                r##"{
+                r#"{
                 "lexicon": 1,
                 "id": "com.example.ping",
                 "defs": {
@@ -806,7 +810,7 @@ mod tests {
                         }
                     }
                 }
-            }"##,
+            }"#,
             )
             .unwrap();
 
@@ -814,11 +818,7 @@ mod tests {
             delay: Duration::from_millis(1),
             body: br#"{"ok":true}"#.to_vec(),
         });
-        let client = XrpcClient::with_fetch_handler(
-            "https://example.com",
-            fetcher,
-        )
-        .unwrap();
+        let client = XrpcClient::with_fetch_handler("https://example.com", fetcher).unwrap();
 
         let opts = CallOptions {
             validate: Some(crate::LexiconValidation {
@@ -840,7 +840,7 @@ mod tests {
         let mut lexicons = proto_blue_lexicon::Lexicons::new();
         lexicons
             .add_from_json(
-                r##"{
+                r#"{
                 "lexicon": 1,
                 "id": "com.example.ping",
                 "defs": {
@@ -858,20 +858,16 @@ mod tests {
                         }
                     }
                 }
-            }"##,
+            }"#,
             )
             .unwrap();
 
         // Response missing the required `ok` field.
         let fetcher = Arc::new(SlowFetcher {
             delay: Duration::from_millis(1),
-            body: br#"{}"#.to_vec(),
+            body: br"{}".to_vec(),
         });
-        let client = XrpcClient::with_fetch_handler(
-            "https://example.com",
-            fetcher,
-        )
-        .unwrap();
+        let client = XrpcClient::with_fetch_handler("https://example.com", fetcher).unwrap();
 
         let opts = CallOptions {
             validate: Some(crate::LexiconValidation {

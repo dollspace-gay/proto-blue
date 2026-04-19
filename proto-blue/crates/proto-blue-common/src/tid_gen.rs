@@ -66,9 +66,9 @@ pub fn next_tid(prev: Option<&Tid>) -> Tid {
 /// Generate a TID string from a timestamp and clock ID.
 fn tid_from_time(timestamp: u64, clock_id: u32) -> Tid {
     let ts_str = s32_encode(timestamp);
-    let cid_str = s32_encode(clock_id as u64);
+    let cid_str = s32_encode(u64::from(clock_id));
     // Pad timestamp to 11 chars and clock ID to 2 chars with '2' (the '0' of s32)
-    let ts_padded = format!("{:2>11}", ts_str);
+    let ts_padded = format!("{ts_str:2>11}");
     let cid_padded = if cid_str.is_empty() {
         "22".to_string()
     } else if cid_str.len() == 1 {
@@ -81,6 +81,7 @@ fn tid_from_time(timestamp: u64, clock_id: u32) -> Tid {
 }
 
 /// Encode a number to base32-sortable string.
+#[must_use]
 pub fn s32_encode(mut i: u64) -> String {
     if i == 0 {
         return String::new();
@@ -96,6 +97,7 @@ pub fn s32_encode(mut i: u64) -> String {
 }
 
 /// Decode a base32-sortable string to a number.
+#[must_use]
 pub fn s32_decode(s: &str) -> u64 {
     let mut i: u64 = 0;
     for c in s.bytes() {

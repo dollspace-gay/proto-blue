@@ -35,7 +35,7 @@ pub struct Reply {
 
 impl Reply {
     pub fn json(status: u16, body: impl Into<Vec<u8>>) -> Self {
-        Reply {
+        Self {
             status,
             headers: vec![("Content-Type", "application/json".to_string())],
             body: body.into(),
@@ -43,7 +43,7 @@ impl Reply {
     }
 
     pub fn text(status: u16, body: impl Into<Vec<u8>>) -> Self {
-        Reply {
+        Self {
             status,
             headers: vec![("Content-Type", "text/plain".to_string())],
             body: body.into(),

@@ -2,4 +2,3 @@
 //! Lexicon: app.bsky.authManageNotifications
 
 use serde::{Deserialize, Serialize};
-
