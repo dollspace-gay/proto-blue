@@ -40,6 +40,8 @@ pub mod data_diff;
 pub mod data_key;
 pub mod error;
 pub mod firehose;
+pub mod repo;
+pub mod storage;
 #[cfg(feature = "firehose-client")]
 pub mod firehose_client;
 pub mod mst;
@@ -62,6 +64,8 @@ pub use firehose::{
 pub use firehose_client::Firehose;
 pub use mst::{Leaf, MstNode, NodeEntry};
 pub use data_key::{DataKey, DataKeyError, format_data_key, parse_data_key};
+pub use repo::{CommitData, Repo, RepoWrite};
+pub use storage::{MemoryBlockstore, RepoStorage};
 pub use proofs::{
     RecordCidClaim, commit_proof, covering_proof, proof_for_key, proof_for_left_sibling,
     proof_for_right_sibling, verify_claims,
