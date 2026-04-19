@@ -16,7 +16,6 @@ proto-blue-crypto = { workspace = true }
 proto-blue-lexicon = { workspace = true }
 proto-blue-lex-data = { workspace = true }
 proto-blue-lex-cbor = { workspace = true }
-proto-blue-ws = { workspace = true, optional = true }
 sha2 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
 unsigned-varint = { workspace = true }
@@ -25,11 +24,20 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 
+# Target-conditional: on native, the firehose client uses the tungstenite
+# backend; on wasm32 it uses gloo-ws. Both are optional and activated by
+# the `firehose-client` feature below.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+proto-blue-ws = { workspace = true, optional = true, features = ["tungstenite"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+proto-blue-ws = { workspace = true, optional = true, features = ["gloo-ws"] }
+
 [features]
 default = ["firehose-client"]
-# Pulls in the live firehose WebSocket client (`Firehose`).
-# Off for wasm builds — on wasm, consumers should use the abstractions
-# from #27 (WebSocketTransport) instead of the native tungstenite impl.
+# Pulls in the live firehose WebSocket client (`Firehose`). Uses
+# tungstenite on native, gloo-net on wasm32 — see the target-conditional
+# dependency tables above.
 firehose-client = ["dep:proto-blue-ws"]
 
 [dev-dependencies]

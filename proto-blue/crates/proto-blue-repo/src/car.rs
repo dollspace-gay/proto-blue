@@ -3,6 +3,19 @@
 //! CAR format:
 //! 1. Header (CBOR): { version: 1, roots: [CID] }
 //! 2. Blocks (repeated): varint(len) + CID bytes + block data
+//!
+//! # CID verification on read
+//!
+//! [`read_car`] hashes each block's payload and confirms the declared
+//! CID matches. A mismatch returns [`RepoError::CidMismatch`]. This
+//! matches TS `@atproto/repo`'s `verifyIncomingCarBlocks` behaviour —
+//! skipping the check would defeat content-addressed storage (a
+//! malicious CAR could feed blocks whose CIDs don't match their
+//! bytes, and the downstream verifier would trust them).
+//!
+//! Callers whose blocks have already been verified upstream can use
+//! [`read_car_opts`] with [`ReadCarOpts::skip_cid_verification`] to
+//! bypass the check.
 
 use std::collections::BTreeMap;
 
@@ -16,6 +29,18 @@ use crate::error::RepoError;
 pub struct CarBlock {
     pub cid: Cid,
     pub bytes: Vec<u8>,
+}
+
+/// Options for [`read_car_opts`].
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ReadCarOpts {
+    /// When `true`, do not verify that each block's declared CID
+    /// matches the SHA-256 hash of its bytes. Defaults to `false`.
+    ///
+    /// Only set this when the caller has already verified CIDs
+    /// upstream; otherwise a malicious/corrupt CAR can silently
+    /// inject blocks whose CIDs lie about their contents.
+    pub skip_cid_verification: bool,
 }
 
 /// Write a CAR file from a root CID and a BlockMap.
@@ -49,8 +74,23 @@ pub fn blocks_to_car(root: Option<&Cid>, blocks: &BlockMap) -> Result<Vec<u8>, R
     Ok(output)
 }
 
-/// Read a CAR file, returning roots and a BlockMap.
+/// Read a CAR file with CID-for-bytes verification (default).
+///
+/// Every block's declared CID is re-hashed against its payload; a
+/// mismatch returns [`RepoError::CidMismatch`]. This is the correct
+/// default for any CAR received over the wire.
 pub fn read_car(data: &[u8]) -> Result<(Vec<Cid>, BlockMap), RepoError> {
+    read_car_opts(data, ReadCarOpts::default())
+}
+
+/// Read a CAR file with caller-supplied options.
+///
+/// Use `ReadCarOpts { skip_cid_verification: true }` only when the
+/// caller has already verified CIDs upstream.
+pub fn read_car_opts(
+    data: &[u8],
+    opts: ReadCarOpts,
+) -> Result<(Vec<Cid>, BlockMap), RepoError> {
     let mut pos = 0;
 
     // Read header
@@ -92,12 +132,49 @@ pub fn read_car(data: &[u8]) -> Result<(Vec<Cid>, BlockMap), RepoError> {
 
         // Parse CID from the front of block_data
         let (cid, cid_len) = parse_cid_from_bytes(block_data)?;
-        let value_bytes = block_data[cid_len..].to_vec();
+        let value_bytes = &block_data[cid_len..];
 
-        blocks.set(cid, value_bytes);
+        // Verify CID-for-bytes unless the caller explicitly opted out.
+        // A CAR from an untrusted source whose block CIDs don't match
+        // their payloads is indistinguishable from corruption / attack
+        // — we reject by default.
+        if !opts.skip_cid_verification {
+            match cid.verify(value_bytes) {
+                Ok(true) => {}
+                Ok(false) => {
+                    let actual = recompute_cid(&cid, value_bytes);
+                    return Err(RepoError::CidMismatch {
+                        declared: cid.to_string(),
+                        actual,
+                    });
+                }
+                Err(e) => {
+                    // Unsupported hash function (e.g. SHA-512 for now).
+                    // Don't trust the block if we can't verify it.
+                    return Err(RepoError::Car(format!(
+                        "Cannot verify CID {cid}: {e}"
+                    )));
+                }
+            }
+        }
+
+        blocks.set(cid, value_bytes.to_vec());
     }
 
     Ok((roots, blocks))
+}
+
+/// Compute what the declared CID _would_ be for a given payload, so
+/// the mismatch error message can surface both values. Falls back to
+/// the string `"<unknown>"` if the original CID's hash function isn't
+/// supported for recompute.
+fn recompute_cid(declared: &Cid, bytes: &[u8]) -> String {
+    use proto_blue_lex_data::{CBOR_CODEC, RAW_CODEC};
+    match declared.codec {
+        CBOR_CODEC => Cid::for_cbor(bytes).to_string(),
+        RAW_CODEC => Cid::for_raw(bytes).to_string(),
+        _ => "<unknown>".to_string(),
+    }
 }
 
 /// Read a CAR file expecting exactly one root.
@@ -257,6 +334,59 @@ mod tests {
 
         let decoded_bytes = decoded.get(&cid).unwrap();
         assert_eq!(decoded_bytes, bytes.as_slice());
+    }
+
+    #[test]
+    fn read_car_rejects_cid_mismatch() {
+        use crate::block_map::BlockMap;
+
+        // Build a well-formed CAR, then construct a byte buffer whose
+        // block payload has been tampered — declared CID no longer
+        // matches the actual bytes.
+        let mut blocks = BlockMap::new();
+        let honest_cid = blocks.add_value(&LexValue::String("honest".into())).unwrap();
+        let tampered_bytes = proto_blue_lex_cbor::encode(&LexValue::String("tampered".into()))
+            .unwrap();
+
+        // Manually frame: header + (varint(cid_bytes + payload_len) + cid_bytes + tampered_bytes)
+        let header_value = LexValue::Map({
+            let mut m = BTreeMap::new();
+            m.insert("version".to_string(), LexValue::Integer(1));
+            m.insert(
+                "roots".to_string(),
+                LexValue::Array(vec![LexValue::Cid(honest_cid.clone())]),
+            );
+            m
+        });
+        let header_bytes = proto_blue_lex_cbor::encode(&header_value).unwrap();
+
+        let mut car = Vec::new();
+        write_varint(&mut car, header_bytes.len() as u64);
+        car.extend_from_slice(&header_bytes);
+
+        let cid_bytes = honest_cid.to_bytes();
+        let total_len = cid_bytes.len() + tampered_bytes.len();
+        write_varint(&mut car, total_len as u64);
+        car.extend_from_slice(&cid_bytes);
+        car.extend_from_slice(&tampered_bytes);
+
+        // Default read rejects the mismatch.
+        let err = read_car(&car).unwrap_err();
+        match &err {
+            RepoError::CidMismatch { declared, actual } => {
+                assert_eq!(declared, &honest_cid.to_string());
+                assert_ne!(declared, actual);
+            }
+            other => panic!("expected CidMismatch, got: {other:?}"),
+        }
+
+        // Opt-out accepts the tampered block (the caller said they'd
+        // already verified upstream).
+        let opts = ReadCarOpts {
+            skip_cid_verification: true,
+        };
+        let (_, decoded) = read_car_opts(&car, opts).unwrap();
+        assert!(decoded.has(&honest_cid));
     }
 
     #[test]

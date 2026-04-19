@@ -46,7 +46,7 @@ pub mod proofs;
 pub mod sync;
 
 pub use block_map::BlockMap;
-pub use car::{CarBlock, blocks_to_car, read_car, read_car_with_root};
+pub use car::{CarBlock, ReadCarOpts, blocks_to_car, read_car, read_car_opts, read_car_with_root};
 pub use cid_set::CidSet;
 pub use commit::{
     COMMIT_VERSION, SignedCommit, UnsignedCommit, ensure_commit_sig, sign_commit, verify_commit_sig,

@@ -24,6 +24,17 @@ pub enum RepoError {
     Cbor(#[from] proto_blue_lex_cbor::CborError),
     #[error("CAR error: {0}")]
     Car(String),
+    /// A block in a CAR file carried a CID that does not match the
+    /// SHA-256 hash of its payload bytes. TS `@atproto/repo` performs
+    /// the same check via `verifyIncomingCarBlocks`; accepting a
+    /// mismatch would defeat the whole point of content-addressed
+    /// storage (a malicious or corrupt CAR could feed blocks whose
+    /// CIDs don't match their bytes, and the verifier would trust
+    /// them). Callers that have already verified CIDs upstream can
+    /// pass `skip_cid_verification = true` to `read_car_opts` to
+    /// bypass this check.
+    #[error("CAR block CID mismatch: declared {declared}, actual {actual}")]
+    CidMismatch { declared: String, actual: String },
     #[error("Storage error: {0}")]
     Storage(String),
     #[error("Invalid signature on commit")]
