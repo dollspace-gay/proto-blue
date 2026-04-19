@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- cargo-fuzz harnesses for every byte-level parser: `lex_cbor_decode`,
+  `lex_cbor_canonical`, `lex_json_strict`, `car_parse`, `at_uri_parse`,
+  `handle_parse`, `nsid_parse`, `did_parse`, `tid_parse`. Top-level
+  `fuzz/` workspace with GitHub Actions matrix (60s PR sweep, 180s
+  nightly). See `fuzz/README.md`. (#55)
+
+### Fixed
+- `proto-blue-repo::read_car`: integer overflow panic on adversarial
+  varint lengths (`pos + header_len > data.len()` panics when the
+  sum overflows `usize`). Replaced three sites with `checked_add`.
+  Regression test seeded from the libFuzzer reproducer. Found by
+  the `car_parse` fuzz target. (#55)
+
 ## [0.2.5] - 2026-04-19
 
 ### Fixed
