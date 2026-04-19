@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-19
+
+### Changed
+- Update 74 transitive dependencies via `cargo update` (tokio 1.50 → 1.52.1,
+  serde / wasm-bindgen / zerocopy / tempfile patch bumps).
+- Bump `axum` 0.7 → 0.8. Only breaking change that hit us was the path-
+  param syntax (`:nsid` → `{nsid}`); fixed at the single route definition
+  in `proto-blue-xrpc::server::into_router`.
+
 ## [0.2.0] - 2026-04-18
 
 ### Added
