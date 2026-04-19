@@ -13,12 +13,15 @@ categories = ["web-programming::http-client", "api-bindings"]
 [dependencies]
 proto-blue-lexicon = { workspace = true }
 proto-blue-lex-json = { workspace = true }
+proto-blue-lex-data = { workspace = true }
+proto-blue-lex-cbor = { workspace = true }
 proto-blue-common = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 url = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
+futures = { workspace = true }
 
 # Server-side reqwest access (the `with_client` constructor takes a
 # `reqwest::Client` directly). Optional, gated behind `fetch-reqwest`.
@@ -35,8 +38,9 @@ axum = { workspace = true, optional = true }
 # Default: full native stack (server + reqwest client), matching pre-refactor behaviour.
 default = ["server", "fetch-reqwest"]
 
-# Axum-based inbound XRPC server. Native-only.
-server = ["dep:axum", "tokio/net", "tokio/io-util", "tokio/rt-multi-thread", "tokio/time"]
+# Axum-based inbound XRPC server (including subscription / WebSocket
+# streams). Native-only.
+server = ["dep:axum", "axum/ws", "tokio/net", "tokio/io-util", "tokio/rt-multi-thread", "tokio/time"]
 
 # Enable the reqwest-backed `FetchHandler` (`ReqwestFetcher`) from
 # `proto-blue-common`. Also exposes `XrpcClient::with_client` for callers
@@ -51,3 +55,7 @@ proptest = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "time", "sync"] }
 async-trait = { workspace = true }
+tokio-tungstenite = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
+proto-blue-lex-cbor = { workspace = true }
+proto-blue-lex-data = { workspace = true }

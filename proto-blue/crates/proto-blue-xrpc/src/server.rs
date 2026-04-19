@@ -38,11 +38,15 @@ use std::sync::Arc;
 use axum::{
     Router,
     body::Bytes,
-    extract::{Path, Query, State},
+    extract::{
+        FromRequestParts, Path, Query, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
+    },
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
     routing::get,
 };
+use futures::{SinkExt, Stream, StreamExt};
 use serde_json::{Value as JsonValue, json};
 
 use crate::error::ResponseType;
@@ -55,6 +59,21 @@ pub type HandlerResult = Result<JsonValue, XrpcServerError>;
 
 type BoxFuture<T> = Pin<Box<dyn Future<Output = T> + Send>>;
 type HandlerFn = Arc<dyn Fn(HandlerContext) -> BoxFuture<HandlerResult> + Send + Sync>;
+
+/// Item yielded by a subscription handler's stream. Each item is
+/// wire-encoded as a DAG-CBOR message frame before being sent to the
+/// client; an `Err` closes the stream after emitting one error frame.
+pub type StreamItem = Result<JsonValue, XrpcServerError>;
+
+/// A subscription handler produces a stream of [`StreamItem`]s. The
+/// server pumps the stream into the client-facing WebSocket, encoding
+/// each item as a message/error frame via
+/// [`proto_blue_lex_cbor`] + [`proto_blue_lex_data::LexValue`].
+pub type StreamHandlerFn = Arc<
+    dyn Fn(HandlerContext) -> Pin<Box<dyn Stream<Item = StreamItem> + Send>>
+        + Send
+        + Sync,
+>;
 
 /// Context passed to every handler invocation.
 ///
@@ -182,11 +201,17 @@ impl IntoResponse for XrpcServerError {
 enum MethodKind {
     Query,
     Procedure,
+    /// WebSocket subscription (firehose-style). Served at GET
+    /// `/xrpc/<nsid>` with an `Upgrade: websocket` header.
+    Subscription,
 }
 
 struct MethodDef {
     kind: MethodKind,
-    handler: HandlerFn,
+    /// Unary handler for Query / Procedure. `None` for subscriptions.
+    handler: Option<HandlerFn>,
+    /// Stream handler for subscriptions. `None` for Query / Procedure.
+    stream_handler: Option<StreamHandlerFn>,
     require_auth: bool,
     rate_limit_key: Option<String>,
 }
@@ -230,7 +255,8 @@ impl XrpcServer {
             nsid.into(),
             MethodDef {
                 kind: MethodKind::Query,
-                handler: boxed,
+                handler: Some(boxed),
+                stream_handler: None,
                 require_auth: false,
                 rate_limit_key: None,
             },
@@ -253,7 +279,38 @@ impl XrpcServer {
             nsid.into(),
             MethodDef {
                 kind: MethodKind::Procedure,
-                handler: boxed,
+                handler: Some(boxed),
+                stream_handler: None,
+                require_auth: false,
+                rate_limit_key: None,
+            },
+        );
+        self
+    }
+
+    /// Register a WebSocket subscription handler at
+    /// `/xrpc/<nsid>`. The handler is called on each connection and
+    /// returns a stream whose items are either `Ok(JsonValue)` (sent
+    /// to the client as a CBOR message frame) or `Err(XrpcServerError)`
+    /// (sent as an error frame, after which the connection is closed).
+    ///
+    /// The handler itself is `Fn` (callable repeatedly) — one call
+    /// per upgraded connection.
+    pub fn stream_method<F, S>(mut self, nsid: impl Into<String>, handler: F) -> Self
+    where
+        F: Fn(HandlerContext) -> S + Send + Sync + 'static,
+        S: Stream<Item = StreamItem> + Send + 'static,
+    {
+        let boxed: StreamHandlerFn = Arc::new(move |ctx| {
+            let stream = handler(ctx);
+            Box::pin(stream)
+        });
+        self.methods.insert(
+            nsid.into(),
+            MethodDef {
+                kind: MethodKind::Subscription,
+                handler: None,
+                stream_handler: Some(boxed),
                 require_auth: false,
                 rate_limit_key: None,
             },
@@ -317,7 +374,15 @@ impl XrpcServer {
         Router::new()
             // axum ≥ 0.8 uses `{name}` for path capture groups (the
             // older `:name` syntax now panics).
-            .route("/xrpc/{nsid}", get(handle_query).post(handle_procedure))
+            //
+            // GET is routed through `handle_get`, which inspects the
+            // registered kind and either dispatches as a query or
+            // performs the WebSocket upgrade for a subscription.
+            // POST stays on the procedure path.
+            .route(
+                "/xrpc/{nsid}",
+                get(handle_get).post(handle_procedure),
+            )
             .with_state(state)
     }
 }
@@ -329,14 +394,47 @@ struct ServerState {
     global_rate_limit_key: Option<String>,
 }
 
-async fn handle_query(
+/// GET router. When the registered NSID is a subscription, performs
+/// the WebSocket upgrade; when it's a query, dispatches the unary
+/// handler. When the NSID isn't registered, falls through to the
+/// query dispatcher which returns a 404.
+///
+/// `Option<WebSocketUpgrade>` and `Bytes` can't coexist in a single
+/// axum handler (Bytes consumes the body, WebSocketUpgrade needs to
+/// upgrade the connection), so we serve GET without reading a body —
+/// queries shouldn't carry one — and synthesise an empty `Bytes` for
+/// the query dispatch.
+async fn handle_get(
     State(state): State<Arc<ServerState>>,
     Path(nsid): Path<String>,
     Query(params): Query<Vec<(String, String)>>,
-    headers: HeaderMap,
-    body: Bytes,
+    req: axum::http::Request<axum::body::Body>,
 ) -> Response {
-    dispatch(state, MethodKind::Query, nsid, params, headers, body).await
+    // Extract headers up front so we can branch on the method kind.
+    let headers = req.headers().clone();
+
+    if let Some(m) = state.methods.get(&nsid)
+        && m.kind == MethodKind::Subscription
+    {
+        // WebSocketUpgrade is a FromRequestParts extractor; call it
+        // manually so we can produce a clear "subscription requires
+        // WebSocket upgrade" error rather than axum's default 400.
+        let (mut parts, _body) = req.into_parts();
+        let upgrade =
+            match <WebSocketUpgrade as FromRequestParts<()>>::from_request_parts(&mut parts, &()).await {
+                Ok(u) => u,
+                Err(_) => {
+                    return XrpcServerError::new(
+                        ResponseType::InvalidRequest,
+                        "subscription requires WebSocket upgrade",
+                    )
+                    .with_error_name("InvalidRequest")
+                    .into_response();
+                }
+            };
+        return subscription_upgrade(state, nsid, params, headers, upgrade);
+    }
+    dispatch(state, MethodKind::Query, nsid, params, headers, Bytes::new()).await
 }
 
 async fn handle_procedure(
@@ -372,6 +470,7 @@ async fn dispatch(
         let expected = match method.kind {
             MethodKind::Query => "GET",
             MethodKind::Procedure => "POST",
+            MethodKind::Subscription => "GET (WebSocket)",
         };
         // Use 405 (HTTP Method Not Allowed). atproto's spec doesn't
         // model this explicitly, so we surface it as InvalidRequest with
@@ -431,10 +530,203 @@ async fn dispatch(
         auth,
     };
 
-    match (method.handler)(ctx).await {
+    // Unary kinds (Query / Procedure) always have `handler`;
+    // Subscription never reaches this path (its dispatch lives in
+    // `subscription_upgrade`). Unwrap is unreachable in practice.
+    let handler = match &method.handler {
+        Some(h) => h,
+        None => {
+            return XrpcServerError::new(
+                ResponseType::InternalServerError,
+                "internal: unary handler missing for non-subscription method",
+            )
+            .into_response();
+        }
+    };
+
+    match handler(ctx).await {
         Ok(value) => axum::Json(value).into_response(),
         Err(e) => e.into_response(),
     }
+}
+
+// ── Subscription upgrade + pump ──────────────────────────────────────
+
+/// DAG-CBOR op codes for subscription frames. Kept inline here so the
+/// server crate doesn't depend on `proto-blue-ws` — the values are
+/// fixed by the atproto spec.
+const OP_MESSAGE: i64 = 1;
+const OP_ERROR: i64 = -1;
+
+/// Perform the WebSocket upgrade for a subscription method and spawn
+/// the pump that drives the handler's stream into frame-encoded
+/// messages.
+fn subscription_upgrade(
+    state: Arc<ServerState>,
+    nsid: String,
+    raw_params: Vec<(String, String)>,
+    headers: HeaderMap,
+    upgrade: WebSocketUpgrade,
+) -> Response {
+    // Build the handler context once so we can move it into the
+    // upgrade closure. Query params are deduplicated (first-wins) to
+    // match query/procedure behaviour.
+    let mut params: HashMap<String, String> = HashMap::new();
+    for (k, v) in raw_params {
+        params.entry(k).or_insert(v);
+    }
+    let ctx = HandlerContext {
+        nsid: nsid.clone(),
+        params,
+        body: Bytes::new(),
+        headers,
+        auth: None,
+    };
+
+    // Look up + clone the stream handler up front so the move-into
+    // closure is cheap and panic-free even if state mutates later.
+    let stream_handler = match state.methods.get(&nsid).and_then(|m| m.stream_handler.as_ref()) {
+        Some(h) => h.clone(),
+        None => {
+            return XrpcServerError::new(
+                ResponseType::InternalServerError,
+                "internal: subscription handler missing",
+            )
+            .into_response();
+        }
+    };
+
+    upgrade.on_upgrade(move |socket| async move {
+        run_subscription_pump(socket, stream_handler, ctx).await;
+    })
+}
+
+/// Drive the handler's stream into the client-facing WebSocket. Each
+/// `Ok(json)` item is encoded as a DAG-CBOR message frame; each
+/// `Err(e)` as an error frame followed by a clean close.
+///
+/// Exits promptly if the peer disconnects (the WebSocket's own
+/// read-half receives a `Close` / `None`).
+async fn run_subscription_pump(
+    socket: WebSocket,
+    handler: StreamHandlerFn,
+    ctx: HandlerContext,
+) {
+    let (mut sink, mut client_read) = socket.split();
+    let mut stream = handler(ctx);
+
+    loop {
+        tokio::select! {
+            // Peer disconnect / close frame: stop pumping immediately.
+            incoming = client_read.next() => {
+                match incoming {
+                    None => break,
+                    Some(Err(_)) => break,
+                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(_)) => {
+                        // Peers may send pings / pongs / text; axum
+                        // handles pings automatically. We ignore other
+                        // inbound messages — subscription streams are
+                        // one-way at this layer.
+                        continue;
+                    }
+                }
+            }
+            // Next handler item.
+            item = stream.next() => {
+                match item {
+                    Some(Ok(value)) => {
+                        match encode_message_frame(&value) {
+                            Ok(bytes) => {
+                                if sink.send(Message::Binary(bytes.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                            Err(e) => {
+                                let _ = send_error_frame(&mut sink, &e).await;
+                                break;
+                            }
+                        }
+                    }
+                    Some(Err(e)) => {
+                        let _ = send_error_frame(&mut sink, &e).await;
+                        break;
+                    }
+                    None => {
+                        // Handler exhausted its stream — clean close.
+                        let _ = sink.send(Message::Close(None)).await;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Encode a JSON value as a DAG-CBOR message frame (two back-to-back
+/// CBOR values: header `{op:1}` + body).
+fn encode_message_frame(value: &JsonValue) -> Result<Vec<u8>, XrpcServerError> {
+    use proto_blue_lex_data::LexValue;
+
+    // Convert the handler-produced JSON into a LexValue (leniently —
+    // we trust our own handler output).
+    let body = proto_blue_lex_json::json_to_lex(value);
+    let mut header = std::collections::BTreeMap::new();
+    header.insert(
+        "op".to_string(),
+        LexValue::Integer(OP_MESSAGE),
+    );
+    let header = LexValue::Map(header);
+
+    let mut bytes = proto_blue_lex_cbor::encode(&header).map_err(|e| {
+        XrpcServerError::new(
+            ResponseType::InternalServerError,
+            format!("frame header encode: {e}"),
+        )
+    })?;
+    let body_bytes = proto_blue_lex_cbor::encode(&body).map_err(|e| {
+        XrpcServerError::new(
+            ResponseType::InternalServerError,
+            format!("frame body encode: {e}"),
+        )
+    })?;
+    bytes.extend_from_slice(&body_bytes);
+    Ok(bytes)
+}
+
+/// Send an error frame (header op=-1 + `{error, message}` body) then
+/// a Close frame. Best-effort — if either write fails the pump just
+/// exits.
+async fn send_error_frame(
+    sink: &mut futures::stream::SplitSink<WebSocket, Message>,
+    err: &XrpcServerError,
+) -> Result<(), ()> {
+    use proto_blue_lex_data::LexValue;
+
+    let mut header = std::collections::BTreeMap::new();
+    header.insert(
+        "op".to_string(),
+        LexValue::Integer(OP_ERROR),
+    );
+    let header = LexValue::Map(header);
+
+    let mut body_map = std::collections::BTreeMap::new();
+    body_map.insert(
+        "error".to_string(),
+        LexValue::String(err.error.clone().unwrap_or_else(|| "Unknown".into())),
+    );
+    if let Some(msg) = &err.message {
+        body_map.insert("message".to_string(), LexValue::String(msg.clone()));
+    }
+    let body = LexValue::Map(body_map);
+
+    let mut bytes = proto_blue_lex_cbor::encode(&header).map_err(|_| ())?;
+    let body_bytes = proto_blue_lex_cbor::encode(&body).map_err(|_| ())?;
+    bytes.extend_from_slice(&body_bytes);
+
+    sink.send(Message::Binary(bytes.into())).await.map_err(|_| ())?;
+    sink.send(Message::Close(None)).await.map_err(|_| ())?;
+    Ok(())
 }
 
 #[cfg(test)]
