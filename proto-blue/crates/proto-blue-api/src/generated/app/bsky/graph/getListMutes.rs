@@ -21,3 +21,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub lists: Vec<crate::app::bsky::graph::defs::ListView>,
 }
+

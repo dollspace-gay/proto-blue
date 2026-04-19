@@ -2,3 +2,4 @@
 //! Lexicon: com.atproto.server.activateAccount
 
 use serde::{Deserialize, Serialize};
+

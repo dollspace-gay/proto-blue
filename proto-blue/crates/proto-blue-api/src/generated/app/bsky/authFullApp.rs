@@ -2,3 +2,4 @@
 //! Lexicon: app.bsky.authFullApp
 
 use serde::{Deserialize, Serialize};
+

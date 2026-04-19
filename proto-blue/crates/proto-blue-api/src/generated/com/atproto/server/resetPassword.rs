@@ -11,3 +11,4 @@ pub struct Input {
     pub password: String,
     pub token: String,
 }
+

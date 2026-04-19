@@ -21,3 +21,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub messages: Vec<serde_json::Value>,
 }
+

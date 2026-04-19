@@ -26,3 +26,4 @@ pub struct SyncStatus {
     pub matches_count: i64,
     pub synced_at: String,
 }
+

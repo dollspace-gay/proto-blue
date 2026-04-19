@@ -22,3 +22,4 @@ pub struct Input {
 pub struct Output {
     pub option: crate::tools::ozone::setting::defs::LexOption,
 }
+

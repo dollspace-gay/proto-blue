@@ -53,3 +53,4 @@ pub struct UrlRule {
     pub updated_at: String,
     pub url: String,
 }
+

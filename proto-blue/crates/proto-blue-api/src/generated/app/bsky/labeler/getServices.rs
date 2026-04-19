@@ -18,3 +18,4 @@ pub struct Params {
 pub struct Output {
     pub views: Vec<serde_json::Value>,
 }
+

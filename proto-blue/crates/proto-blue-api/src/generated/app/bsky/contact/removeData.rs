@@ -7,8 +7,11 @@ use serde::{Deserialize, Serialize};
 /// XRPC Procedure: app.bsky.contact.removeData
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Input {}
+pub struct Input {
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Output {}
+pub struct Output {
+}
+

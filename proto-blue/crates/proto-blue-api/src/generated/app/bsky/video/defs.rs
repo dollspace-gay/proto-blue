@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct JobStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blob: Option<serde_json::Value>,
+    pub blob: Option<proto_blue_lex_data::BlobRef>,
     pub did: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
@@ -18,3 +18,4 @@ pub struct JobStatus {
     pub progress: Option<i64>,
     pub state: String,
 }
+

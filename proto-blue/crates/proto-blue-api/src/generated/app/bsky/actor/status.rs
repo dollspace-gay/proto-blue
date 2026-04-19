@@ -6,9 +6,15 @@ use serde::{Deserialize, Serialize};
 /// Advertises an account as currently offering live content.
 pub const LIVE: &str = "app.bsky.actor.status#live";
 
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "app.bsky.actor.status";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_minutes: Option<i64>,
@@ -16,3 +22,8 @@ pub struct Main {
     pub embed: Option<serde_json::Value>,
     pub status: String,
 }
+
+fn default_type() -> String {
+    TYPE.to_string()
+}
+

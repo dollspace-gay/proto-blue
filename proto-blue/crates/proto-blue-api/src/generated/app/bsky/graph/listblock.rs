@@ -3,9 +3,20 @@
 
 use serde::{Deserialize, Serialize};
 
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "app.bsky.graph.listblock";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     pub created_at: String,
     pub subject: String,
 }
+
+fn default_type() -> String {
+    TYPE.to_string()
+}
+

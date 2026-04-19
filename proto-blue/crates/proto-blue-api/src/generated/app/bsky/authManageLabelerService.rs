@@ -2,3 +2,4 @@
 //! Lexicon: app.bsky.authManageLabelerService
 
 use serde::{Deserialize, Serialize};
+

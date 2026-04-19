@@ -19,3 +19,4 @@ pub struct Output {
     pub activity_subscription: Option<crate::app::bsky::notification::defs::ActivitySubscription>,
     pub subject: String,
 }
+

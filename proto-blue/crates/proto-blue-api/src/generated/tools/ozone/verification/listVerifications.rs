@@ -33,3 +33,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub verifications: Vec<crate::tools::ozone::verification::defs::VerificationView>,
 }
+

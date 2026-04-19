@@ -26,3 +26,4 @@ pub struct Metadata {
     pub messages_received: i64,
     pub messages_sent: i64,
 }
+

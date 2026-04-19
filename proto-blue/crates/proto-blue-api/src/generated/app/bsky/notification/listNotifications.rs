@@ -47,3 +47,4 @@ pub struct Notification {
     pub record: serde_json::Value,
     pub uri: String,
 }
+

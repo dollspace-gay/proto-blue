@@ -8,3 +8,4 @@ use serde::{Deserialize, Serialize};
 pub type Input = crate::tools::ozone::set::defs::Set;
 
 pub type Output = crate::tools::ozone::set::defs::SetView;
+

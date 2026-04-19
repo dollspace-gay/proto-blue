@@ -31,9 +31,10 @@ pub struct Params {
 #[serde(tag = "$type")]
 pub enum Message {
     #[serde(rename = "com.atproto.label.subscribeLabels#labels")]
-    LabelSubscribeLabelsLabels(Box<Labels>),
+    AtprotoLabelSubscribeLabelsLabels(Box<Labels>),
     #[serde(rename = "com.atproto.label.subscribeLabels#info")]
-    LabelSubscribeLabelsInfo(Box<Info>),
+    AtprotoLabelSubscribeLabelsInfo(Box<Info>),
     #[serde(other)]
     Other,
 }
+

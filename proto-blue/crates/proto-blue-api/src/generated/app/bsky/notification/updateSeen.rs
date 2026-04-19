@@ -10,3 +10,4 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     pub seen_at: String,
 }
+

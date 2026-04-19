@@ -10,3 +10,4 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     pub did: String,
 }
+

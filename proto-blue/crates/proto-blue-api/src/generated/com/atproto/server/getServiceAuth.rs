@@ -20,3 +20,4 @@ pub struct Params {
 pub struct Output {
     pub token: String,
 }
+

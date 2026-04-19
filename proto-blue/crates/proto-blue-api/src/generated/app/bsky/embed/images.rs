@@ -9,7 +9,7 @@ pub struct Image {
     pub alt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aspect_ratio: Option<crate::app::bsky::embed::defs::AspectRatio>,
-    pub image: serde_json::Value,
+    pub image: proto_blue_lex_data::BlobRef,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,3 +33,4 @@ pub struct ViewImage {
     pub fullsize: String,
     pub thumb: String,
 }
+

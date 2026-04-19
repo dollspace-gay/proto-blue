@@ -13,4 +13,6 @@ pub struct Input {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Output {}
+pub struct Output {
+}
+

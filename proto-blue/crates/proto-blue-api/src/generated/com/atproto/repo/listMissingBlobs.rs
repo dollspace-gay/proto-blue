@@ -28,3 +28,4 @@ pub struct RecordBlob {
     pub cid: String,
     pub record_uri: String,
 }
+

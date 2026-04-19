@@ -27,3 +27,4 @@ pub struct RevokeError {
     pub error: String,
     pub uri: String,
 }
+

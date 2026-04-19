@@ -9,3 +9,4 @@ pub struct SigDetail {
     pub property: String,
     pub value: String,
 }
+

@@ -21,3 +21,4 @@ pub struct InviteCodeUse {
     pub used_at: String,
     pub used_by: String,
 }
+

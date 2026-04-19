@@ -155,7 +155,8 @@ pub struct PostView {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ReasonPin {}
+pub struct ReasonPin {
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -195,7 +196,8 @@ pub struct SkeletonFeedPost {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SkeletonReasonPin {}
+pub struct SkeletonReasonPin {
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -255,3 +257,4 @@ pub struct ViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thread_muted: Option<bool>,
 }
+

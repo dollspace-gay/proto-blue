@@ -18,3 +18,4 @@ pub struct Output {
     pub is_valid: bool,
     pub view: crate::app::bsky::feed::defs::GeneratorView,
 }
+

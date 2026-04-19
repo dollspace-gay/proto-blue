@@ -20,3 +20,4 @@ pub struct Input {
 }
 
 pub type Output = crate::tools::ozone::moderation::defs::ModEventView;
+

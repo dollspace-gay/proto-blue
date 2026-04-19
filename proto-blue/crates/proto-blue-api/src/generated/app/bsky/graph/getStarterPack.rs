@@ -16,3 +16,4 @@ pub struct Params {
 pub struct Output {
     pub starter_pack: crate::app::bsky::graph::defs::StarterPackView,
 }
+

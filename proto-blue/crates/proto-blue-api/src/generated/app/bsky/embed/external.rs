@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct External {
     pub description: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub thumb: Option<serde_json::Value>,
+    pub thumb: Option<proto_blue_lex_data::BlobRef>,
     pub title: String,
     pub uri: String,
 }
@@ -35,3 +35,4 @@ pub struct ViewExternal {
     pub title: String,
     pub uri: String,
 }
+

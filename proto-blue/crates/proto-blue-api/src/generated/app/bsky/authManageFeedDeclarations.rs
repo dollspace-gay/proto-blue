@@ -2,3 +2,4 @@
 //! Lexicon: app.bsky.authManageFeedDeclarations
 
 use serde::{Deserialize, Serialize};
+

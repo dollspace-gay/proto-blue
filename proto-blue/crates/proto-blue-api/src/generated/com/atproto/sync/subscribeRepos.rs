@@ -19,12 +19,12 @@ pub struct Account {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Commit {
-    pub blobs: Vec<String>,
+    pub blobs: Vec<proto_blue_lex_data::Cid>,
     pub blocks: Vec<u8>,
-    pub commit: String,
+    pub commit: proto_blue_lex_data::Cid,
     pub ops: Vec<RepoOp>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub prev_data: Option<String>,
+    pub prev_data: Option<proto_blue_lex_data::Cid>,
     pub rebase: bool,
     pub repo: String,
     pub rev: String,
@@ -66,15 +66,15 @@ pub struct Params {
 #[serde(tag = "$type")]
 pub enum Message {
     #[serde(rename = "com.atproto.sync.subscribeRepos#commit")]
-    SyncSubscribeReposCommit(Box<Commit>),
+    AtprotoSyncSubscribeReposCommit(Box<Commit>),
     #[serde(rename = "com.atproto.sync.subscribeRepos#sync")]
-    SyncSubscribeReposSync(Box<Sync>),
+    AtprotoSyncSubscribeReposSync(Box<Sync>),
     #[serde(rename = "com.atproto.sync.subscribeRepos#identity")]
-    SyncSubscribeReposIdentity(Box<Identity>),
+    AtprotoSyncSubscribeReposIdentity(Box<Identity>),
     #[serde(rename = "com.atproto.sync.subscribeRepos#account")]
-    SyncSubscribeReposAccount(Box<Account>),
+    AtprotoSyncSubscribeReposAccount(Box<Account>),
     #[serde(rename = "com.atproto.sync.subscribeRepos#info")]
-    SyncSubscribeReposInfo(Box<Info>),
+    AtprotoSyncSubscribeReposInfo(Box<Info>),
     #[serde(other)]
     Other,
 }
@@ -84,10 +84,10 @@ pub enum Message {
 #[serde(rename_all = "camelCase")]
 pub struct RepoOp {
     pub action: String,
-    pub cid: Option<String>,
+    pub cid: Option<proto_blue_lex_data::Cid>,
     pub path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub prev: Option<String>,
+    pub prev: Option<proto_blue_lex_data::Cid>,
 }
 
 /// Updates the repo to a new state, without necessarily including that state on the firehose. Used to recover from broken commit streams, data loss incidents, or in situations where upstream host does not know recent state of the repository.
@@ -100,3 +100,4 @@ pub struct Sync {
     pub seq: i64,
     pub time: String,
 }
+

@@ -22,3 +22,4 @@ pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub takedown: Option<crate::com::atproto::admin::defs::StatusAttr>,
 }
+

@@ -19,3 +19,4 @@ pub struct Params {
 pub struct Output {
     pub codes: Vec<crate::com::atproto::server::defs::InviteCode>,
 }
+

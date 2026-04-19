@@ -8,5 +8,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub blob: serde_json::Value,
+    pub blob: proto_blue_lex_data::BlobRef,
 }
+

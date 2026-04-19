@@ -18,3 +18,4 @@ pub struct Output {
     pub repo_rev: String,
     pub valid_did: bool,
 }
+

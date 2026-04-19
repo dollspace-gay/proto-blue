@@ -13,9 +13,15 @@ pub struct Entity {
     pub value: String,
 }
 
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "app.bsky.feed.post";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed: Option<serde_json::Value>,
@@ -34,6 +40,10 @@ pub struct Main {
     pub text: String,
 }
 
+fn default_type() -> String {
+    TYPE.to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReplyRef {
@@ -48,3 +58,4 @@ pub struct TextSlice {
     pub end: i64,
     pub start: i64,
 }
+

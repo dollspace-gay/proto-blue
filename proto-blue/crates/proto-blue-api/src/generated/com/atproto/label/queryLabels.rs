@@ -24,3 +24,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub labels: Vec<crate::com::atproto::label::defs::Label>,
 }
+

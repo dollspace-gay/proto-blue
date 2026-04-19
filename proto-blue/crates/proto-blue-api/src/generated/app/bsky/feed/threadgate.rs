@@ -6,12 +6,14 @@ use serde::{Deserialize, Serialize};
 /// Allow replies from actors who follow you.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FollowerRule {}
+pub struct FollowerRule {
+}
 
 /// Allow replies from actors you follow.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FollowingRule {}
+pub struct FollowingRule {
+}
 
 /// Allow replies from actors on a list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,9 +22,15 @@ pub struct ListRule {
     pub list: String,
 }
 
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "app.bsky.feed.threadgate";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub allow: Option<Vec<serde_json::Value>>,
     pub created_at: String,
@@ -31,7 +39,13 @@ pub struct Main {
     pub post: String,
 }
 
+fn default_type() -> String {
+    TYPE.to_string()
+}
+
 /// Allow replies from actors mentioned in your post.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MentionRule {}
+pub struct MentionRule {
+}
+

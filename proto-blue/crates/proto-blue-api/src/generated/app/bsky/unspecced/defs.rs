@@ -72,11 +72,13 @@ pub struct ThreadItemBlocked {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreadItemNoUnauthenticated {}
+pub struct ThreadItemNoUnauthenticated {
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreadItemNotFound {}
+pub struct ThreadItemNotFound {
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -114,3 +116,4 @@ pub struct TrendingTopic {
     pub link: String,
     pub topic: String,
 }
+

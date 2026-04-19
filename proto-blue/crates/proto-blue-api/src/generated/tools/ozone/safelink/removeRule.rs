@@ -17,3 +17,4 @@ pub struct Input {
 }
 
 pub type Output = crate::tools::ozone::safelink::defs::Event;
+

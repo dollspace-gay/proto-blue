@@ -10,3 +10,4 @@ use serde::{Deserialize, Serialize};
 pub struct Output {
     pub communication_templates: Vec<crate::tools::ozone::communication::defs::TemplateView>,
 }
+

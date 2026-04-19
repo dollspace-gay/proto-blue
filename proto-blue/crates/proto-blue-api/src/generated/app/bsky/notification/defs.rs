@@ -52,7 +52,8 @@ pub struct Preferences {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RecordDeleted {}
+pub struct RecordDeleted {
+}
 
 /// Object used to store activity subscription data in stash.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,3 +62,4 @@ pub struct SubjectActivitySubscription {
     pub activity_subscription: ActivitySubscription,
     pub subject: String,
 }
+

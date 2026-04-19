@@ -23,3 +23,4 @@ pub struct Output {
     pub items: Vec<crate::app::bsky::graph::defs::ListItemView>,
     pub list: crate::app::bsky::graph::defs::ListView,
 }
+

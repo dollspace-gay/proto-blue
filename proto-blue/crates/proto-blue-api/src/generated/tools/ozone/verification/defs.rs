@@ -28,3 +28,4 @@ pub struct VerificationView {
     pub subject_repo: Option<serde_json::Value>,
     pub uri: String,
 }
+

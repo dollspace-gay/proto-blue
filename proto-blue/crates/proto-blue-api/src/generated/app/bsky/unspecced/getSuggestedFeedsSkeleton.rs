@@ -19,3 +19,4 @@ pub struct Params {
 pub struct Output {
     pub feeds: Vec<String>,
 }
+

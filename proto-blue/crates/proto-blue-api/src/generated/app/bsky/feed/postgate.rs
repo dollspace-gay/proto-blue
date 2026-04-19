@@ -6,11 +6,18 @@ use serde::{Deserialize, Serialize};
 /// Disables embedding of this post.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DisableRule {}
+pub struct DisableRule {
+}
+
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "app.bsky.feed.postgate";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detached_embedding_uris: Option<Vec<String>>,
@@ -18,3 +25,8 @@ pub struct Main {
     pub embedding_rules: Option<Vec<serde_json::Value>>,
     pub post: String,
 }
+
+fn default_type() -> String {
+    TYPE.to_string()
+}
+

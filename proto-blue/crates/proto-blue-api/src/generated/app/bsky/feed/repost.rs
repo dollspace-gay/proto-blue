@@ -3,11 +3,22 @@
 
 use serde::{Deserialize, Serialize};
 
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "app.bsky.feed.repost";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     pub created_at: String,
     pub subject: crate::com::atproto::repo::strongRef::Main,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub via: Option<crate::com::atproto::repo::strongRef::Main>,
 }
+
+fn default_type() -> String {
+    TYPE.to_string()
+}
+

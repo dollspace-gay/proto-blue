@@ -31,3 +31,4 @@ pub struct StarterPackWithMembership {
     pub list_item: Option<crate::app::bsky::graph::defs::ListItemView>,
     pub starter_pack: crate::app::bsky::graph::defs::StarterPackView,
 }
+

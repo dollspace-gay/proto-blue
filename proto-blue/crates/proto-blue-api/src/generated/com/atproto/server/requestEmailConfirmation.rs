@@ -2,3 +2,4 @@
 //! Lexicon: com.atproto.server.requestEmailConfirmation
 
 use serde::{Deserialize, Serialize};
+

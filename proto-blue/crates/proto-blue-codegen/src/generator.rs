@@ -165,16 +165,34 @@ impl<'a> Generator<'a> {
         nsid: &str,
         type_name: &str,
         obj: &LexObject,
-        _is_record: bool,
+        is_record: bool,
     ) {
-        if let Some(desc) = &obj.description {
-            if !desc.is_empty() {
-                out.push_str(&format!("/// {desc}\n"));
-            }
+        if let Some(desc) = &obj.description
+            && !desc.is_empty()
+        {
+            out.push_str(&format!("/// {desc}\n"));
+        }
+        // Records carry a `$type` field on the wire — emit a TYPE
+        // constant and a serde-serialised `type` field so round-trips
+        // preserve the discriminator. Matches TS AtpAgent / codegen.
+        if is_record {
+            out.push_str(&format!(
+                "/// `$type` discriminator for this record on the wire.\n\
+                 pub const TYPE: &str = \"{nsid}\";\n\n"
+            ));
         }
         out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
         out.push_str("#[serde(rename_all = \"camelCase\")]\n");
         out.push_str(&format!("pub struct {type_name} {{\n"));
+
+        if is_record {
+            // Serialised as "$type": "<nsid>"; deserialisation preserves
+            // whatever was on the wire (including absent, in which case
+            // the default is the canonical type string for this NSID).
+            out.push_str("    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.\n");
+            out.push_str("    #[serde(rename = \"$type\", default = \"default_type\")]\n");
+            out.push_str("    pub r#type: String,\n");
+        }
 
         // Sort properties for deterministic output
         let mut prop_names: Vec<&String> = obj.properties.keys().collect();
@@ -210,6 +228,15 @@ impl<'a> Generator<'a> {
         }
 
         out.push_str("}\n\n");
+
+        // Emit the serde `default = "default_type"` helper that the
+        // `$type` field uses, so users can deserialise records that
+        // omit `$type` without a custom impl.
+        if is_record {
+            out.push_str("fn default_type() -> String {\n");
+            out.push_str("    TYPE.to_string()\n");
+            out.push_str("}\n\n");
+        }
     }
 
     /// Generate a query (GET endpoint).
@@ -465,14 +492,20 @@ impl<'a> Generator<'a> {
     }
 
     /// Convert a Lexicon type to a Rust type string.
+    ///
+    /// `blob` now maps to `proto_blue_lex_data::BlobRef` (the enum over
+    /// typed + legacy forms from #32) and `cid-link` maps to
+    /// `proto_blue_lex_data::Cid`. Previously both were emitted as
+    /// `serde_json::Value`, losing the on-the-wire type information
+    /// and forcing every consumer to re-parse at the call site.
     fn type_to_rust(&self, nsid: &str, ty: &LexUserType) -> String {
         match ty {
             LexUserType::String(_) => "String".to_string(),
             LexUserType::Integer(_) => "i64".to_string(),
             LexUserType::Boolean(_) => "bool".to_string(),
             LexUserType::Bytes(_) => "Vec<u8>".to_string(),
-            LexUserType::CidLink(_) => "String".to_string(),
-            LexUserType::Blob(_) => "serde_json::Value".to_string(),
+            LexUserType::CidLink(_) => "proto_blue_lex_data::Cid".to_string(),
+            LexUserType::Blob(_) => "proto_blue_lex_data::BlobRef".to_string(),
             LexUserType::Unknown(_) => "serde_json::Value".to_string(),
             LexUserType::Array(arr) => {
                 let inner = self.type_to_rust(nsid, &arr.items);
@@ -562,8 +595,15 @@ fn sanitize_type_name(name: &str) -> String {
 }
 
 /// Generate a variant name for a union member.
+///
+/// Uses every NSID segment after the first (the top-level reverse-TLD
+/// like `app` / `com`) to guarantee uniqueness across the 322-schema
+/// registry. Previously only the last two segments were used, which
+/// collided for cross-namespace names like
+/// `app.bsky.feed.defs#postView` vs `app.bsky.unspecced.defs#postView`
+/// (both would produce `DefsPostView`). Now they become
+/// `BskyFeedDefsPostView` and `BskyUnspeccedDefsPostView` respectively.
 fn ref_to_variant_name(nsid: &str, def_name: &str) -> String {
-    // Use the last two parts of the NSID + def for uniqueness
     let parts: Vec<&str> = nsid.split('.').collect();
     let suffix = if def_name == "main" {
         String::new()
@@ -571,14 +611,17 @@ fn ref_to_variant_name(nsid: &str, def_name: &str) -> String {
         to_pascal_case(def_name)
     };
 
-    if parts.len() >= 2 {
-        let ns = to_pascal_case(parts[parts.len() - 2]);
-        let name = to_pascal_case(parts[parts.len() - 1]);
-        format!("{ns}{name}{suffix}")
+    // Skip the reverse-TLD root (e.g. `app`, `com`) when the path has
+    // enough depth to distinguish meaningfully without it; otherwise
+    // fall back to the whole path.
+    let ns_segments: Vec<String> = if parts.len() > 2 {
+        parts[1..].iter().map(|p| to_pascal_case(p)).collect()
     } else {
-        let name = to_pascal_case(parts.last().unwrap_or(&"Unknown"));
-        format!("{name}{suffix}")
-    }
+        parts.iter().map(|p| to_pascal_case(p)).collect()
+    };
+    let ns: String = ns_segments.concat();
+
+    format!("{ns}{suffix}")
 }
 
 /// Convert a string to PascalCase.
@@ -730,18 +773,34 @@ mod tests {
 
     #[test]
     fn test_ref_to_variant_name() {
+        // Drops the reverse-TLD root (app/com) to reduce noise while
+        // keeping every remaining segment so cross-namespace name
+        // collisions can't happen.
         assert_eq!(
             ref_to_variant_name("app.bsky.embed.images", "main"),
-            "EmbedImages"
+            "BskyEmbedImages"
         );
         assert_eq!(
             ref_to_variant_name("app.bsky.embed.external", "main"),
-            "EmbedExternal"
+            "BskyEmbedExternal"
         );
         assert_eq!(
             ref_to_variant_name("app.bsky.actor.defs", "profileView"),
-            "ActorDefsProfileView"
+            "BskyActorDefsProfileView"
         );
+    }
+
+    #[test]
+    fn test_ref_to_variant_name_disambiguates_cross_namespace() {
+        // The collision case the #45 parity audit flagged:
+        // `app.bsky.feed.defs#postView` and
+        // `app.bsky.unspecced.defs#postView` both used to produce
+        // `DefsPostView`. They must now be distinct.
+        let a = ref_to_variant_name("app.bsky.feed.defs", "postView");
+        let b = ref_to_variant_name("app.bsky.unspecced.defs", "postView");
+        assert_ne!(a, b, "cross-namespace collision must not produce the same variant");
+        assert_eq!(a, "BskyFeedDefsPostView");
+        assert_eq!(b, "BskyUnspeccedDefsPostView");
     }
 
     #[test]

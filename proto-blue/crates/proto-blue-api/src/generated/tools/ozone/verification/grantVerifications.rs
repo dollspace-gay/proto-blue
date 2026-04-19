@@ -35,3 +35,4 @@ pub struct VerificationInput {
     pub handle: String,
     pub subject: String,
 }
+

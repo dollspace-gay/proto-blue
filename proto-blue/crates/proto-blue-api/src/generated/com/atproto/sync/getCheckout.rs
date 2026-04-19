@@ -10,3 +10,4 @@ use serde::{Deserialize, Serialize};
 pub struct Params {
     pub did: String,
 }
+

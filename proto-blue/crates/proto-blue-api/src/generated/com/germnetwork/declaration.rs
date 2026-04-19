@@ -3,9 +3,15 @@
 
 use serde::{Deserialize, Serialize};
 
+/// `$type` discriminator for this record on the wire.
+pub const TYPE: &str = "com.germnetwork.declaration";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
+    /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
+    #[serde(rename = "$type", default = "default_type")]
+    pub r#type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub continuity_proofs: Option<Vec<Vec<u8>>>,
     pub current_key: Vec<u8>,
@@ -16,9 +22,14 @@ pub struct Main {
     pub version: String,
 }
 
+fn default_type() -> String {
+    TYPE.to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageMe {
     pub message_me_url: String,
     pub show_button_to: String,
 }
+

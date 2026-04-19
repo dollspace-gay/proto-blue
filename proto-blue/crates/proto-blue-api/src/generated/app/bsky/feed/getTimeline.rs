@@ -23,3 +23,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub feed: Vec<crate::app::bsky::feed::defs::FeedViewPost>,
 }
+

@@ -10,3 +10,4 @@ pub struct IdentityInfo {
     pub did_doc: serde_json::Value,
     pub handle: String,
 }
+

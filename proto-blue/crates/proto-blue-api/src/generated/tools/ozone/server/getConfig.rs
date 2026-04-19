@@ -35,3 +35,4 @@ pub struct ViewerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<String>,
 }
+

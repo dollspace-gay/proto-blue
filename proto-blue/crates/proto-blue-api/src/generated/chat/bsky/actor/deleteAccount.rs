@@ -6,4 +6,6 @@ use serde::{Deserialize, Serialize};
 /// XRPC Procedure: chat.bsky.actor.deleteAccount
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Output {}
+pub struct Output {
+}
+

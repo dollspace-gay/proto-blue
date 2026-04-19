@@ -25,3 +25,4 @@ pub struct Input {
 pub struct Output {
     pub operation: serde_json::Value,
 }
+

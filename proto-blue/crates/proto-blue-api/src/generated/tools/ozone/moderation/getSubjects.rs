@@ -16,3 +16,4 @@ pub struct Params {
 pub struct Output {
     pub subjects: Vec<crate::tools::ozone::moderation::defs::SubjectView>,
 }
+

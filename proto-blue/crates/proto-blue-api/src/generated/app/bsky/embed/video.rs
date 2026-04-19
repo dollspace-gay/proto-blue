@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Caption {
-    pub file: serde_json::Value,
+    pub file: proto_blue_lex_data::BlobRef,
     pub lang: String,
 }
 
@@ -21,7 +21,7 @@ pub struct Main {
     pub captions: Option<Vec<Caption>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presentation: Option<String>,
-    pub video: serde_json::Value,
+    pub video: proto_blue_lex_data::BlobRef,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,3 +38,4 @@ pub struct View {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thumbnail: Option<String>,
 }
+

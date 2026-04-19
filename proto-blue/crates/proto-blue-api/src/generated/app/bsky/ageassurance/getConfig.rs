@@ -6,3 +6,4 @@ use serde::{Deserialize, Serialize};
 /// Returns Age Assurance configuration for use on the client.
 /// XRPC Query: app.bsky.ageassurance.getConfig
 pub type Output = crate::app::bsky::ageassurance::defs::Config;
+

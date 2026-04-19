@@ -27,3 +27,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub options: Vec<crate::tools::ozone::setting::defs::LexOption>,
 }
+

@@ -21,3 +21,4 @@ pub struct LexOption {
     pub updated_at: Option<String>,
     pub value: serde_json::Value,
 }
+

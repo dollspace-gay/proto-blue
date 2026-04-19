@@ -17,3 +17,4 @@ pub struct Output {
     pub cid: String,
     pub rev: String,
 }
+

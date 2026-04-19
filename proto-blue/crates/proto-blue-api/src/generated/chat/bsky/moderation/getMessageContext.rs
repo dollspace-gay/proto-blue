@@ -21,3 +21,4 @@ pub struct Params {
 pub struct Output {
     pub messages: Vec<serde_json::Value>,
 }
+

@@ -21,3 +21,4 @@ pub struct Params {
 pub struct Output {
     pub actors: Vec<crate::app::bsky::actor::defs::ProfileViewBasic>,
 }
+

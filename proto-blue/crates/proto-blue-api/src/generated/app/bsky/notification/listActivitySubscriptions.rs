@@ -21,3 +21,4 @@ pub struct Output {
     pub cursor: Option<String>,
     pub subscriptions: Vec<crate::app::bsky::actor::defs::ProfileView>,
 }
+

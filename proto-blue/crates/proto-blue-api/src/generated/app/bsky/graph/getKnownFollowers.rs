@@ -23,3 +23,4 @@ pub struct Output {
     pub followers: Vec<crate::app::bsky::actor::defs::ProfileView>,
     pub subject: crate::app::bsky::actor::defs::ProfileView,
 }
+

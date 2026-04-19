@@ -59,3 +59,4 @@ pub struct ThreatSignature {
     pub property: String,
     pub value: String,
 }
+

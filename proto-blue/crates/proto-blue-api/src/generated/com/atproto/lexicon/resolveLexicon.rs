@@ -18,3 +18,4 @@ pub struct Output {
     pub schema: crate::com::atproto::lexicon::schema::Main,
     pub uri: String,
 }
+
