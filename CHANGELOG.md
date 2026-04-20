@@ -12,6 +12,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `handle_parse`, `nsid_parse`, `did_parse`, `tid_parse`. Top-level
   `fuzz/` workspace with GitHub Actions matrix (60s PR sweep, 180s
   nightly). See `fuzz/README.md`. (#55)
+- Proptest coverage expanded across 22 new invariants on pure data
+  types: RecordKey length bounds + reserved-name rejection, Handle
+  normalization idempotency + non-ASCII rejection, DID method-
+  specific round-trips, AtUri builder + setter preservation, TID
+  timestamp-extraction round-trip + ordering preservation, rate
+  limiter accounting + key independence + combined-tightest-wins,
+  Scope/ScopeSet round-trips, and `get_pds_endpoint` extraction on
+  well-formed DID documents. (#56)
 
 ### Fixed
 - `proto-blue-repo::read_car`: integer overflow panic on adversarial
