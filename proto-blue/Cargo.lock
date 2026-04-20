@@ -1865,6 +1865,7 @@ dependencies = [
  "async-trait",
  "futures",
  "gloo-net",
+ "proptest",
  "proto-blue-common",
  "proto-blue-lex-cbor",
  "proto-blue-lex-data",

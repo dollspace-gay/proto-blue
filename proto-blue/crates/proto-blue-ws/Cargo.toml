@@ -56,3 +56,9 @@ rustls-tls = [
 # `gloo-net`-backed WebSocket connector for `wasm32-unknown-unknown`.
 # Uses the browser's native `WebSocket` via `wasm-bindgen`.
 gloo-ws = ["dep:gloo-net"]
+
+[dev-dependencies]
+proptest = { workspace = true }
+# The keep-alive state-machine test needs a runtime with `rt`
+# enabled to drive the async loop from inside a proptest body.
+tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
