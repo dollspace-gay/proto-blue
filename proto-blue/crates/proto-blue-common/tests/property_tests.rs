@@ -78,4 +78,50 @@ proptest! {
         // Should never panic -- result may be Some or None
         let _ = get_pds_endpoint(&doc);
     }
+
+    /// For any DID document that carries a `#atproto_pds` service
+    /// entry with type `AtprotoPersonalDataServer` and a valid
+    /// endpoint URL, `get_pds_endpoint` must return that URL.
+    /// Without this invariant, handle-to-PDS resolution silently
+    /// misses valid PDSes.
+    ///
+    /// Host form is constrained to two labels each matching
+    /// `[a-z][a-z0-9-]*[a-z0-9]?` so the generated URL validates —
+    /// `get_pds_endpoint` parses the endpoint through a real URL
+    /// validator that rejects digit-only TLDs and other malformed
+    /// hostnames.
+    #[test]
+    fn did_document_get_pds_endpoint_extracts_atproto_pds(
+        did_id in "[a-z][a-z0-9]{2,20}",
+        host_label in "[a-z][a-z0-9]{2,15}",
+        tld in "[a-z]{2,6}",
+    ) {
+        let endpoint = format!("https://{host_label}.{tld}");
+        let doc = DidDocument {
+            id: format!("did:plc:{did_id}"),
+            also_known_as: vec![],
+            verification_method: vec![],
+            service: vec![proto_blue_common::did_doc::Service {
+                id: "#atproto_pds".into(),
+                service_type: "AtprotoPersonalDataServer".into(),
+                service_endpoint: serde_json::Value::String(endpoint.clone()),
+            }],
+        };
+        prop_assert_eq!(get_pds_endpoint(&doc), Some(endpoint.clone()));
+    }
+
+    /// A DID document with no services returns `None`, no matter what
+    /// other fields are set.
+    #[test]
+    fn did_document_get_pds_endpoint_returns_none_without_service(
+        did_id in "[a-z][a-z0-9]{2,20}",
+    ) {
+        let doc = DidDocument {
+            id: format!("did:plc:{did_id}"),
+            also_known_as: vec![],
+            verification_method: vec![],
+            service: vec![],
+        };
+        prop_assert_eq!(get_pds_endpoint(&doc), None);
+    }
 }

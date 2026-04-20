@@ -416,10 +416,11 @@ mod tests {
     }
 
     /// Regression for the fuzz-found integer overflow on adversarial
-    /// header lengths. The original bounds check was `pos + header_len
-    /// > data.len()`, which panics in debug when `pos + header_len`
-    /// overflows `usize`. Replaced with `checked_add`; this input is
-    /// the shrunk libFuzzer reproducer that hit the panic.
+    /// header lengths. The original bounds check was
+    /// `pos + header_len > data.len()`, which panics in debug when
+    /// `pos + header_len` overflows `usize`. Replaced with
+    /// `checked_add`; this input is the shrunk libFuzzer reproducer
+    /// that hit the panic.
     #[test]
     fn car_rejects_overflowing_header_length() {
         // A single varint encoding `usize::MAX` followed by no bytes.
