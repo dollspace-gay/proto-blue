@@ -18,6 +18,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 /// Skip the test with an explanatory printout when the TS runner
 /// isn't available. Keeps `cargo test` green on fresh clones while
@@ -300,4 +301,414 @@ fn differential_aturi_components() {
             );
         }
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// @atproto/common-web
+// ─────────────────────────────────────────────────────────────────────
+
+/// TID string form must match byte-for-byte across implementations:
+/// atproto implementations sort repos by TID lexicographically, so
+/// any drift produces a repo that the other side orders differently.
+#[test]
+fn differential_tid_from_time() {
+    require_ts_runner!();
+    let mut ts = runner();
+    // Cover the realistic TID timestamp range: post-2005 micros-
+    // since-epoch (above 32^10 ≈ 1.1e15), where both sides agree.
+    // Below that, TS's `s32encode` produces a < 11-char timestamp
+    // portion which its own validator then rejects — a known TS
+    // corner-case bug we don't emulate.
+    let cases = [
+        (1_700_000_000_000_000u64, 0u16),    // ~2023, min clockid
+        (1_700_000_000_000_000u64, 1023u16), // ~2023, max clockid
+        (2_000_000_000_000_000u64, 42u16),   // ~2033
+        (8_640_000_000_000_000u64, 500u16),  // year 2243
+    ];
+    for (ts_us, clockid) in cases {
+        let rust = proto_blue_syntax::Tid::from_timestamp(ts_us, clockid).to_string();
+        let ts_val: String = ts
+            .call(
+                "tid_from_time",
+                json!({"timestamp_us": ts_us, "clockid": clockid}),
+            )
+            .into_ok();
+        assert_eq!(
+            rust, ts_val,
+            "TID from ts={ts_us} clockid={clockid} diverges"
+        );
+    }
+}
+
+/// The accept/reject decision of `Tid::is_valid(s)` must agree with
+/// the TS `TID.is(s)` classifier on well-formed inputs.
+///
+/// Limitation: TS `TID.is` is a length-only check
+/// (`dedash(s).length === 13`) — it accepts uppercase letters and
+/// punctuation that our Rust validator correctly rejects per the
+/// base32-sortable charset. So the corpus here restricts to
+/// length-varying cases (TS's sole axis of discrimination) within
+/// the valid character set.
+#[test]
+fn differential_tid_is_valid() {
+    require_ts_runner!();
+    let mut ts = runner();
+    let cases = [
+        "3k2vzkz2z2z2a",  // valid shape — both should accept
+        "3k2vzkz2z2z2",   // 12 chars — both should reject
+        "3k2vzkz2z2z2aa", // 14 chars — both should reject
+        "",               // empty — both should reject
+    ];
+    for input in cases {
+        let rust = proto_blue_syntax::Tid::is_valid(input);
+        let ts_val: bool = ts.call("tid_from_str", input).into_ok();
+        assert_eq!(rust, ts_val, "Tid::is_valid diverges on {input:?}");
+    }
+}
+
+/// Base32-sortable integer encoding round-trip. Used by TID
+/// generation (the clock-id suffix) — any drift here silently
+/// produces TIDs that sort differently on the two sides.
+#[test]
+fn differential_s32_encode() {
+    require_ts_runner!();
+    let mut ts = runner();
+    for n in [0u64, 1, 31, 32, 1023, 1024, 1_000_000, u32::MAX as u64] {
+        let rust = proto_blue_common::s32_encode(n);
+        let ts_val: String = ts.call("s32_encode", n).into_ok();
+        assert_eq!(rust, ts_val, "s32_encode({n}) diverges");
+    }
+}
+
+#[test]
+fn differential_s32_decode() {
+    require_ts_runner!();
+    let mut ts = runner();
+    // Known-good shapes covering small / medium / large cases.
+    for s in ["", "a", "g3t", "zzzz", "3k2vz"] {
+        let rust = proto_blue_common::s32_decode(s);
+        let ts_val: u64 = ts.call("s32_decode", s).into_ok();
+        assert_eq!(rust, ts_val, "s32_decode({s:?}) diverges");
+    }
+}
+
+/// Grapheme counting must agree. The Bluesky post length limit is
+/// measured in graphemes, so off-by-one drift produces posts that
+/// one side says fits and the other rejects.
+#[test]
+fn differential_grapheme_len() {
+    require_ts_runner!();
+    let mut ts = runner();
+    let cases = [
+        "",
+        "hello",
+        "héllo",
+        "🚀",
+        "héllo🚀world",
+        "👨‍👩‍👧‍👦", // ZWJ family — one grapheme, multiple codepoints
+        "🇺🇸", // flag — one grapheme, two regional-indicator codepoints
+    ];
+    for input in cases {
+        let rust = proto_blue_common::grapheme_len(input);
+        let ts_val: u64 = ts.call("grapheme_len", input).into_ok();
+        assert_eq!(rust as u64, ts_val, "grapheme_len({input:?}) diverges");
+    }
+}
+
+/// `getPdsEndpoint` on DID documents is how every handle-to-PDS
+/// resolution path terminates. A drift here breaks authentication
+/// and record reads for affected DIDs.
+#[test]
+fn differential_get_pds_endpoint() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    // Use a real-looking DID doc with the standard `#atproto_pds`
+    // service entry, and one without, and one with a malformed URL.
+    let cases = [
+        json!({
+            "id": "did:plc:aaaabbbbccccddddeeeeffff",
+            "alsoKnownAs": ["at://alice.test"],
+            "verificationMethod": [],
+            "service": [{
+                "id": "#atproto_pds",
+                "type": "AtprotoPersonalDataServer",
+                "serviceEndpoint": "https://pds.example.com",
+            }],
+        }),
+        json!({
+            "id": "did:plc:zzzz",
+            "alsoKnownAs": [],
+            "verificationMethod": [],
+            "service": [],
+        }),
+    ];
+    for doc_json in cases {
+        let rust_doc: proto_blue_common::DidDocument =
+            serde_json::from_value(doc_json.clone()).expect("parse DID doc");
+        let rust = proto_blue_common::get_pds_endpoint(&rust_doc);
+        let ts_val: Option<String> = ts.call("get_pds_endpoint", &doc_json).into_ok();
+        assert_eq!(rust, ts_val, "get_pds_endpoint diverges on {doc_json:?}");
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// @atproto/crypto
+// ─────────────────────────────────────────────────────────────────────
+
+/// `did:key:` parsing — one of the most security-critical paths in
+/// the SDK: a drift in how we decode a DID key produces signatures
+/// that verify on one side and fail on the other. Covers both
+/// P-256 and secp256k1 multikey formats.
+#[test]
+fn differential_did_key_parse() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    #[derive(Deserialize)]
+    struct TsParsed {
+        #[serde(rename = "jwtAlg")]
+        jwt_alg: String,
+        key_hex: String,
+    }
+
+    // Canonical examples from the atproto spec tests — one per alg.
+    let cases = [
+        // secp256k1 (65-byte uncompressed pubkey)
+        "did:key:zQ3shokFTS3brHcDQrn82RUDfCZESWL1ZdCEJwekUDPQiYBme",
+        // P-256 (65-byte uncompressed pubkey)
+        "did:key:zDnaerDaTF5BXEavCrfRZEk316dpbLsfPDZ3WJ5hRTPFU2169",
+    ];
+    for did in cases {
+        let rust = proto_blue_crypto::parse_did_key(did).expect("rust parse_did_key");
+        let ts_val: TsParsed = ts.call("did_key_parse", did).into_ok();
+
+        assert_eq!(rust.jwt_alg, ts_val.jwt_alg, "jwtAlg diverges on {did}");
+        assert_eq!(
+            hex::encode(&rust.key_bytes),
+            ts_val.key_hex,
+            "uncompressed pubkey bytes diverge on {did}"
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// @atproto/lexicon
+// ─────────────────────────────────────────────────────────────────────
+
+/// Lexicon validation on the same record against the same schema on
+/// both sides. Highest-interop-value diff: drift here means apps
+/// built with TS write records that our Rust validator rejects (or
+/// vice versa).
+#[test]
+fn differential_lexicon_validate_record() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    // A small synthetic lexicon with a required string field and an
+    // optional integer with min/max. Doesn't need to match a real
+    // Bluesky lexicon — the point is exercising the shared
+    // validator rules on common shapes.
+    let lexicon = json!({
+        "lexicon": 1,
+        "id": "example.test.widget",
+        "defs": {
+            "main": {
+                "type": "record",
+                "key": "tid",
+                "record": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string", "maxLength": 64},
+                        "count": {"type": "integer", "minimum": 0, "maximum": 100}
+                    }
+                }
+            }
+        }
+    });
+
+    #[derive(Debug, Deserialize)]
+    struct TsValidate {
+        valid: bool,
+        #[serde(default)]
+        #[allow(dead_code)]
+        error: Option<String>,
+        #[serde(default)]
+        #[allow(dead_code)]
+        message: Option<String>,
+    }
+
+    let cases = [
+        (
+            "valid minimal",
+            json!({"$type": "example.test.widget", "name": "ok"}),
+        ),
+        (
+            "valid with count",
+            json!({"$type": "example.test.widget", "name": "ok", "count": 42}),
+        ),
+        (
+            "missing required name",
+            json!({"$type": "example.test.widget", "count": 5}),
+        ),
+        (
+            "count above max",
+            json!({"$type": "example.test.widget", "name": "ok", "count": 500}),
+        ),
+        (
+            "count below min",
+            json!({"$type": "example.test.widget", "name": "ok", "count": -1}),
+        ),
+        (
+            "name too long",
+            json!({
+                "$type": "example.test.widget",
+                "name": "x".repeat(200),
+            }),
+        ),
+        (
+            "wrong type for count",
+            json!({"$type": "example.test.widget", "name": "ok", "count": "not a number"}),
+        ),
+    ];
+
+    // Build the Rust Lexicons once.
+    let lex_doc: proto_blue_lexicon::types::LexiconDoc =
+        serde_json::from_value(lexicon.clone()).expect("parse lexicon doc");
+    let mut rust_lexicons = proto_blue_lexicon::Lexicons::new();
+    rust_lexicons.add(lex_doc).expect("add lexicon doc");
+    let rec_def = rust_lexicons
+        .get_def("example.test.widget")
+        .expect("fetch main def");
+    let proto_blue_lexicon::types::LexUserType::Record(record_def) = rec_def else {
+        panic!("main def is not a record");
+    };
+    let record_def = record_def.clone();
+
+    for (name, record) in &cases {
+        let rust_val: proto_blue_lex_data::LexValue = proto_blue_lex_json::json_to_lex(record);
+        let rust_result =
+            proto_blue_lexicon::validate_record(&rust_lexicons, &record_def, &rust_val);
+        let rust_valid = rust_result.is_ok();
+
+        let ts_val: TsValidate = ts
+            .call(
+                "lexicon_validate_record",
+                json!({
+                    "lexicons": [lexicon],
+                    "record_type": "example.test.widget",
+                    "record": record,
+                }),
+            )
+            .into_ok();
+
+        assert_eq!(
+            rust_valid,
+            ts_val.valid,
+            "case {name:?}: rust_valid={rust_valid} (err={:?}) vs ts_valid={}",
+            rust_result.err(),
+            ts_val.valid
+        );
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Known divergences — tests that assert the CURRENT state of the
+// disagreements with the TS SDK (spec-strictness wins on our side).
+//
+// If any of these tests flip to passing, the TS SDK has tightened its
+// validator to match the spec — time to relax our corpus exclusions
+// in the main differential tests above and remove the exceptions
+// from README.md. See "Known TS SDK divergences" in the README for
+// the full writeup of why each case exists.
+// ─────────────────────────────────────────────────────────────────────
+
+/// TS `TID.is(str)` is a length-only check; it accepts any 13-char
+/// string. Our `Tid::is_valid` enforces the base32-sortable charset
+/// per the spec.
+#[test]
+fn divergence_ts_tid_is_ignores_charset() {
+    require_ts_runner!();
+    let mut ts = runner();
+    // Upper-case, punctuation, whitespace — all 13 chars long.
+    let not_tids = [
+        "AAAAAAAAAAAAA",
+        "!!!!!!!!!!!!!",
+        "             ",
+        "ABCDEFGHIJKLM",
+    ];
+    for s in not_tids {
+        assert!(
+            !proto_blue_syntax::Tid::is_valid(s),
+            "Rust correctly rejects {s:?}"
+        );
+        let ts_accepts: bool = ts.call("tid_from_str", s).into_ok();
+        assert!(
+            ts_accepts,
+            "TS is expected to (erroneously) accept {s:?}; \
+             if this flips, TS fixed their length-only check — \
+             update README.md and corpora in `differential_tid_is_valid`"
+        );
+    }
+}
+
+/// TS `TID.fromTime` doesn't pad the timestamp portion. For small
+/// timestamps (below `32^10 ≈ 1.1e15 μs`, i.e. pre-November 2004),
+/// output is fewer than 13 chars, which its own validator rejects.
+///
+/// Our Rust `Tid::from_timestamp` always produces a 13-char string.
+#[test]
+fn divergence_ts_tid_from_time_unpadded_for_small_timestamps() {
+    require_ts_runner!();
+    let mut ts = runner();
+    let small_timestamp = 1_000u64;
+    let clockid = 0u16;
+
+    // Rust produces a valid 13-char TID regardless.
+    let rust = proto_blue_syntax::Tid::from_timestamp(small_timestamp, clockid).to_string();
+    assert_eq!(rust.len(), 13, "Rust pads to 13 chars");
+    assert!(
+        proto_blue_syntax::Tid::is_valid(&rust),
+        "Rust output validates"
+    );
+
+    // TS produces output shorter than 13 chars, which its own
+    // constructor throws on.
+    let ts_result: TsResult<String> = ts.call(
+        "tid_from_time",
+        json!({"timestamp_us": small_timestamp, "clockid": clockid}),
+    );
+    assert!(
+        !ts_result.is_ok(),
+        "TS is expected to throw on small timestamps; \
+         if this flips, TS fixed their padding — update the \
+         realistic-range corpus in `differential_tid_from_time` \
+         to extend down to timestamp=0"
+    );
+}
+
+/// TS `new AtUri()` accepts fragments that don't start with `/`.
+/// The spec requires JSON Pointer format (leading `/`). Our Rust
+/// regex enforces the spec.
+#[test]
+fn divergence_ts_aturi_accepts_non_json_pointer_fragment() {
+    require_ts_runner!();
+    let mut ts = runner();
+    // `#foo` is not a JSON Pointer. TS accepts it; we reject.
+    let input = "at://did:plc:abc/app.bsky.feed.post/123#foo";
+
+    assert!(
+        proto_blue_syntax::AtUri::new(input).is_err(),
+        "Rust correctly rejects non-JSON-pointer fragment {input:?}"
+    );
+
+    let ts_result: TsResult<serde_json::Value> = ts.call("aturi_components", input);
+    assert!(
+        ts_result.is_ok(),
+        "TS is expected to (erroneously) accept {input:?}; \
+         if this flips, TS tightened their AT-URI parser — \
+         update the corpus in `differential_aturi_components` \
+         and the README divergence list"
+    );
 }

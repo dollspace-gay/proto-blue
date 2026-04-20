@@ -6,6 +6,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- Expanded TS-interop differential coverage from just `@atproto/syntax`
+  to also cover `@atproto/common-web` (TID, s32, grapheme, DID-doc
+  helpers), `@atproto/crypto` (DID-key parsing), and `@atproto/lexicon`
+  (record validation). 12 agree-with-TS tests total across 4 TS packages.
+- Added explicit **divergence tests** that lock in three known cases
+  where our Rust implementation is intentionally stricter than
+  `@atproto/syntax` — flipping any of them means TS has tightened to
+  match the spec, which is our cue to relax on our side. Documented
+  in detail in `crates/proto-blue-interop-tests/README.md`:
+  1. `TID.is(str)` is a length-only check; accepts `"AAAAAAAAAAAAA"`
+     and other non-base32-sortable input. Our `Tid::is_valid`
+     enforces the spec charset.
+  2. `TID.fromTime(ts, …)` doesn't pad the timestamp portion; for
+     pre-2004 timestamps the TS output is fewer than 13 chars and
+     fails its own validator. Our `Tid::from_timestamp` pads
+     correctly across the full range.
+  3. `AtUri` accepts non-JSON-Pointer fragments (e.g. `#foo`). Our
+     parser requires the leading `/` per the AT-URI spec.
+
 ## [0.2.6] - 2026-04-19
 
 ### Added

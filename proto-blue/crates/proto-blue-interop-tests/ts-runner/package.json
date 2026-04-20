@@ -8,7 +8,10 @@
     "run": "node index.mjs"
   },
   "dependencies": {
-    "@atproto/syntax": "0.5.4"
+    "@atproto/syntax": "0.5.4",
+    "@atproto/common-web": "0.4.21",
+    "@atproto/lexicon": "0.6.2",
+    "@atproto/crypto": "0.4.5"
   },
   "engines": {
     "node": ">=20"

@@ -7,10 +7,16 @@ description = "Differential tests against @atproto/* TypeScript SDK"
 
 [dependencies]
 proto-blue-syntax = { path = "../proto-blue-syntax" }
+proto-blue-common = { path = "../proto-blue-common" }
+proto-blue-crypto = { path = "../proto-blue-crypto" }
+proto-blue-lex-data = { path = "../proto-blue-lex-data" }
+proto-blue-lex-json = { path = "../proto-blue-lex-json" }
+proto-blue-lexicon = { path = "../proto-blue-lexicon" }
 
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+hex = "0.4"
 # Pretty diffs on assertion failures — much easier to read the first
 # real interop divergence with colored side-by-side output than a
 # blob `{...}` dump from the default assert_eq!.
