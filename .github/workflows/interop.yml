@@ -1,0 +1,48 @@
+name: Interop
+
+# Differential tests against the pinned `@atproto/*` TypeScript SDK.
+# Catches interop drift at the bit level: both our Rust parsers and
+# the TS reference implementation run on the same fixture corpus and
+# the test fails when outputs disagree.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'proto-blue/crates/proto-blue-syntax/**'
+      - 'proto-blue/crates/proto-blue-interop-tests/**'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: proto-blue
+
+jobs:
+  differential:
+    name: Differential tests vs @atproto/syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue
+          key: interop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: proto-blue/crates/proto-blue-interop-tests/ts-runner/package-lock.json
+      # Install the pinned @atproto/* packages once; the test crate
+      # reuses them across every test.
+      - name: Install TS deps
+        working-directory: proto-blue/crates/proto-blue-interop-tests/ts-runner
+        run: npm ci || npm install
+      - name: Run differential tests
+        env:
+          TS_RUNNER_READY: '1'
+        run: cargo test -p proto-blue-interop-tests --test differential

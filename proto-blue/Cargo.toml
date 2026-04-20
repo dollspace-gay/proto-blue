@@ -15,6 +15,7 @@ members = [
     "crates/proto-blue-codegen",
     "crates/proto-blue-oauth",
     "crates/proto-blue",
+    "crates/proto-blue-interop-tests",
     "examples",
 ]
 # `fuzz/` has its own separate workspace so `cargo-fuzz`'s custom

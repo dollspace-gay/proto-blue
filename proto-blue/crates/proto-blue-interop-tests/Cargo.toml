@@ -1,0 +1,17 @@
+[package]
+name = "proto-blue-interop-tests"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "Differential tests against @atproto/* TypeScript SDK"
+
+[dependencies]
+proto-blue-syntax = { path = "../proto-blue-syntax" }
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+# Pretty diffs on assertion failures — much easier to read the first
+# real interop divergence with colored side-by-side output than a
+# blob `{...}` dump from the default assert_eq!.
+pretty_assertions = "1.4"

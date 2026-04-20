@@ -1,0 +1,16 @@
+{
+  "name": "proto-blue-ts-runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Subprocess adapter that invokes @atproto/* operations against stdin/stdout JSON, so Rust differential tests can compare outputs bit-for-bit.",
+  "scripts": {
+    "run": "node index.mjs"
+  },
+  "dependencies": {
+    "@atproto/syntax": "0.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
