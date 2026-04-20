@@ -146,6 +146,10 @@ fn convert_number(n: &serde_json::Number, opts: LexParseOptions) -> Result<LexVa
         // Non-integer floats are data-model violations. In strict mode
         // we return an error; in lenient mode we truncate for back-
         // compat with pre-0.2.2 behaviour (which also truncated).
+        //
+        // NaN and infinity are never safe to coerce — even lenient
+        // mode errors on them, since there's no meaningful integer
+        // value to return.
         if f.is_nan() || f.is_infinite() {
             return Err(JsonError::UnsafeInteger(n.to_string()));
         }
@@ -153,20 +157,35 @@ fn convert_number(n: &serde_json::Number, opts: LexParseOptions) -> Result<LexVa
             if opts.strict {
                 return Err(JsonError::UnsafeInteger(n.to_string()));
             }
+            // Casting an out-of-range float to i64 is well-defined
+            // in Rust: it saturates to MIN/MAX rather than panicking.
             return Ok(LexValue::Integer(f as i64));
         }
-        // Whole-valued float. Still check range.
-        if f < i64::MIN as f64 || f > i64::MAX as f64 {
-            return Err(JsonError::UnsafeInteger(n.to_string()));
+        // Whole-valued float. In strict mode, reject values outside
+        // the i64 or the safe-integer range. In lenient mode, just
+        // saturate — pre-0.2.2 callers got `LexValue::Integer(i64::MAX)`
+        // for e.g. `4.4e99` rather than an error, and this preserves
+        // that behaviour.
+        if opts.strict {
+            if f < i64::MIN as f64 || f > i64::MAX as f64 {
+                return Err(JsonError::UnsafeInteger(n.to_string()));
+            }
+            let as_i = f as i64;
+            if !(-JS_SAFE_INTEGER_MAX..=JS_SAFE_INTEGER_MAX).contains(&as_i) {
+                return Err(JsonError::UnsafeInteger(n.to_string()));
+            }
+            return Ok(LexValue::Integer(as_i));
         }
-        let as_i = f as i64;
-        if opts.strict && !(-JS_SAFE_INTEGER_MAX..=JS_SAFE_INTEGER_MAX).contains(&as_i) {
-            return Err(JsonError::UnsafeInteger(n.to_string()));
-        }
-        return Ok(LexValue::Integer(as_i));
+        return Ok(LexValue::Integer(f as i64));
     }
-    // u64 outside i64 range — serde_json accepts these.
-    Err(JsonError::UnsafeInteger(n.to_string()))
+    // u64 outside i64 range — serde_json accepts these. Strict mode
+    // errors; lenient mode saturates at i64::MAX so `json_to_lex` can
+    // honour its infallibility contract.
+    if opts.strict {
+        Err(JsonError::UnsafeInteger(n.to_string()))
+    } else {
+        Ok(LexValue::Integer(i64::MAX))
+    }
 }
 
 /// Convert a JSON object, handling `$link` / `$bytes` single-key
@@ -616,5 +635,37 @@ mod tests {
         let v = lex_parse_json_bytes(bytes).unwrap();
         let map = v.as_map().unwrap();
         assert_eq!(map["x"], LexValue::Integer(1));
+    }
+
+    /// Regression: whole-valued floats outside the i64 range (e.g.
+    /// `4.4e99`) and u64 values above `i64::MAX` previously returned
+    /// `Err(UnsafeInteger(..))` even in lenient mode — which broke
+    /// the "lenient is infallible" contract `json_to_lex` relies on
+    /// (it `.expect()`s the result). Now saturates to `i64::MAX` in
+    /// lenient mode. Found by the `lex_json_strict` fuzzer on input
+    /// `4.444444444444444e+99`.
+    #[test]
+    fn lenient_saturates_oversized_floats_instead_of_erroring() {
+        let huge = serde_json::from_str::<serde_json::Value>("4.444444444444444e+99").unwrap();
+        // Direct — must not panic, must produce an integer.
+        let lenient = json_to_lex(&huge);
+        match lenient {
+            LexValue::Integer(_) => {}
+            other => panic!("expected Integer(saturated), got {other:?}"),
+        }
+        // And strict mode still errors (the spec-compliant behaviour
+        // callers opt into).
+        let strict_err = json_to_lex_with(&huge, LexParseOptions::strict());
+        assert!(matches!(strict_err, Err(JsonError::UnsafeInteger(_))));
+    }
+
+    #[test]
+    fn lenient_handles_u64_above_i64_max() {
+        // u64::MAX serializes as a JSON number above i64::MAX. serde_json
+        // decodes it as a u64; our lenient path must saturate rather
+        // than error.
+        let big = serde_json::from_str::<serde_json::Value>(&u64::MAX.to_string()).unwrap();
+        let lenient = json_to_lex(&big);
+        assert_eq!(lenient, LexValue::Integer(i64::MAX));
     }
 }

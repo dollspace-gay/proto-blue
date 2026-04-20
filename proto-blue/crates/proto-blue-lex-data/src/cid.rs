@@ -142,15 +142,25 @@ impl Cid {
         let hash_code = read_varint(bytes, &mut pos)?;
         let digest_len = read_varint(bytes, &mut pos)? as usize;
 
-        if pos + digest_len > bytes.len() {
+        // `pos + digest_len` can overflow `usize` on adversarial
+        // input (huge varint). `checked_add` turns that from a
+        // runtime panic into a structured error — important because
+        // CID bytes come from untrusted sources (firehose, CAR
+        // blocks from peers).
+        let digest_end = pos.checked_add(digest_len).ok_or_else(|| {
+            CidError::Invalid(format!(
+                "CID digest length overflows usize: digest_len={digest_len}"
+            ))
+        })?;
+        if digest_end > bytes.len() {
             return Err(CidError::Invalid(format!(
                 "CID bytes too short: need {} more bytes, have {}",
                 digest_len,
-                bytes.len() - pos
+                bytes.len().saturating_sub(pos)
             )));
         }
 
-        let digest = bytes[pos..pos + digest_len].to_vec();
+        let digest = bytes[pos..digest_end].to_vec();
 
         Ok(Self {
             version: version as u8,
@@ -350,5 +360,28 @@ mod tests {
         let json = serde_json::to_string(&cid).unwrap();
         let parsed: Cid = serde_json::from_str(&json).unwrap();
         assert_eq!(cid, parsed);
+    }
+
+    /// Regression: a varint that decodes to a length close to
+    /// `usize::MAX` would overflow `pos + digest_len` and panic on
+    /// the subsequent `>` compare (debug mode) or wrap and read out
+    /// of bounds (release). Found by the `lex_cbor_decode`,
+    /// `lex_cbor_canonical`, and `car_parse` fuzzers independently.
+    /// Fixed in [`Cid::from_bytes`] with `checked_add`.
+    #[test]
+    fn from_bytes_rejects_overflowing_digest_length() {
+        // version=1, codec=0x71, hash=0x12, digest_len=usize::MAX-ish
+        // (10-byte varint with the continuation bit set on every
+        // byte except the last).
+        let mut bytes = vec![0x01, 0x71, 0x12];
+        bytes.extend_from_slice(&[0xff; 9]);
+        bytes.push(0x01);
+        let err = Cid::from_bytes(&bytes).unwrap_err();
+        // Any CidError variant is acceptable — the critical property
+        // is that we didn't panic.
+        assert!(matches!(
+            err,
+            CidError::Invalid(_) | CidError::VarintDecode(_) | CidError::InvalidDigestLength { .. }
+        ));
     }
 }

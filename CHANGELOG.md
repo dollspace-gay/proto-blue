@@ -27,6 +27,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   sum overflows `usize`). Replaced three sites with `checked_add`.
   Regression test seeded from the libFuzzer reproducer. Found by
   the `car_parse` fuzz target. (#55)
+- `proto-blue-lex-data::Cid::from_bytes`: same overflow pattern —
+  `pos + digest_len` would panic on adversarial multihash length
+  varints. Replaced with `checked_add`; regression test added.
+  Triggered by fuzzers against three separate entry points
+  (`lex_cbor_decode`, `lex_cbor_canonical`, `car_parse`) since all
+  three eventually call into CID parsing. (#55)
+- `proto-blue-lex-json::json_to_lex`: the lenient-mode entry point
+  `.expect()`s infallibility, but whole-valued floats outside the
+  i64 range and u64 values above i64::MAX returned `Err(UnsafeInteger)`
+  in lenient mode, so the expect fired. Lenient mode now saturates
+  to i64::MAX / MIN (matching pre-0.2.2 behaviour); strict mode
+  still rejects. Found by `lex_json_strict` on `4.4e99`. (#55)
 
 ### Changed
 - Live-PDS integration tests: new
