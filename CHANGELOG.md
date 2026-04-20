@@ -29,6 +29,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the `car_parse` fuzz target. (#55)
 
 ### Changed
+- TS-interop differential test harness: new
+  `proto-blue-interop-tests` crate spawns a long-lived
+  `@atproto/syntax` Node subprocess and diffs its outputs against
+  our Rust parsers on a shared corpus. Initial ops:
+  `normalize_handle`, `is_valid_handle`, `nsid_is_valid`,
+  `aturi_components`. Gated on `TS_RUNNER_READY=1`; CI workflow at
+  `.github/workflows/interop.yml` sets it up. Found one real
+  spec-interpretation divergence on AT-URI fragment validation
+  (Rust enforces JSON Pointer per spec, TS accepts any string). (#58)
 - Stateful property tests (proptest state machines) covering
   subsystems where bugs hide in operation sequences rather than
   single calls: MST add/update/delete oracle-matching over random
