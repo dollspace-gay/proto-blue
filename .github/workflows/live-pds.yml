@@ -1,0 +1,45 @@
+name: Live PDS
+
+# Nightly integration tests against a real PDS.
+#
+# Gated on three GitHub secrets — a throwaway account. If any are
+# missing, the job skips rather than fails (the test bodies check
+# the env vars and early-return).
+on:
+  schedule:
+    # 04:00 UTC daily — quiet hour for both sides.
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: proto-blue
+
+jobs:
+  live-pds:
+    name: Live PDS integration tests
+    runs-on: ubuntu-latest
+    # Never fail the build on live-PDS flake; nightly runs only
+    # surface true regressions via scheduled notification.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue
+          key: live-pds
+      - name: Run live-PDS tests
+        env:
+          PDS_URL: ${{ secrets.PDS_URL }}
+          PDS_TEST_HANDLE: ${{ secrets.PDS_TEST_HANDLE }}
+          PDS_TEST_APP_PASSWORD: ${{ secrets.PDS_TEST_APP_PASSWORD }}
+        run: |
+          if [ -z "${PDS_URL}" ] || [ -z "${PDS_TEST_HANDLE}" ] || [ -z "${PDS_TEST_APP_PASSWORD}" ]; then
+            echo "secrets not configured, skipping live-PDS job"
+            exit 0
+          fi
+          cargo test -p proto-blue-api --test live_pds -- --ignored --test-threads=1
