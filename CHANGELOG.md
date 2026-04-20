@@ -29,6 +29,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the `car_parse` fuzz target. (#55)
 
 ### Changed
+- Live-PDS integration tests: new
+  `crates/proto-blue-api/tests/live_pds.rs` with
+  `session_lifecycle_roundtrip` (login / session echo / refresh
+  rotation / logout) and `post_then_delete_roundtrip` (`Agent::post`
+  against a real `app.bsky.feed.post`). Every test is `#[ignore]`'d
+  and additionally early-returns on missing
+  `PDS_URL`/`PDS_TEST_HANDLE`/`PDS_TEST_APP_PASSWORD` env vars so
+  fresh clones stay network-free. Nightly CI workflow at
+  `.github/workflows/live-pds.yml` runs them against secrets at
+  04:00 UTC. (#59)
 - TS-interop differential test harness: new
   `proto-blue-interop-tests` crate spawns a long-lived
   `@atproto/syntax` Node subprocess and diffs its outputs against
