@@ -28,6 +28,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Regression test seeded from the libFuzzer reproducer. Found by
   the `car_parse` fuzz target. (#55)
 
+### Changed
+- Stateful property tests (proptest state machines) covering
+  subsystems where bugs hide in operation sequences rather than
+  single calls: MST add/update/delete oracle-matching over random
+  40-op sequences including end-of-sequence round-trip via
+  `get_all_blocks` / `load`; OAuth `OAuthSession` lifecycle
+  (`did()` == `token_set().sub`, `aud` persistence across updates,
+  expiry classification under jitter); and firehose
+  `WebSocketKeepAlive` reconnect accounting across random
+  success/failure scripts (url_fn consulted per dial, no URL
+  repeat, `ReconnectExhausted` fires iff cap exceeded). (#57)
+
 ## [0.2.5] - 2026-04-19
 
 ### Fixed
