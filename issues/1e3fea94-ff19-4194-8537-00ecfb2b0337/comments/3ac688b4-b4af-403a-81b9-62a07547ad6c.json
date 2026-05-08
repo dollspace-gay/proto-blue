@@ -1,0 +1,10 @@
+{
+  "uuid": "3ac688b4-b4af-403a-81b9-62a07547ad6c",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Hub branches diverged: remote has 663 old-WSL commits signed by defunct agent nGvb (old key, no merge-base with new history). Local has 100 commits from new WSL (5kO0, all sig=G). Recommended user force-push with --force-with-lease, optionally tagging old remote tip as old-hub-archive first. Same likely needed for crosslink/knowledge.",
+  "created_at": "2026-05-08T17:36:18.722864671Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAZ3R/Nlic/jO1TyEyqfaRQUmkdW6GQhi8Uko+ICTvecpSTKllPDUqYJQBJG32PnziqveWOKDe0R97K7e9eTtBBg=="
+}
