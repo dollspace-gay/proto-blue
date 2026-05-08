@@ -1,0 +1,10 @@
+{
+  "uuid": "7288fe9c-ecd7-48e4-828d-25dea8446e8e",
+  "issue_uuid": "88b9ca74-c2ba-434e-839e-9ad3f93a7a2e",
+  "author": "5kO0",
+  "content": "Where: proto-blue-lex-cbor/src/encoding.rs:167-178. cbor_to_lex accepts ciborium::Value::Float(f) and silently coerces integral floats (f.fract() == 0.0) to LexValue::Integer.\n\nStrict dag-cbor: floats and integers have separate, non-overlapping encodings. A float-encoded integer is a SPEC VIOLATION (the encoder should have emitted an integer). Accepting it on decode launders bad input.\n\nStrict decode() path (line 49) catches this via the re-encode comparison — but decode_lenient (line 70) does not. Audit all callers of decode_lenient: who calls it, do they sit on a network boundary or only on already-validated input?\n  - grep for decode_lenient across proto-blue-repo and proto-blue-ws (firehose paths are likeliest offenders).\n  - If any are on data-from-the-wire paths, that's a real strictness leak.\n\nFix options:\n1. Reject all floats outright in cbor_to_lex (return CborError::FloatNotSupported unconditionally). Strictest, most correct.\n2. Keep the integral-float coercion but only behind a `lenient_floats` feature flag.\n3. Do (1) and add an explicit decode_with_legacy_floats(...) for callers that genuinely need it.\n\nOption 1 is correct per dag-cbor spec. The \"some encoders may encode integers as floats\" comment in the code is exactly the kind of leniency that compounds — every implementation that accepts it lets the next one get away with emitting it.",
+  "created_at": "2026-05-08T17:16:51.933023379Z",
+  "kind": "observation",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAirGAKWol4bUSPaphI9RaDLuW7tKTT9OSiKE9Wj9Slsn5uqXbk7FF4HHF+vsB37adOpZQmmqrkumxoLY71h/RCQ=="
+}
