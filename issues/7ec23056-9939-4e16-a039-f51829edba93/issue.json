@@ -1,0 +1,10 @@
+{
+  "uuid": "7ec23056-9939-4e16-a039-f51829edba93",
+  "display_id": null,
+  "title": "infra: sync still failing after force-push of hub branch",
+  "status": "open",
+  "priority": "high",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:37:15.756737947Z",
+  "updated_at": "2026-05-08T17:37:15.756737947Z"
+}
