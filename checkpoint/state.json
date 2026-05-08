@@ -2,7 +2,12 @@
   "next_display_id": 1,
   "next_comment_id": 1,
   "display_id_map": {},
-  "locks": {},
+  "locks": {
+    "3": {
+      "agent_id": "5kO0",
+      "claimed_at": "2026-05-08T18:00:52.503594788Z"
+    }
+  },
   "issues": {},
   "unsigned_event_warnings": [
     {
@@ -12,8 +17,8 @@
     }
   ],
   "watermark": {
-    "timestamp": "2026-05-08T17:59:04.461508977Z",
+    "timestamp": "2026-05-08T18:00:52.503594788Z",
     "agent_id": "5kO0",
-    "agent_seq": 32
+    "agent_seq": 33
   }
 }
