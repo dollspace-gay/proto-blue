@@ -1,0 +1,11 @@
+{
+  "uuid": "88b9ca74-c2ba-434e-839e-9ad3f93a7a2e",
+  "display_id": null,
+  "title": "lex-cbor: fix integral-float coercion strictness leak in cbor_to_lex / decode_lenient",
+  "status": "open",
+  "priority": "medium",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:15:38.187676027Z",
+  "updated_at": "2026-05-08T17:15:38.187676027Z"
+}
