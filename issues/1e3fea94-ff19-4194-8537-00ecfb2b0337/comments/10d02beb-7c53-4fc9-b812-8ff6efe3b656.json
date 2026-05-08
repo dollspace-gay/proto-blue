@@ -1,0 +1,10 @@
+{
+  "uuid": "10d02beb-7c53-4fc9-b812-8ff6efe3b656",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Session 2 (infra): switched git remote to SSH; SSH auth verified via ls-remote. Push deferred to user. Note: my new infra issue was lost in sync race — result comment landed on epic #1 by mistake. Stale lock + 5 invalid hub signatures flagged in chat for triage.",
+  "created_at": "2026-05-08T17:20:03.368346989Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAJikrjuhHqtqA3wK/oZfsBdT6nKhocIoawi0twTfO1jgbPU5CxzyCi4kbWTGc5BHKKGJJX6KmFtuEi+YU8KSGDg=="
+}
