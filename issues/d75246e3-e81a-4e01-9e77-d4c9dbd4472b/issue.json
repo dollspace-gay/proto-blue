@@ -1,0 +1,11 @@
+{
+  "uuid": "d75246e3-e81a-4e01-9e77-d4c9dbd4472b",
+  "display_id": null,
+  "title": "codegen: validate against real-world scraped lexicon corpus (find collisions, weird edge cases)",
+  "status": "open",
+  "priority": "medium",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:15:40.288138487Z",
+  "updated_at": "2026-05-08T17:15:40.288138487Z"
+}
