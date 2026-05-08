@@ -1,0 +1,10 @@
+{
+  "uuid": "1d42ba6a-e2f3-4c31-b1da-b3074e77d432",
+  "issue_uuid": "da4cd490-4372-4665-86b7-737dbc664a26",
+  "author": "5kO0",
+  "content": "Smoking gun: proto-blue-codegen/src/generator.rs:957 — `LexUserType::String(_) => \"String\".to_string()`. Ignores LexString.format entirely. Catch-all on line 985 also returns \"String\".\n\nAvailable newtypes in proto-blue-syntax: Did, Handle, Nsid, AtUri, Tid, RecordKey, Datetime, AtIdentifier (handle-or-did union).\n\nLexicon `format` → Rust mapping to add:\n  format: did          → proto_blue_syntax::Did\n  format: handle       → proto_blue_syntax::Handle\n  format: at-identifier → proto_blue_syntax::AtIdentifier\n  format: nsid         → proto_blue_syntax::Nsid\n  format: at-uri       → proto_blue_syntax::AtUri\n  format: tid          → proto_blue_syntax::Tid\n  format: record-key   → proto_blue_syntax::RecordKey\n  format: datetime     → proto_blue_syntax::Datetime\n  format: cid          → proto_blue_lex_data::Cid (already done for cid-link, extend to format: cid)\n  format: language     → newtype TBD (BCP-47 tag) — may defer\n  format: uri          → keep as String for now (validation expensive, varies)\n  no format            → String\n\nAlso for fields with `enum` or `knownValues`: codegen already emits an enum at lines 149–155 — extend to ensure the variant names are properly sanitized (see L5).\n\nMigration risk: this is a breaking change to every generated type. Should land alongside L4 (unions) and L5 (sanitization) as one codegen-output bump, with a CHANGELOG migration note.",
+  "created_at": "2026-05-08T17:16:31.011588482Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABASECO1cm3cdqMCFyeDD9cYHBStUzwrIaPKO4hHLaQN/dMZPLvb0xWwUBs0cEr+CGstxV/nwwvcpeZnU3o3CluCw=="
+}
