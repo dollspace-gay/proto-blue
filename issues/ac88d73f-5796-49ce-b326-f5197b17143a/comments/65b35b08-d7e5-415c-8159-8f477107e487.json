@@ -1,0 +1,10 @@
+{
+  "uuid": "65b35b08-d7e5-415c-8159-8f477107e487",
+  "issue_uuid": "ac88d73f-5796-49ce-b326-f5197b17143a",
+  "author": "5kO0",
+  "content": "Today: proto-blue-interop-tests/tests/differential.rs covers only handle/nsid/aturi parsing against tiny inline corpora (5–7 strings each). That's ~5% of the API surface tested cross-impl.\n\nCoverage gaps to close (priority order):\n1. dag-cbor encode: feed N random LexValues to both Rust and TS, byte-compare output. (Catches map-key-order, float vs int, CID tag handling, indefinite-length emission.)\n2. CID computation: encode the same LexValue both sides, hash, compare CIDs. Bridges (1) into atproto's content-addressed model.\n3. MST shape: build identical (key,cid) sets in both impls, compare root CID. Catches MST split-point logic, leaf-vs-tree node decisions.\n4. CAR layout: serialize identical block sets, byte-compare. Catches block ordering, header framing.\n5. Commit construction: build a signed commit from identical inputs, compare. Catches signing-payload ordering, prev-handling, sig encoding.\n6. XRPC framing: query/procedure with identical params, compare wire bytes (or compare server-observed requests via a record-replay layer).\n\nFor (1)–(5), the corpus generator should include adversarial cases: empty maps, nested empties, boundary integers (i64::MIN/MAX, MAX+1), long strings, deep nesting, every Lexicon scalar type.\n\nRecent commit 30be5d4 expanded diff coverage; this issue is the second pass that gets us beyond syntax parsing into actual data-model consensus.",
+  "created_at": "2026-05-08T17:17:16.247178470Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAbl4BMafPzTFk+/fjyxOGqe15bb5S2I5OdewrARVKizGIyKioSWp/lqxVkmpis6dlxMaDt94Tet0924gSrUXSCA=="
+}
