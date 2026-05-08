@@ -1,0 +1,10 @@
+{
+  "uuid": "44e72370-687b-4ade-86bc-b2e174541d26",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "User found it: tracker_remote was unset on proto-blue. Fix: crosslink config set tracker_remote origin. The (offline) warning was misclassification — actual error was unconfigured remote.",
+  "created_at": "2026-05-08T17:43:11.512902532Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAQ03KjDORZtxAyoWj7sgkVvzOrdbEaEVhH9zeF7Clq66wNrX2hsmEHkfqmQSPO1Wmxpb41Y11LzXMOG5AderFBA=="
+}
