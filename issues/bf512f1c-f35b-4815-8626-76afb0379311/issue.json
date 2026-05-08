@@ -1,6 +1,6 @@
 {
   "uuid": "bf512f1c-f35b-4815-8626-76afb0379311",
-  "display_id": null,
+  "display_id": 8,
   "title": "lex-cbor: migrate encode/decode to serde_ipld_dagcbor; keep ciborium for firehose-header lenience",
   "status": "open",
   "priority": "medium",

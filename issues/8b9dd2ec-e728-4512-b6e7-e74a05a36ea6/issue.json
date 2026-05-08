@@ -1,6 +1,6 @@
 {
   "uuid": "8b9dd2ec-e728-4512-b6e7-e74a05a36ea6",
-  "display_id": null,
+  "display_id": 4,
   "title": "codegen: emit sum types for lexicon unions instead of serde_json::Value",
   "status": "open",
   "priority": "high",

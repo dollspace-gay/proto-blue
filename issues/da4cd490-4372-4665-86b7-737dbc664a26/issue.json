@@ -1,6 +1,6 @@
 {
   "uuid": "da4cd490-4372-4665-86b7-737dbc664a26",
-  "display_id": null,
+  "display_id": 3,
   "title": "codegen: emit syntax newtypes (Did/Handle/Nsid/AtUri/Tid/RecordKey/Datetime) for typed string fields",
   "status": "open",
   "priority": "high",

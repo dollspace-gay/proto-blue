@@ -1,6 +1,6 @@
 {
   "uuid": "a639df17-c0d4-42cf-9aa0-18d28aa7ae23",
-  "display_id": null,
+  "display_id": 6,
   "title": "api: replace String with syntax newtypes in Agent/Session/LabelerOpts public surface",
   "status": "open",
   "priority": "high",

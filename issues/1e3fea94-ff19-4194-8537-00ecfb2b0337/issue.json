@@ -1,6 +1,6 @@
 {
   "uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
-  "display_id": null,
+  "display_id": 1,
   "title": "audit: external review hardening pass — types, codec strictness, proof tests, interop coverage",
   "status": "open",
   "priority": "high",

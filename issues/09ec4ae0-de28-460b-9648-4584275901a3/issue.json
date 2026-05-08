@@ -1,6 +1,6 @@
 {
   "uuid": "09ec4ae0-de28-460b-9648-4584275901a3",
-  "display_id": null,
+  "display_id": 2,
   "title": "repo: property + fuzz tests for proof pipeline (covering_proof, commit construction)",
   "status": "open",
   "priority": "critical",

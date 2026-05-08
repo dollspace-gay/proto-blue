@@ -1,6 +1,6 @@
 {
   "uuid": "b70c975e-738b-427d-ad03-c24d789884da",
-  "display_id": null,
+  "display_id": 7,
   "title": "lex-data: replace bespoke Cid with cid crate (or fix Vec<u8> digest to [u8; 32])",
   "status": "open",
   "priority": "medium",
