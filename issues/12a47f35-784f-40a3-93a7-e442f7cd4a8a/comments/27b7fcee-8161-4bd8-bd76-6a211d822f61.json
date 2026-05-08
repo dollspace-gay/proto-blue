@@ -1,0 +1,10 @@
+{
+  "uuid": "27b7fcee-8161-4bd8-bd76-6a211d822f61",
+  "issue_uuid": "12a47f35-784f-40a3-93a7-e442f7cd4a8a",
+  "author": "5kO0",
+  "content": "Spun out from #3 after attempting to extend the format-to-newtype mapping to params and finding 224 compile errors in the codegen-emitted helpers.\n\nThe codegen emits two helper functions per XRPC method that assume String params:\n  - to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams\n      uses `v.clone()` and wraps in `QueryValue::String(...)` — needs `v.to_string()` (Display) instead\n  - params_from_ctx(ctx) -> Option<Params>\n      uses `ctx.params.get(\"k\").cloned()` (yields Option<String>) — needs FromStr::from_str / Did::new etc.\n\nWhat's needed in proto-blue-codegen/src/generator.rs:\n  1. Update generate_query_call_fn / generate_procedure_call_fn (or wherever to_query_params is emitted) to call .to_string() instead of .clone() for string-typed fields.\n  2. Update params_from_ctx emission to call <Newtype>::from_str / <Newtype>::new on get'd values, propagating parse errors as a 400 / param-decode error.\n  3. Re-extend param_type_to_rust to map LexString.format → newtypes the same way #3 does for type_to_rust.\n  4. Regenerate proto-blue-api/src/generated/ and run cargo fmt.\n  5. Verify cargo build --workspace; cargo test --workspace.\n\nReference: the type_to_rust mapping landed in #3 via a string_format_to_rust(format: Option<&str>) -> &'static str helper at the bottom of generator.rs. Reuse it for params.\n\nThis is a smaller, targeted follow-up — the audit's primary value (typed object fields at the public API boundary) already landed in #3.",
+  "created_at": "2026-05-08T18:08:46.062174434Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA5qopNTqegHvjnPoCQ5ku0uBfttW2pDDqMANs7KixFhK87Lct6EXfAQYTb94y1FjzytJLlh78BHEiPqZ11BlWDg=="
+}
