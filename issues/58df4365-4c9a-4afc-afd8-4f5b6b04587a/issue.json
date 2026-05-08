@@ -1,0 +1,11 @@
+{
+  "uuid": "58df4365-4c9a-4afc-afd8-4f5b6b04587a",
+  "display_id": 24,
+  "title": "codegen: NSID segments with dashes produce path/ident mismatch (com.bad-example.* → mod bad_example but dir bad-example/)",
+  "status": "open",
+  "priority": "high",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T19:22:19.128092287Z",
+  "updated_at": "2026-05-08T19:22:19.128092287Z"
+}
