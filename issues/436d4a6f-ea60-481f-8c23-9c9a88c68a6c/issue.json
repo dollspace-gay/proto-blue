@@ -1,0 +1,11 @@
+{
+  "uuid": "436d4a6f-ea60-481f-8c23-9c9a88c68a6c",
+  "display_id": 26,
+  "title": "interop: differential test for MST root-CID parity (audit item 3)",
+  "status": "open",
+  "priority": "medium",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T23:24:11.143550725Z",
+  "updated_at": "2026-05-08T23:24:11.143550725Z"
+}
