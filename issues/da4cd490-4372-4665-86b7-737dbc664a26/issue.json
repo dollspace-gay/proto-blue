@@ -7,11 +7,12 @@
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T17:15:31.457166662Z",
-  "updated_at": "2026-05-08T17:17:22.099824405Z",
+  "updated_at": "2026-05-08T17:17:22.926704615Z",
   "labels": [
     "enhancement"
   ],
   "related": [
-    "8b9dd2ec-e728-4512-b6e7-e74a05a36ea6"
+    "8b9dd2ec-e728-4512-b6e7-e74a05a36ea6",
+    "bd78b1fa-b2c0-40ca-b8bb-5c9278262a72"
   ]
 }
