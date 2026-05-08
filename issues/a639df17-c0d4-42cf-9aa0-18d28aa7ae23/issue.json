@@ -2,12 +2,13 @@
   "uuid": "a639df17-c0d4-42cf-9aa0-18d28aa7ae23",
   "display_id": 6,
   "title": "api: replace String with syntax newtypes in Agent/Session/LabelerOpts public surface",
-  "status": "open",
+  "status": "closed",
   "priority": "high",
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T17:15:35.409184979Z",
-  "updated_at": "2026-05-08T17:17:23.689512965Z",
+  "updated_at": "2026-05-08T19:59:51.813733845Z",
+  "closed_at": "2026-05-08T19:59:51.813733845Z",
   "labels": [
     "enhancement"
   ],
