@@ -1,0 +1,10 @@
+{
+  "uuid": "d44614da-d8a6-4193-9986-49e6b567ed6f",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Switched origin from HTTPS to SSH. Verified read access via 'git ls-remote origin HEAD'. Push left to user (hook policy).",
+  "created_at": "2026-05-08T17:19:18.402930630Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA1j8xwedTJ2q0x5BSUeHsyT5qwdyhHglyPkSHx+BvUvmrYUu1nLsW1pZ4MX2TkN10crE5Y1z5MOn5bkBsOYeVBw=="
+}
