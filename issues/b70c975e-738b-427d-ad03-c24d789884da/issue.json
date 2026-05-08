@@ -2,12 +2,13 @@
   "uuid": "b70c975e-738b-427d-ad03-c24d789884da",
   "display_id": 7,
   "title": "lex-data: replace bespoke Cid with cid crate (or fix Vec<u8> digest to [u8; 32])",
-  "status": "open",
+  "status": "closed",
   "priority": "medium",
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T17:15:36.198349972Z",
-  "updated_at": "2026-05-08T17:15:36.234812306Z",
+  "updated_at": "2026-05-08T20:52:41.583413893Z",
+  "closed_at": "2026-05-08T20:52:41.583413893Z",
   "labels": [
     "refactor"
   ]
