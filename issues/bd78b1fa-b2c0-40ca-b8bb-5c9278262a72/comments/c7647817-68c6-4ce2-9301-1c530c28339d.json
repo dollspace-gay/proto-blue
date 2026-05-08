@@ -1,0 +1,10 @@
+{
+  "uuid": "c7647817-68c6-4ce2-9301-1c530c28339d",
+  "issue_uuid": "bd78b1fa-b2c0-40ca-b8bb-5c9278262a72",
+  "author": "5kO0",
+  "content": "Where: proto-blue-codegen/src/generator.rs:1245-1257 (sanitize_ident match arm).\n\nCurrent keyword list is correct for Rust 2021 but missing for 2024. Workspace is `edition = \"2024\"` so this is latent breakage waiting on a lexicon with `gen` or `try` as a field.\n\nAdd to keyword set:\n  Edition 2024 hard keywords: gen, try\n  Reserved-for-future:        priv, abstract, become, box, do, final, macro, override, typeof, virtual, yield, union\n\n(union is \"weak\" but safer to r# it than risk a future hard-reservation. Same for the rest — reserving them costs us nothing since they shouldn't appear in valid Rust identifiers anyway.)\n\nSibling-collision detection (separate concern, same crate):\n  - After sanitizing all field names in a struct (or all variants in an enum), check for duplicates. If a schema has both `type` and `r#type`, or two fields that snake_case to the same identifier, currently silently produces invalid Rust.\n  - Resolution: either error at generation time with a clear message, or auto-disambiguate with a numeric suffix and emit a doc comment noting the collision. Errors are safer; suffixes are friendlier. Ask the user.\n\nVerification: add a generator test that feeds a synthetic lexicon containing every keyword as a field name and asserts the output compiles.",
+  "created_at": "2026-05-08T17:16:41.053544510Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAB+K2yZnRsl6zLHpyIeaWGUp+XmkVB30eGW9phg/OYvWNeKPivVg1sTmGsvrq8HS3BT/JQxCHbzbiXqkkzeK3Bw=="
+}
