@@ -1,0 +1,11 @@
+{
+  "uuid": "12a47f35-784f-40a3-93a7-e442f7cd4a8a",
+  "display_id": 21,
+  "title": "codegen: promote XRPC param strings to syntax newtypes (needs to_query_params + params_from_ctx template updates)",
+  "status": "open",
+  "priority": "medium",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T18:08:27.209382556Z",
+  "updated_at": "2026-05-08T18:08:27.209382556Z"
+}
