@@ -7,8 +7,11 @@
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T17:15:37.439603680Z",
-  "updated_at": "2026-05-08T17:15:37.471525967Z",
+  "updated_at": "2026-05-08T17:17:25.237287110Z",
   "labels": [
     "refactor"
+  ],
+  "related": [
+    "88b9ca74-c2ba-434e-839e-9ad3f93a7a2e"
   ]
 }
