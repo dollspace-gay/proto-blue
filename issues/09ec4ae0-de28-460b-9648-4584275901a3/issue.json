@@ -2,12 +2,13 @@
   "uuid": "09ec4ae0-de28-460b-9648-4584275901a3",
   "display_id": 2,
   "title": "repo: property + fuzz tests for proof pipeline (covering_proof, commit construction)",
-  "status": "open",
+  "status": "closed",
   "priority": "critical",
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T17:15:26.392036296Z",
-  "updated_at": "2026-05-08T17:15:26.423273408Z",
+  "updated_at": "2026-05-08T17:59:03.053398370Z",
+  "closed_at": "2026-05-08T17:59:03.053398370Z",
   "labels": [
     "bug"
   ]
