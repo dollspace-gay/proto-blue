@@ -1,0 +1,10 @@
+{
+  "uuid": "4fc35875-fd8c-4440-b9b4-05a86b18cf54",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Filed 11-issue epic from external review by jacquard creator (atproto SDK author).\n\nEpic: #1 (audit: external review hardening pass)\nChildren:\n  #2  critical  proof-pipeline property/fuzz tests   ← START HERE — silent-correctness; differentiator vs TS reference\n  #3  high      codegen syntax newtypes (related to #4, #5; blocks #6)\n  #4  high      codegen union sum types\n  #5  high      codegen edition-2024 keywords + collision detection (blocks #11)\n  #6  high      Agent public surface uses syntax newtypes (blocked on #3)\n  #7  medium    Cid → cid crate\n  #8  medium    serde_ipld_dagcbor migration (related to #9)\n  #9  medium    decode_lenient float coercion strictness leak (related to #8)\n  #10 medium    interop diff expansion (CBOR/CID/MST/CAR/commit)\n  #11 medium    real-world lexicon corpus test (blocked on #5)\n\nEach issue has a plan/observation comment with file:line citations from the audit. Original audit transcript in this session's history (session #1, 2026-05-08).\n\nSuggested next: read #2 in full and start on the proof-pipeline property tests. The reviewer's tranquil-pds slightly-overestimate strategy is the key insight — the goal is to verify proto-blue's emitted proofs are sufficient for an independent verifier, NOT just self-consistent.\n\nL3+L4+L5 should land together as one codegen-output bump with a CHANGELOG migration note. L6 follows.\n\nOffline-only push — issues exist locally; will sync to hub on next online session.",
+  "created_at": "2026-05-08T17:17:41.379171294Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAxo9MdBMpxjpmYU3aXehLalgv0xEOWGG6/fitCK+f941MN718Oi4GfaiDc0eOTzyB3Ly4LriHRW/SEd+Vm4rCDA=="
+}
