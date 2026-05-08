@@ -1,0 +1,11 @@
+{
+  "uuid": "bd78b1fa-b2c0-40ca-b8bb-5c9278262a72",
+  "display_id": null,
+  "title": "codegen: handle edition-2024 keywords (gen, try) and detect sibling identifier collisions",
+  "status": "open",
+  "priority": "high",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:15:34.215461101Z",
+  "updated_at": "2026-05-08T17:15:34.215461101Z"
+}
