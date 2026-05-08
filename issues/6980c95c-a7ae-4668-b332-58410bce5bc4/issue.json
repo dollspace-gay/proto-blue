@@ -1,6 +1,6 @@
 {
   "uuid": "6980c95c-a7ae-4668-b332-58410bce5bc4",
-  "display_id": null,
+  "display_id": 13,
   "title": "infra: rebuild trust chain after WSL/key migration (5 invalid sigs)",
   "status": "open",
   "priority": "high",
