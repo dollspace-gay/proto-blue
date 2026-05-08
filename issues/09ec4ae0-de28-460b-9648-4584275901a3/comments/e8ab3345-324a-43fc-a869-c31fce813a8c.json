@@ -1,0 +1,10 @@
+{
+  "uuid": "e8ab3345-324a-43fc-a869-c31fce813a8c",
+  "issue_uuid": "09ec4ae0-de28-460b-9648-4584275901a3",
+  "author": "5kO0",
+  "content": "Where: proto-blue-repo/src/proofs.rs (proof_for_key, proof_for_left_sibling, proof_for_right_sibling, covering_proof, verify_key_in_proof). Tests today: proto-blue-repo/tests/property_tests.rs covers MST insert/delete/sort + CAR roundtrip + BlockMap/CidSet — zero coverage on proofs.rs or sync.rs commit emission. fuzz/fuzz_targets/ has nothing for proof construction (only parsers + lex_cbor + car_parse).\n\nWhat to add:\n1. proptest: random MST → covering_proof(key) → verify_key_in_proof must succeed for present keys, and must fail-safely for absent-with-neighbors.\n2. proptest: covering_proof must be a STRICT SUPERSET of the minimum required block set (overestimate by epsilon — tranquil-pds approach). Build the minimum from the walk path; assert returned ⊇ minimum.\n3. proptest: round-trip a sync v1.1 commit through the wire format (whatever the firehose emits) and verify its embedded proof is sufficient for an independent verifier with NO access to the originating MST.\n4. fuzz target: arbitrary mutations to a known-good proof BlockMap → verify_key_in_proof must reject every mutation that breaks the claim (no false positives).\n\nClaim to falsify: proto-blue currently emits proofs that are *exactly* the path-and-siblings set. The reviewer's tranquil-pds emits ~2% more. We need the tests to confirm we either (a) match the slight-overestimate, or (b) prove our exact-set is sufficient for atproto sync v1.1 verifiers.",
+  "created_at": "2026-05-08T17:16:20.406688639Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAd1oQkUOwiQ8uY4rONJrDUH7pyH3KSZpgPl15QvzJWOgjjlJBphAtY4RIOEFRQeBXO94qbL29sg86vKVtUL/bAg=="
+}
