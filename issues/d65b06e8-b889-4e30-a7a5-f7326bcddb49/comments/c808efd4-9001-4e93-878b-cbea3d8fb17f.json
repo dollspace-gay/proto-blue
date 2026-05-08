@@ -1,0 +1,10 @@
+{
+  "uuid": "c808efd4-9001-4e93-878b-cbea3d8fb17f",
+  "issue_uuid": "d65b06e8-b889-4e30-a7a5-f7326bcddb49",
+  "author": "5kO0",
+  "content": "Surfaced by #22's wild-corpus rustc-compile test, against the 420-doc app+chat+com+tools wild slice scraped 2026-05-08.\n\nConcrete instance: com.deckbelcher.richtext defines a struct \\`document\\` whose lexicon description literally contains a newline:\n\n  \\\"description\\\": \\\"A multi-block rich text document.\\\\nUsed for primers and other long-form content.\\\"\n\nThe codegen emits it via a single-line `/// {desc}` template (escape_doc_text doesn't add `///` continuation on internal newlines). Result in the generated source:\n\n  /// A multi-block rich text document.\n  Used for primers and other long-form content.\n  #[derive(...)]\n  pub struct Document { ... }\n\nrustc parses the bare second line as code:\n  error: expected one of `!` or `::`, found keyword `for`\n   --> .../richtext/mod.rs:42:6\n\nFix shape: when emitting `/// <desc>`, replace internal `\\n` with `\\n/// `. One-liner change in `escape_doc_text` (proto-blue-codegen/src/generator.rs, around line 1043) or at every call site that pushes `\\\"/// {desc}\\\\n\\\"`. Easier to fix at the helper since it's a single funnel.\n\nThe bundled bsky/atproto corpus apparently doesn't contain any multi-line descriptions, which is why this is the first time it's surfaced — same shape as #23/#24, \"the wild corpus exposes patterns the bundled set didn't.\"",
+  "created_at": "2026-05-08T20:23:46.168180336Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA6qJ1xyTAt8Tg0Cq4svVg9oZuSNgSBZPwOepvylacitG2fUDLSOt1P8C8EWXzAUDbjdv5W9RhT5eSiiTfXMW1Bw=="
+}
