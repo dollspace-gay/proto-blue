@@ -1,0 +1,10 @@
+{
+  "uuid": "9a189e92-9394-4542-adc7-0205d36a1b9a",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Signing fully fixed. Root cause: crosslink trust approve only registers agent keys in allowed_signers, not the driver's human key. Manually appended driver-key.pub to .hub-cache/trust/allowed_signers; committed on hub branch (2d65522, sig=G). signing_enforcement restored to enforced; sync reports all 5 recent commits signed. Upstream bug to file against crosslink: trust approve / init should add the driver key to allowed_signers automatically. Hub branch still needs git push from user.",
+  "created_at": "2026-05-08T17:31:57.570862710Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAfFJ+jN7tnnWH0pyw8Vt5fo9Tiwbu9jQcyZu6g/q+S2QTQglSoDkeK/SFo4srqSQnKpMECPMtbMs252ENYEh0Bg=="
+}
