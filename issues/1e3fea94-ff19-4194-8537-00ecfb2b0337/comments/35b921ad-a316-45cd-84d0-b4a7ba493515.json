@@ -1,0 +1,10 @@
+{
+  "uuid": "35b921ad-a316-45cd-84d0-b4a7ba493515",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Session 3 (infra): sync now works (signing_enforcement audit, stale lock cleared). 5 invalid sigs persist as warnings — root cause: crosslink hub commits are signed by human git key, not agent key 5kO0. Either crosslink bug (should use agent key directly) or missing setup step (set repo-local user.signingkey to agent key). Audit mode safe to leave; flip back to enforced after 5+ correctly-signed commits. Result comment landed on epic #1 due to L→# sync race, same as session 2.",
+  "created_at": "2026-05-08T17:25:20.104439779Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAEYgFyheS0bOPvqLL4pq03jR0gU9jziNelxvaM6xs4z/tqjFtimxl3aFPb9qL4OUMgaQPNP/OhHx+VEobwLSIDQ=="
+}
