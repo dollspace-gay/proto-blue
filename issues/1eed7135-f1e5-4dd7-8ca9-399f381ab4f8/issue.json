@@ -1,0 +1,10 @@
+{
+  "uuid": "1eed7135-f1e5-4dd7-8ca9-399f381ab4f8",
+  "display_id": 20,
+  "title": "infra: file crosslink upstream issue (tracker_remote auto-set + offline misclassification)",
+  "status": "open",
+  "priority": "medium",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:43:53.973846336Z",
+  "updated_at": "2026-05-08T17:43:53.973846336Z"
+}
