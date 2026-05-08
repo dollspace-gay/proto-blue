@@ -2,3 +2,4 @@
 # Format: <principal> <key-type> <base64-key> [comment]
 # approved by doll at 2026-05-08 17:17:15 UTC
 5kO0@crosslink ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHnAkhaCnECWJV/wJodlB+FsBsGh5sZoWE93dDjx3QYM crosslink-agent:5kO0@dollspace
+doll@dollspace ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKo+flEdaJYO8NPs2cLlm7FqczNhZVbMbKNZfq5/HUnw driver:doll@dollspace (manual: workaround for missing driver-key registration in trust approve)
