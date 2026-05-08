@@ -1,0 +1,10 @@
+{
+  "uuid": "ff57b928-47d4-49aa-8d24-d8f5f8c0b809",
+  "display_id": null,
+  "title": "infra: reconcile divergent crosslink/hub branch (local vs remote)",
+  "status": "open",
+  "priority": "high",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:35:02.741252555Z",
+  "updated_at": "2026-05-08T17:35:02.741252555Z"
+}
