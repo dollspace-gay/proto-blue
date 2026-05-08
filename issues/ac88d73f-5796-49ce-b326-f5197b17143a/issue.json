@@ -1,0 +1,11 @@
+{
+  "uuid": "ac88d73f-5796-49ce-b326-f5197b17143a",
+  "display_id": null,
+  "title": "interop: add diff tests for dag-cbor, CID, MST, CAR, commit construction against TS reference",
+  "status": "open",
+  "priority": "medium",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-08T17:15:39.342800651Z",
+  "updated_at": "2026-05-08T17:15:39.342800651Z"
+}
