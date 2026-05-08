@@ -1,0 +1,10 @@
+{
+  "uuid": "b8bf9e01-906c-4b6d-9776-96f3cd79b304",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Sync now syncing properly. Manual push from agent subprocess (git push origin crosslink/hub from inside .hub-cache) worked fine — landed at 406cb6d. After that, crosslink sync runs clean, no more (offline) warnings. Crosslink's internal git push still fails for unknown reasons (worth filing as a 2nd upstream bug if it persists). Pragmatic workaround: user runs git push origin crosslink/hub periodically, or git push --all to bundle with main pushes. All locks released.",
+  "created_at": "2026-05-08T17:40:00.990847479Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAfRIEVqx9eG37oIdRDc3rvDqr+bdzJnuwqFIFnGlXLab7T9FLgpm46QiuTRVMIUpPe3xwNOTeIKVsg5lfryQPDA=="
+}
