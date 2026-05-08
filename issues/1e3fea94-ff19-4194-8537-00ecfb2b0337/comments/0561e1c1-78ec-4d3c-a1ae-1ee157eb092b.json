@@ -1,0 +1,10 @@
+{
+  "uuid": "0561e1c1-78ec-4d3c-a1ae-1ee157eb092b",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Filed crosslink upstream bug #585 (driver-key not registered in allowed_signers). Comment landed on epic #1 by sync race (same as sessions 2-3). proto-blue is fully green: signing enforcement back to enforced, all commits verify, audit epic #1 ready for work.",
+  "created_at": "2026-05-08T17:32:59.375913559Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAwSdQQdEldqWusdSuk5ChZ7fl5vtGrfDgxnRGbdCFcpehnexW/5wmbj5uc/PNXjiI0d/vJ8P/mSEvdj8DVtx4BQ=="
+}
