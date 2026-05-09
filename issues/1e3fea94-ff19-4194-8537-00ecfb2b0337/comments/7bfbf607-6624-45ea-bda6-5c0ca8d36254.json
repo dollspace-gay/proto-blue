@@ -1,0 +1,10 @@
+{
+  "uuid": "7bfbf607-6624-45ea-bda6-5c0ca8d36254",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Closed #26 #27 #28 #30 in one commit (eeb6946). MST divergence root-caused: detect_layer returned None for tree-only nodes, falling back to layer 0. Fix: infer layer from first tree child + explicit layer-preservation in insert_into_child. All 6 multi-leaf MST fixtures + order-independence + CAR layout (byte-equivalent) + signed-commit construction (signing bytes byte-equivalent, CIDs match, cross-impl P-256 and K-256 sig verify with TS) all green. 25 differential tests passing, full workspace clippy clean.\n\nPending: user needs to git push origin main + crosslink/hub. The audit-driven hardening (epic #1) is now fully exercised in CI — single-leaf, multi-leaf, order-independence, CAR framing, unsigned commit signing bytes, signed commit CIDs, cross-impl signature verification all locked in.",
+  "created_at": "2026-05-09T01:23:11.365008338Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAU4NXIsXIc72AbUeDIqVqiVEH8re4kHLl5METEZYsBViLekNe4m7BWnMoKDWAgbjmz2uuoyJU10deXAhcwxtAAg=="
+}
