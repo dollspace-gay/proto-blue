@@ -44,6 +44,39 @@
 //     - cbor_encode_lexvalue  : LexValueJson → { hex } (raw dag-cbor bytes)
 //     - cid_for_lexvalue      : LexValueJson → { cid } (canonical multibase string)
 //
+//   @atproto/repo (MST parity — added for #26)
+//     - mst_root_cid          : { entries: [[key, cid_str], ...] } → { cid }
+//                                Builds an MST in TS with the given (key, cid) pairs
+//                                inserted in input order, returns the root CID. The
+//                                MST is content-addressed so insertion order MUST NOT
+//                                affect the result — that property is checked Rust-side.
+//
+//   @atproto/repo (CAR layout parity — added for #27)
+//     - car_write_blocks      : { root: cid_str|null, blocks: [[cid_str, hex_payload], ...] } → { hex }
+//                                Writes a CAR file in input block order using TS
+//                                `writeCarStream`. Bypasses BlockMap so the test
+//                                controls block order exactly — required for
+//                                byte-equivalent comparison against Rust's
+//                                `blocks_to_car`, since BlockMap iteration order is
+//                                an implementation detail and would otherwise
+//                                drift between impls.
+//
+//   @atproto/repo (signed commit parity — added for #28)
+//     - commit_signing_bytes  : { did, data: cid_str, rev, prev: cid_str|null } → { hex }
+//                                DAG-CBOR encoding of the unsigned commit (the
+//                                signing input). Determinism guarantee: this MUST
+//                                be byte-equivalent across impls or signatures
+//                                produced by one side won't verify on the other.
+//     - commit_signed_cid     : { did, data, rev, prev, sig_hex } → { cid }
+//                                CID of the full signed commit, with a caller-
+//                                supplied signature. ECDSA signatures are
+//                                non-deterministic, so this op accepts a fixed
+//                                sig from Rust to make CID comparison stable.
+//     - commit_verify_sig     : { did, data, rev, prev: cid_str|null, sig_hex, did_key } → { valid }
+//                                Cross-impl: Rust signs, TS verifies (or vice
+//                                versa). End-to-end check that signing input is
+//                                truly identical across impls.
+//
 //     LexValueJson is a tagged-enum wire format both sides build IPLD
 //     from. Avoids coupling the cbor-parity test to the lex-json
 //     codec's own correctness. Shape:
@@ -76,6 +109,13 @@ import {
 } from '@atproto/crypto'
 import { Lexicons } from '@atproto/lexicon'
 import { cborEncode, cidForCbor } from '@atproto/common'
+import {
+  MST,
+  MemoryBlockstore,
+  writeCarStream,
+  verifyCommitSig,
+  cidForRecord,
+} from '@atproto/repo'
 import { CID } from 'multiformats/cid'
 import readline from 'node:readline'
 
@@ -214,6 +254,97 @@ async function dispatch(op, input) {
       return { cid: cid.toString() }
     }
 
+    // ── @atproto/repo — signed commit parity (#28) ───────────────
+    case 'commit_signing_bytes': {
+      const unsigned = unsignedCommitFromInput(input)
+      // Same call signCommit() makes internally before signing —
+      // cborEncode returns the canonical DAG-CBOR signing bytes.
+      const bytes = cborEncode(unsigned)
+      return { hex: Buffer.from(bytes).toString('hex') }
+    }
+
+    case 'commit_signed_cid': {
+      const unsigned = unsignedCommitFromInput(input)
+      if (typeof input?.sig_hex !== 'string') {
+        throw new Error(`commit_signed_cid: input.sig_hex must be a hex string`)
+      }
+      const sig = Buffer.from(input.sig_hex, 'hex')
+      const signed = { ...unsigned, sig }
+      const cid = await cidForRecord(signed)
+      return { cid: cid.toString() }
+    }
+
+    case 'commit_verify_sig': {
+      const unsigned = unsignedCommitFromInput(input)
+      if (typeof input?.sig_hex !== 'string') {
+        throw new Error(`commit_verify_sig: input.sig_hex must be a hex string`)
+      }
+      if (typeof input?.did_key !== 'string') {
+        throw new Error(`commit_verify_sig: input.did_key must be a string`)
+      }
+      const sig = Buffer.from(input.sig_hex, 'hex')
+      const valid = await verifyCommitSig({ ...unsigned, sig }, input.did_key)
+      return { valid }
+    }
+
+    // ── @atproto/repo — CAR layout parity (#27) ──────────────────
+    case 'car_write_blocks': {
+      const root = input?.root == null ? null : CID.parse(input.root)
+      const blocks = input?.blocks
+      if (!Array.isArray(blocks)) {
+        throw new Error(`car_write_blocks: input.blocks must be an array of [cid, hex] pairs`)
+      }
+      // Synthesize an async iterable of CarBlocks in input order, so
+      // the test (Rust side) controls block order exactly. We bypass
+      // BlockMap entirely to keep order under explicit control.
+      async function* iter() {
+        for (const block of blocks) {
+          if (
+            !Array.isArray(block) ||
+            block.length !== 2 ||
+            typeof block[0] !== 'string' ||
+            typeof block[1] !== 'string'
+          ) {
+            throw new Error(`car_write_blocks: each block must be [cid_str, hex_payload]`)
+          }
+          yield {
+            cid: CID.parse(block[0]),
+            bytes: Buffer.from(block[1], 'hex'),
+          }
+        }
+      }
+      const chunks = []
+      for await (const chunk of writeCarStream(root, iter())) {
+        chunks.push(chunk)
+      }
+      const total = chunks.reduce((n, c) => n + c.byteLength, 0)
+      const out = new Uint8Array(total)
+      let offset = 0
+      for (const chunk of chunks) {
+        out.set(chunk, offset)
+        offset += chunk.byteLength
+      }
+      return { hex: Buffer.from(out).toString('hex') }
+    }
+
+    // ── @atproto/repo — MST parity (#26) ─────────────────────────
+    case 'mst_root_cid': {
+      const entries = input?.entries
+      if (!Array.isArray(entries)) {
+        throw new Error(`mst_root_cid: input.entries must be an array of [key, cid] pairs`)
+      }
+      const blockstore = new MemoryBlockstore()
+      let mst = await MST.create(blockstore)
+      for (const entry of entries) {
+        if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string' || typeof entry[1] !== 'string') {
+          throw new Error(`mst_root_cid: each entry must be [string-key, string-cid]`)
+        }
+        mst = await mst.add(entry[0], CID.parse(entry[1]))
+      }
+      const root = await mst.getPointer()
+      return { cid: root.toString() }
+    }
+
     default:
       throw new Error(`Unknown op: ${op}`)
   }
@@ -278,6 +409,35 @@ function lexValueJsonToIpld(node) {
     }
     default:
       throw new Error(`LexValueJson: unknown tag ${node.t}`)
+  }
+}
+
+/// Validate and lift a commit input { did, data, rev, prev } into a
+/// shape suitable for cborEncode / cidForRecord / verifyCommitSig.
+/// Strict — fails loudly on missing/wrong-typed fields.
+function unsignedCommitFromInput(input) {
+  if (input === null || typeof input !== 'object') {
+    throw new Error(`commit input: expected object, got ${typeof input}`)
+  }
+  const { did, data, rev, prev } = input
+  if (typeof did !== 'string') {
+    throw new Error(`commit input: did must be a string`)
+  }
+  if (typeof data !== 'string') {
+    throw new Error(`commit input: data must be a CID string`)
+  }
+  if (typeof rev !== 'string') {
+    throw new Error(`commit input: rev must be a TID string`)
+  }
+  if (prev !== null && typeof prev !== 'string') {
+    throw new Error(`commit input: prev must be a CID string or null`)
+  }
+  return {
+    did,
+    version: 3,
+    data: CID.parse(data),
+    rev,
+    prev: prev === null ? null : CID.parse(prev),
   }
 }
 

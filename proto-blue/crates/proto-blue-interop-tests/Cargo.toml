@@ -13,6 +13,7 @@ proto-blue-lex-data = { path = "../proto-blue-lex-data" }
 proto-blue-lex-cbor = { path = "../proto-blue-lex-cbor" }
 proto-blue-lex-json = { path = "../proto-blue-lex-json" }
 proto-blue-lexicon = { path = "../proto-blue-lexicon" }
+proto-blue-repo = { path = "../proto-blue-repo" }
 
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }

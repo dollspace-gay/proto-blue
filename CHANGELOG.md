@@ -17,6 +17,9 @@ codegen robustness, proof-pipeline test coverage, and TS-interop parity.
 format unchanged. See the entries below for the full list.
 
 ### Changed
+- interop: differential test for signed commit construction (audit item 5) (#28)
+- interop: differential test for CAR layout byte-equivalence (audit item 4) (#27)
+- interop: differential test for MST root-CID parity (audit item 3) (#26)
 - interop: add diff tests for dag-cbor, CID, MST, CAR, commit construction against TS reference (#10)
 - lex-data: replace bespoke Cid with cid crate (or fix Vec<u8> digest to [u8; 32]) (#7)
 - codegen: rustc-compile wild corpus output (catch second-order errors) (#22)
@@ -62,6 +65,7 @@ format unchanged. See the entries below for the full list.
   well-formed DID documents. (#56)
 
 ### Fixed
+- repo: investigate MST root-CID divergence vs @atproto/repo on 2+ leaves (#30)
 - lex-cbor: fix integral-float coercion strictness leak in cbor_to_lex / decode_lenient (#9)
 - codegen: multi-line lexicon description loses /// continuation, breaks rustc parse (#25)
 - codegen: NSID segments with dashes produce path/ident mismatch (com.bad-example.* → mod bad_example but dir bad-example/) (#24)

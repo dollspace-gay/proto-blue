@@ -1785,6 +1785,7 @@ dependencies = [
  "proto-blue-lex-data",
  "proto-blue-lex-json",
  "proto-blue-lexicon",
+ "proto-blue-repo",
  "proto-blue-syntax",
  "serde",
  "serde_json",

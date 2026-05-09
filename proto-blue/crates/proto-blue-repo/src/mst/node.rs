@@ -110,6 +110,19 @@ impl MstNode {
                 return Some(leading_zeros_on_hash(&leaf.key));
             }
         }
+        // No leaves: this node sits one layer above its first tree
+        // child (MST invariant — subtrees are at parent_layer - 1).
+        // Without this fallback, a single-tree-entry node degrades to
+        // layer 0, causing `insert_into_child`-built intermediate
+        // parents to claim layer 0 and producing structurally
+        // illegal trees (#30).
+        for entry in entries {
+            if let NodeEntry::Tree(t) = entry
+                && let Some(l) = t.layer
+            {
+                return Some(l + 1);
+            }
+        }
         None
     }
 
@@ -297,7 +310,13 @@ impl MstNode {
                 NodeEntry::Leaf(leaf) => {
                     if key < leaf.key.as_str() && !inserted {
                         // Key should go before this leaf, in a new subtree
-                        let child = Self::empty().add(key, value.clone())?;
+                        // ROOTED ONE LAYER BELOW THE CURRENT NODE — not at
+                        // layer 0. Without this, a key at layer K inserted
+                        // into a parent at layer P produces a subtree
+                        // pinned at layer 0 instead of building K-deep
+                        // intermediate parents on the way down, breaking
+                        // both order-independence and parity with TS (#30).
+                        let child = self.create_child().add(key, value.clone())?;
                         new_entries.push(NodeEntry::Tree(child));
                         inserted = true;
                     }
@@ -325,11 +344,31 @@ impl MstNode {
         }
 
         if !inserted {
-            let child = Self::empty().add(key, value)?;
+            // Same rationale as the early-return branch above — start the
+            // new subtree at `self.get_layer() - 1` so the recursive add
+            // builds the correct chain of intermediate parents.
+            let child = self.create_child().add(key, value)?;
             new_entries.push(NodeEntry::Tree(child));
         }
 
-        Ok(Self::from_entries(new_entries))
+        // Preserve self's layer explicitly: the result represents the
+        // same level of the tree with one entry replaced by an updated
+        // subtree. Relying on `detect_layer` is fragile when the node
+        // contains only trees and no leaves of its own.
+        let mut node = Self::from_entries(new_entries);
+        node.layer = Some(self.get_layer());
+        Ok(node)
+    }
+
+    /// Create an empty child node one layer below this node. Mirrors
+    /// `@atproto/repo`'s `MST.createChild`.
+    fn create_child(&self) -> Self {
+        let layer = self.get_layer().saturating_sub(1);
+        Self {
+            entries: Vec::new(),
+            layer: Some(layer),
+            pointer: None,
+        }
     }
 
     /// Create parent layers when `key_zeros` > current layer.
@@ -339,7 +378,29 @@ impl MstNode {
         value: Cid,
         key_zeros: usize,
     ) -> Result<Self, RepoError> {
-        let (left, right) = self.split_around(key);
+        let (mut left, mut right) = self.split_around(key);
+        let layer = self.get_layer();
+        let extra_layers_to_add = key_zeros.saturating_sub(layer);
+
+        // When the new key is at a layer strictly higher than the current
+        // tree's layer, every intermediate layer between them must be
+        // materialised as an empty single-subtree-entry parent on each
+        // surviving side of the split. The first such layer is the split
+        // itself (left/right are at `layer`); the loop below adds the
+        // remaining `extra_layers_to_add - 1` intermediate parents so the
+        // final root at `key_zeros` has its left/right subtrees at
+        // `key_zeros - 1`. Mirrors `@atproto/repo`'s `MST.add` "higher
+        // layer" branch — without this loop the root's subtrees stay
+        // pinned at the original `layer`, producing a structurally-shorter
+        // MST whose root CID disagrees with TS's by construction (#30).
+        for _ in 1..extra_layers_to_add {
+            if let Some(l) = left.take() {
+                left = Some(l.create_parent());
+            }
+            if let Some(r) = right.take() {
+                right = Some(r.create_parent());
+            }
+        }
 
         let mut new_entries = Vec::new();
         if let Some(l) = left {
@@ -360,6 +421,16 @@ impl MstNode {
         let mut node = Self::from_entries(new_entries);
         node.layer = Some(key_zeros);
         Ok(node)
+    }
+
+    /// Wrap `self` in an empty parent node one layer up. Mirrors
+    /// `@atproto/repo`'s `MST.createParent`. The parent has a single
+    /// entry — `Tree(self)` — and its layer is `self.get_layer() + 1`.
+    fn create_parent(self) -> Self {
+        let layer = self.get_layer();
+        let mut parent = Self::from_entries(vec![NodeEntry::Tree(self)]);
+        parent.layer = Some(layer + 1);
+        parent
     }
 
     // -----------------------------------------------------------------------
@@ -890,6 +961,105 @@ mod tests {
         let cid = make_cid("val");
         let tree = tree.add("a/b", cid.clone()).unwrap();
         assert!(tree.add("a/b", cid).is_err());
+    }
+
+    /// Helper: assert two MSTs produced from the same `(key, value)` set in
+    /// different insertion orders have the same root CID. Used to bisect
+    /// order-independence failures down to a minimum reproducer.
+    fn assert_order_independent(label: &str, keys: &[String]) {
+        let mut t_fwd = MstNode::empty();
+        for k in keys {
+            t_fwd = t_fwd.add(k, make_cid(k)).unwrap();
+        }
+        let mut t_rev = MstNode::empty();
+        for k in keys.iter().rev() {
+            t_rev = t_rev.add(k, make_cid(k)).unwrap();
+        }
+        let (cid_fwd, _) = t_fwd.get_all_blocks().unwrap();
+        let (cid_rev, _) = t_rev.get_all_blocks().unwrap();
+        assert_eq!(
+            cid_fwd.to_string_base32(),
+            cid_rev.to_string_base32(),
+            "{label}: forward != reverse for {} keys",
+            keys.len(),
+        );
+    }
+
+    /// Bisect: progressively grow the corpus until order-independence breaks.
+    /// Locates the smallest divergence-triggering size for the canonical
+    /// `com.example.record/<i:04>` corpus.
+    #[test]
+    fn order_independence_bisect() {
+        let all: Vec<String> = (0..50)
+            .map(|i| format!("com.example.record/{i:04}"))
+            .collect();
+        for n in 1..=all.len() {
+            assert_order_independent(&format!("first_{n}"), &all[..n]);
+        }
+    }
+
+    /// Targeted minimum reproducer for the multi-layer order-independence
+    /// regression: just the layer-0, layer-1, and layer-3 representatives
+    /// from the bisect output. With only three keys spanning a 3-layer
+    /// gap, any wrapping bug surfaces immediately.
+    #[test]
+    fn order_independence_three_layers() {
+        let keys = vec![
+            "com.example.record/0000".to_string(), // layer 0
+            "com.example.record/0001".to_string(), // layer 1
+            "com.example.record/0019".to_string(), // layer 3
+        ];
+        assert_order_independent("layers_0_1_3", &keys);
+    }
+
+    /// Even smaller: layer-0 + layer-3.
+    #[test]
+    fn order_independence_two_layers() {
+        let keys = vec![
+            "com.example.record/0000".to_string(), // layer 0
+            "com.example.record/0019".to_string(), // layer 3
+        ];
+        assert_order_independent("layers_0_3", &keys);
+    }
+
+    /// Regression for #30: a layer-only-tree node (no leaves) used to
+    /// degrade to layer 0 because `detect_layer` returned `None`,
+    /// causing reverse insertion to build structurally-illegal trees
+    /// where a layer-0 wrapper held a layer-1 subtree. Asserts that
+    /// every non-leaf node's claimed layer is exactly one above each
+    /// of its tree children's layers.
+    fn assert_layers_consistent(node: &MstNode) {
+        let layer = node.get_layer();
+        for entry in &node.entries {
+            if let NodeEntry::Tree(child) = entry {
+                let child_layer = child.get_layer();
+                assert_eq!(
+                    child_layer + 1,
+                    layer,
+                    "layer invariant broken: parent claims layer {layer}, child claims layer {child_layer}",
+                );
+                assert_layers_consistent(child);
+            }
+        }
+    }
+
+    #[test]
+    fn layer_invariant_holds_after_mixed_insertions() {
+        let keys = vec![
+            "com.example.record/0000".to_string(),
+            "com.example.record/0001".to_string(),
+            "com.example.record/0019".to_string(),
+        ];
+        let mut t_fwd = MstNode::empty();
+        for k in &keys {
+            t_fwd = t_fwd.add(k, make_cid(k)).unwrap();
+        }
+        let mut t_rev = MstNode::empty();
+        for k in keys.iter().rev() {
+            t_rev = t_rev.add(k, make_cid(k)).unwrap();
+        }
+        assert_layers_consistent(&t_fwd);
+        assert_layers_consistent(&t_rev);
     }
 
     #[test]

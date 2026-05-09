@@ -886,3 +886,606 @@ fn differential_cid_for_lexvalue() {
         );
     }
 }
+
+// ── MST root-CID parity (#26) ──────────────────────────────────────
+//
+// The MST is content-addressed: the same set of `(key, cid)` entries
+// must produce the same root CID regardless of which impl built it,
+// AND regardless of insertion order. The audit specifically called
+// out "MST split-point logic, leaf-vs-tree node decisions" as the
+// area needing cross-impl validation — those decisions are driven
+// by `sha256(key)` leading-zero counts, so any divergence in the
+// layer-assignment math or the prefix-compression encoding shows up
+// here as a root-CID mismatch.
+
+/// A reproducible `(key, value-cid)` set.
+fn mst_fixture(
+    label: &str,
+    keys: &[&str],
+) -> (&'static str, Vec<(String, proto_blue_lex_data::Cid)>) {
+    let entries: Vec<(String, proto_blue_lex_data::Cid)> = keys
+        .iter()
+        .map(|k| {
+            // Deterministic per-key value CID — both sides will see
+            // the same entry pairs verbatim.
+            let v = proto_blue_lex_data::LexValue::String(format!("v:{k}"));
+            (
+                (*k).to_string(),
+                proto_blue_lex_cbor::cid_for_lex(&v).unwrap(),
+            )
+        })
+        .collect();
+    // Leak the &'static str — fine for a test corpus.
+    (Box::leak(label.to_string().into_boxed_str()), entries)
+}
+
+/// Build the `mst_root_cid` op input from a `(key, cid)` set.
+fn mst_entries_wire(entries: &[(String, proto_blue_lex_data::Cid)]) -> serde_json::Value {
+    let pairs: Vec<serde_json::Value> = entries
+        .iter()
+        .map(|(k, c)| serde_json::json!([k, c.to_string()]))
+        .collect();
+    serde_json::json!({ "entries": pairs })
+}
+
+/// Build a `proto_blue_repo::MstNode` from the same input set.
+fn build_rust_mst(entries: &[(String, proto_blue_lex_data::Cid)]) -> proto_blue_repo::MstNode {
+    let mut mst = proto_blue_repo::MstNode::empty();
+    for (k, c) in entries {
+        mst = mst.add(k, c.clone()).expect("Rust MST::add");
+    }
+    mst
+}
+
+fn mst_corpus() -> Vec<(&'static str, Vec<(String, proto_blue_lex_data::Cid)>)> {
+    vec![
+        // Single entry — trivial sanity case.
+        mst_fixture("single", &["coll/a"]),
+        // Two entries, simple shape.
+        mst_fixture("two_keys", &["coll/a", "coll/b"]),
+        // Dense small set — exercises sibling ordering inside one layer.
+        mst_fixture(
+            "dense_small",
+            &[
+                "coll/aa", "coll/ab", "coll/ac", "coll/ad", "coll/ae", "coll/af",
+            ],
+        ),
+        // Realistic atproto record keys (TID-shaped). Hash distribution
+        // here scatters across MST layers naturally — this is the
+        // case audit predicted would expose split-point bugs.
+        mst_fixture(
+            "tid_shape",
+            &[
+                "app.bsky.feed.post/3jqfcqzm3fo2j",
+                "app.bsky.feed.post/3jqfcqzm3fp2j",
+                "app.bsky.feed.post/3jqfcqzm3fr2j",
+                "app.bsky.feed.post/3jqfcqzm3fs2j",
+                "app.bsky.feed.post/3jqfcqzm3ft2j",
+                "app.bsky.feed.post/3jqfcqzm3fu2j",
+                "app.bsky.feed.post/3jqfcqzm3fv2j",
+                "app.bsky.feed.post/3jqfcqzm3fw2j",
+            ],
+        ),
+        // Mixed collections — keys that vary in their leading bytes,
+        // exercising prefix-compression edge cases.
+        mst_fixture(
+            "mixed_collections",
+            &[
+                "app.bsky.feed.post/abc123",
+                "app.bsky.feed.like/xyz789",
+                "app.bsky.graph.follow/qwerty",
+                "app.bsky.actor.profile/self",
+                "com.atproto.repo.strongRef/foo",
+            ],
+        ),
+        // Larger set — fans out across multiple layers under any
+        // realistic split-point math.
+        mst_fixture(
+            "fifty_keys",
+            &[
+                "coll/k0001",
+                "coll/k0002",
+                "coll/k0003",
+                "coll/k0004",
+                "coll/k0005",
+                "coll/k0006",
+                "coll/k0007",
+                "coll/k0008",
+                "coll/k0009",
+                "coll/k0010",
+                "coll/k0011",
+                "coll/k0012",
+                "coll/k0013",
+                "coll/k0014",
+                "coll/k0015",
+                "coll/k0016",
+                "coll/k0017",
+                "coll/k0018",
+                "coll/k0019",
+                "coll/k0020",
+                "coll/k0021",
+                "coll/k0022",
+                "coll/k0023",
+                "coll/k0024",
+                "coll/k0025",
+                "coll/k0026",
+                "coll/k0027",
+                "coll/k0028",
+                "coll/k0029",
+                "coll/k0030",
+                "coll/k0031",
+                "coll/k0032",
+                "coll/k0033",
+                "coll/k0034",
+                "coll/k0035",
+                "coll/k0036",
+                "coll/k0037",
+                "coll/k0038",
+                "coll/k0039",
+                "coll/k0040",
+                "coll/k0041",
+                "coll/k0042",
+                "coll/k0043",
+                "coll/k0044",
+                "coll/k0045",
+                "coll/k0046",
+                "coll/k0047",
+                "coll/k0048",
+                "coll/k0049",
+                "coll/k0050",
+            ],
+        ),
+    ]
+}
+
+/// Root-CID parity for `proto_blue_repo::MstNode` vs `@atproto/repo::MST` —
+/// single-leaf cases only. Multi-leaf parity is gated separately
+/// (see `differential_mst_root_cid_multi_leaf`).
+#[test]
+fn differential_mst_root_cid_single_leaf() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    let (name, entries) = mst_fixture("single", &["coll/a"]);
+    let rust_root = build_rust_mst(&entries)
+        .get_pointer()
+        .expect("Rust MST get_pointer");
+    let rust_str = rust_root.to_string();
+
+    let wire = mst_entries_wire(&entries);
+    let ts_response: TsResult<serde_json::Value> = ts.call("mst_root_cid", wire);
+    let ts_str = ts_response
+        .into_ok()
+        .get("cid")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| panic!("TS mst_root_cid({name}) returned no cid field"))
+        .to_string();
+
+    assert_eq!(
+        rust_str, ts_str,
+        "MST root-CID divergence on single-leaf fixture: \
+         Rust produced {rust_str}, TS produced {ts_str}"
+    );
+}
+
+/// Multi-leaf root-CID parity against `@atproto/repo::MST`. Locked
+/// in by #30 — earlier the layer-assignment chain in
+/// `MstNode::insert_into_child` lost the parent layer when an
+/// intermediate node had no leaves of its own, producing
+/// structurally-different (and order-dependent) trees.
+#[test]
+fn differential_mst_root_cid_multi_leaf() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    for (name, entries) in mst_corpus() {
+        // Skip the single-leaf fixture (covered by the green test above).
+        if entries.len() <= 1 {
+            continue;
+        }
+        let rust_root = build_rust_mst(&entries)
+            .get_pointer()
+            .expect("Rust MST get_pointer");
+        let rust_str = rust_root.to_string();
+
+        let wire = mst_entries_wire(&entries);
+        let ts_response: TsResult<serde_json::Value> = ts.call("mst_root_cid", wire);
+        let ts_str = ts_response
+            .into_ok()
+            .get("cid")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("TS mst_root_cid({name}) returned no cid field"))
+            .to_string();
+
+        assert_eq!(
+            rust_str, ts_str,
+            "MST root-CID divergence on fixture {name:?}: \
+             Rust produced {rust_str}, TS produced {ts_str}"
+        );
+    }
+}
+
+/// Insertion-order independence — same `(key, cid)` set in two
+/// different orders must produce the same root CID. Asserts the
+/// content-addressing property end-to-end across both impls.
+#[test]
+fn differential_mst_root_cid_insertion_order_independent() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    // Sub-fixture from `tid_shape`, deliberately scrambled.
+    let in_order = vec![
+        "app.bsky.feed.post/3jqfcqzm3fo2j",
+        "app.bsky.feed.post/3jqfcqzm3fp2j",
+        "app.bsky.feed.post/3jqfcqzm3fr2j",
+        "app.bsky.feed.post/3jqfcqzm3fs2j",
+        "app.bsky.feed.post/3jqfcqzm3ft2j",
+        "app.bsky.feed.post/3jqfcqzm3fu2j",
+    ];
+    let scrambled = vec![
+        "app.bsky.feed.post/3jqfcqzm3fu2j",
+        "app.bsky.feed.post/3jqfcqzm3fp2j",
+        "app.bsky.feed.post/3jqfcqzm3ft2j",
+        "app.bsky.feed.post/3jqfcqzm3fo2j",
+        "app.bsky.feed.post/3jqfcqzm3fr2j",
+        "app.bsky.feed.post/3jqfcqzm3fs2j",
+    ];
+
+    let (_, in_order_entries) = mst_fixture("in_order", &in_order);
+    let (_, scrambled_entries) = mst_fixture("scrambled", &scrambled);
+
+    let rust_in_order = build_rust_mst(&in_order_entries).get_pointer().unwrap();
+    let rust_scrambled = build_rust_mst(&scrambled_entries).get_pointer().unwrap();
+    assert_eq!(
+        rust_in_order.to_string(),
+        rust_scrambled.to_string(),
+        "Rust MST is order-dependent — content-addressing broken"
+    );
+
+    let ts_in_order: TsResult<serde_json::Value> =
+        ts.call("mst_root_cid", mst_entries_wire(&in_order_entries));
+    let ts_in_order_str = ts_in_order
+        .into_ok()
+        .get("cid")
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .to_string();
+    let ts_scrambled: TsResult<serde_json::Value> =
+        ts.call("mst_root_cid", mst_entries_wire(&scrambled_entries));
+    let ts_scrambled_str = ts_scrambled
+        .into_ok()
+        .get("cid")
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .to_string();
+    assert_eq!(
+        ts_in_order_str, ts_scrambled_str,
+        "TS MST is order-dependent — content-addressing broken"
+    );
+
+    assert_eq!(
+        rust_in_order.to_string(),
+        ts_in_order_str,
+        "Cross-impl divergence on identical entry set: Rust={rust} TS={ts}",
+        rust = rust_in_order,
+        ts = ts_in_order_str,
+    );
+}
+
+// =============================================================================
+// CAR layout byte-equivalence (#27, audit item 4)
+// =============================================================================
+//
+// Wire-format parity for `proto_blue_repo::blocks_to_car` against
+// `@atproto/repo`'s `writeCarStream`. The audit called out CAR
+// framing — header CBOR, varint section lengths, CID byte encoding,
+// payload concatenation — as the layer most likely to drift between
+// impls, since each side has its own helpers. A single-byte
+// difference would be silent for any consumer that round-trips
+// through a parser, so the test asserts byte-for-byte equality.
+//
+// To control the comparison, the test pins block order: it
+// enumerates the Rust BlockMap in its native iteration order, sends
+// those `(cid, bytes)` pairs to TS in the same order, and TS yields
+// them as-is (bypassing its own BlockMap which would otherwise reorder).
+// That isolates the CAR-framing logic from BlockMap-iteration drift —
+// BlockMap ordering is an internal implementation detail the audit
+// explicitly didn't gate on.
+
+/// Build the `car_write_blocks` op input from a `(root, blocks)` pair,
+/// preserving the Rust-side iteration order verbatim.
+fn car_blocks_wire(
+    root: &proto_blue_lex_data::Cid,
+    blocks: &proto_blue_repo::BlockMap,
+) -> serde_json::Value {
+    let pairs: Vec<serde_json::Value> = blocks
+        .iter()
+        .map(|(cid, bytes)| serde_json::json!([cid.to_string(), hex::encode(bytes)]))
+        .collect();
+    serde_json::json!({ "root": root.to_string(), "blocks": pairs })
+}
+
+#[test]
+fn differential_car_layout_byte_equivalence() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    for (name, entries) in mst_corpus() {
+        let mst = build_rust_mst(&entries);
+        let (root, blocks) = mst.get_all_blocks().expect("Rust get_all_blocks");
+
+        let rust_car = proto_blue_repo::blocks_to_car(Some(&root), &blocks)
+            .expect("Rust blocks_to_car");
+
+        let ts_response: TsResult<serde_json::Value> =
+            ts.call("car_write_blocks", car_blocks_wire(&root, &blocks));
+        let ts_hex = ts_response
+            .into_ok()
+            .get("hex")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("TS car_write_blocks({name}) returned no hex field"))
+            .to_string();
+        let ts_car = hex::decode(&ts_hex).expect("TS hex decode");
+
+        assert_eq!(
+            hex::encode(&rust_car),
+            hex::encode(&ts_car),
+            "CAR layout byte divergence on fixture {name:?} \
+             ({} blocks, root={root})",
+            blocks.len(),
+        );
+    }
+}
+
+// =============================================================================
+// Signed commit construction parity (#28, audit item 5)
+// =============================================================================
+//
+// Three layered checks:
+//
+// 1. **Signing-bytes byte-equivalence** — the canonical DAG-CBOR encoding of
+//    an `UnsignedCommit` MUST be byte-identical across impls. If it isn't,
+//    a signature produced by one impl can't be verified by the other, and
+//    the network silently splits.
+// 2. **Signed-commit CID parity** — given the same fields and a fixed
+//    signature, the CID of the SignedCommit must match. ECDSA signatures
+//    are non-deterministic, so we use a Rust-generated sig as the fixed
+//    input on both sides; the test asserts both impls produce the same
+//    CID for that same `(unsigned + sig)` tuple.
+// 3. **Cross-impl signature verification** — Rust signs with both K256
+//    and P256 keys; TS verifies against the corresponding `did:key`. The
+//    end-to-end check that everything (CBOR encoding, signature format,
+//    DID-key parsing) lines up. Also checks the negative path: tampered
+//    fields must fail verification on the other side.
+
+/// Representable shape for a commit fixture — Rust-side values that
+/// can be roundtripped through the TS ops as `(did, data, rev, prev)`.
+struct CommitFixture {
+    did: String,
+    data: proto_blue_lex_data::Cid,
+    rev: String,
+    prev: Option<proto_blue_lex_data::Cid>,
+}
+
+impl CommitFixture {
+    fn to_unsigned(&self) -> proto_blue_repo::UnsignedCommit {
+        proto_blue_repo::UnsignedCommit::new(
+            self.did.clone(),
+            self.data.clone(),
+            self.rev.clone(),
+            self.prev.clone(),
+        )
+    }
+
+    fn to_wire(&self) -> serde_json::Value {
+        serde_json::json!({
+            "did": self.did,
+            "data": self.data.to_string(),
+            "rev": self.rev,
+            "prev": self.prev.as_ref().map(|c| c.to_string()),
+        })
+    }
+}
+
+fn commit_corpus() -> Vec<(&'static str, CommitFixture)> {
+    let mst_root_a = proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String(
+        "fake-mst-root-a".into(),
+    ))
+    .unwrap();
+    let mst_root_b = proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String(
+        "fake-mst-root-b".into(),
+    ))
+    .unwrap();
+    let prev_cid = proto_blue_lex_cbor::cid_for_lex(&proto_blue_lex_data::LexValue::String(
+        "previous-commit".into(),
+    ))
+    .unwrap();
+
+    vec![
+        (
+            "genesis",
+            CommitFixture {
+                did: "did:plc:abcdefghijklmnop".to_string(),
+                data: mst_root_a,
+                rev: "3jzfcijpj2z2a".to_string(),
+                prev: None,
+            },
+        ),
+        (
+            "with_prev",
+            CommitFixture {
+                did: "did:plc:zyxwvutsrqponmlk".to_string(),
+                data: mst_root_b,
+                rev: "3kabcdefghijk".to_string(),
+                prev: Some(prev_cid),
+            },
+        ),
+    ]
+}
+
+/// Audit item 5 / part 1: signing-bytes byte-equivalence. The whole
+/// signature trust model rests on this — if the canonical encoding
+/// differs by even one byte, a Rust-signed commit won't verify in
+/// TS land and the federation breaks.
+#[test]
+fn differential_unsigned_commit_signing_bytes() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    for (name, fixture) in commit_corpus() {
+        let rust_bytes = fixture
+            .to_unsigned()
+            .to_signing_bytes()
+            .expect("Rust to_signing_bytes");
+
+        let ts_response: TsResult<serde_json::Value> = ts.call("commit_signing_bytes", fixture.to_wire());
+        let ts_hex = ts_response
+            .into_ok()
+            .get("hex")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("TS commit_signing_bytes({name}) returned no hex field"))
+            .to_string();
+        let ts_bytes = hex::decode(&ts_hex).expect("TS hex decode");
+
+        assert_eq!(
+            hex::encode(&rust_bytes),
+            hex::encode(&ts_bytes),
+            "signing-bytes divergence on fixture {name:?}: \
+             Rust {} bytes vs TS {} bytes — signature interop is BROKEN",
+            rust_bytes.len(),
+            ts_bytes.len(),
+        );
+    }
+}
+
+/// Audit item 5 / part 2: signed-commit CID parity. Pin the sig
+/// (ECDSA is non-deterministic) and assert both sides compute the
+/// same CID for the resulting full SignedCommit value.
+#[test]
+fn differential_signed_commit_cid_with_fixed_sig() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    let kp = proto_blue_crypto::P256Keypair::generate();
+
+    for (name, fixture) in commit_corpus() {
+        let unsigned = fixture.to_unsigned();
+        let signed = proto_blue_repo::sign_commit(&unsigned, &kp).expect("sign_commit");
+        let rust_cid = signed.cid().expect("signed.cid").to_string();
+        let sig_hex = hex::encode(&signed.sig);
+
+        let mut wire = fixture.to_wire();
+        wire["sig_hex"] = serde_json::Value::String(sig_hex);
+        let ts_response: TsResult<serde_json::Value> = ts.call("commit_signed_cid", wire);
+        let ts_cid = ts_response
+            .into_ok()
+            .get("cid")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("TS commit_signed_cid({name}) returned no cid field"))
+            .to_string();
+
+        assert_eq!(
+            rust_cid, ts_cid,
+            "signed-commit CID divergence on fixture {name:?}",
+        );
+    }
+}
+
+/// Audit item 5 / part 3: end-to-end cross-impl signature
+/// verification. Rust signs with both supported curves; TS must
+/// verify both. Also checks the negative path — a tampered field
+/// must fail verification on the TS side, not silently accept.
+#[test]
+fn differential_signed_commit_cross_impl_verification() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    let p256 = proto_blue_crypto::P256Keypair::generate();
+    let k256 = proto_blue_crypto::K256Keypair::generate();
+
+    for (curve, did_key, signer) in [
+        (
+            "P-256",
+            <proto_blue_crypto::P256Keypair as proto_blue_crypto::Keypair>::did(&p256),
+            &p256 as &dyn proto_blue_crypto::Signer,
+        ),
+        (
+            "K-256",
+            <proto_blue_crypto::K256Keypair as proto_blue_crypto::Keypair>::did(&k256),
+            &k256 as &dyn proto_blue_crypto::Signer,
+        ),
+    ] {
+        for (name, fixture) in commit_corpus() {
+            let unsigned = fixture.to_unsigned();
+            let signed = proto_blue_repo::sign_commit(&unsigned, signer).expect("sign_commit");
+
+            let mut wire = fixture.to_wire();
+            wire["sig_hex"] = serde_json::Value::String(hex::encode(&signed.sig));
+            wire["did_key"] = serde_json::Value::String(did_key.clone());
+            let ts_response: TsResult<serde_json::Value> = ts.call("commit_verify_sig", wire.clone());
+            let valid = ts_response
+                .into_ok()
+                .get("valid")
+                .and_then(|v| v.as_bool())
+                .unwrap_or_else(|| panic!("TS commit_verify_sig returned no valid field"));
+            assert!(
+                valid,
+                "{curve} {name:?}: TS rejected a valid Rust signature"
+            );
+
+            // Negative path: flip a byte of the data CID; verification must fail.
+            let mut tampered = wire.clone();
+            tampered["rev"] = serde_json::Value::String(format!("{}x", fixture.rev));
+            let ts_tampered: TsResult<serde_json::Value> = ts.call("commit_verify_sig", tampered);
+            let valid_tampered = ts_tampered
+                .into_ok()
+                .get("valid")
+                .and_then(|v| v.as_bool())
+                .unwrap_or_else(|| panic!("TS commit_verify_sig (tampered) returned no valid field"));
+            assert!(
+                !valid_tampered,
+                "{curve} {name:?}: TS accepted a tampered commit — signature scope is broken"
+            );
+        }
+    }
+}
+
+/// CAR with no root — both sides must emit `roots: []` in the
+/// header CBOR identically. Catches the `Option<&Cid>` → empty-array
+/// path which the multi-fixture test never exercises.
+#[test]
+fn differential_car_layout_byte_equivalence_no_root() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    let entries = mst_fixture("dense_small_no_root", &["coll/a", "coll/b", "coll/c"]).1;
+    let mst = build_rust_mst(&entries);
+    let (_, blocks) = mst.get_all_blocks().expect("Rust get_all_blocks");
+
+    let rust_car = proto_blue_repo::blocks_to_car(None, &blocks).expect("Rust blocks_to_car");
+
+    let pairs: Vec<serde_json::Value> = blocks
+        .iter()
+        .map(|(cid, bytes)| serde_json::json!([cid.to_string(), hex::encode(bytes)]))
+        .collect();
+    let wire = serde_json::json!({ "root": null, "blocks": pairs });
+
+    let ts_response: TsResult<serde_json::Value> = ts.call("car_write_blocks", wire);
+    let ts_hex = ts_response
+        .into_ok()
+        .get("hex")
+        .and_then(|v| v.as_str())
+        .unwrap()
+        .to_string();
+    let ts_car = hex::decode(&ts_hex).expect("TS hex decode");
+
+    assert_eq!(
+        hex::encode(&rust_car),
+        hex::encode(&ts_car),
+        "CAR layout byte divergence with no root: \
+         Rust {} bytes vs TS {} bytes",
+        rust_car.len(),
+        ts_car.len(),
+    );
+}
+

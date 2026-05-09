@@ -43,7 +43,7 @@
     "pwd",
     "echo"
   ],
-  "auto_steal_stale_locks": "false",
+  "auto_steal_stale_locks": "3",
   "blocked_git_commands": [
     "git push",
     "git merge",
@@ -61,13 +61,13 @@
     "git branch -D",
     "git branch -m"
   ],
-  "comment_discipline": "encouraged",
+  "comment_discipline": "required",
   "cpitd_auto_install": true,
   "gated_git_commands": [
     "git commit"
   ],
   "intervention_tracking": true,
-  "kickoff_verification": "local",
+  "kickoff_verification": "ci",
   "reminder_drift_threshold": "0",
   "sentinel": {
     "default_agent": {
@@ -101,7 +101,7 @@
   "sentinel.escalation.enabled": false,
   "sentinel.escalation.model": "(text)",
   "sentinel.sources.github_labels.enabled": false,
-  "signing_enforcement": "disabled",
+  "signing_enforcement": "enforced",
   "tracker_remote": "origin",
-  "tracking_mode": "relaxed"
+  "tracking_mode": "strict"
 }
