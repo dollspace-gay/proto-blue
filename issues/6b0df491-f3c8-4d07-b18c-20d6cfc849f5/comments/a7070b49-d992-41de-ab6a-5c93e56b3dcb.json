@@ -1,0 +1,10 @@
+{
+  "uuid": "a7070b49-d992-41de-ab6a-5c93e56b3dcb",
+  "issue_uuid": "6b0df491-f3c8-4d07-b18c-20d6cfc849f5",
+  "author": "5kO0",
+  "content": "Committed: 4a70431 release: v0.3.0 — audit-driven hardening pass [#29] | Files: 269 changed, +7036 / -1303 | Workspace version 0.2.6 → 0.3.0; CHANGELOG [0.3.0] section added; 7 READMEs refreshed by parallel Opus subagents (repo-root + proto-blue facade + proto-blue-api + proto-blue-codegen + proto-blue-lex-data + proto-blue-lex-cbor + proto-blue-repo + proto-blue-interop-tests). Push deferred to user.",
+  "created_at": "2026-05-09T00:07:44.784237556Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA98s3gDFnWDpK/z8cs1R9Sp5Q3pwDCM1CcMbdj93enTFSt/4pXYpKrET9jSUu9LbbPcag4N5jK0J0FXpijQ4JDw=="
+}
