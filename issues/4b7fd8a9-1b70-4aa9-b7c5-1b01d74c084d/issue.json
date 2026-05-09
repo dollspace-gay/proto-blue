@@ -1,0 +1,11 @@
+{
+  "uuid": "4b7fd8a9-1b70-4aa9-b7c5-1b01d74c084d",
+  "display_id": 30,
+  "title": "repo: investigate MST root-CID divergence vs @atproto/repo on 2+ leaves",
+  "status": "open",
+  "priority": "high",
+  "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "created_by": "5kO0",
+  "created_at": "2026-05-09T00:20:02.793727001Z",
+  "updated_at": "2026-05-09T00:20:02.793727001Z"
+}
