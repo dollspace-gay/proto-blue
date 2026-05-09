@@ -1,0 +1,10 @@
+{
+  "uuid": "85bba73b-a153-415d-9f18-c0f0f7a513cc",
+  "issue_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
+  "author": "5kO0",
+  "content": "Bundling the three remaining audit follow-ups (#26 multi-leaf MST parity un-#[ignore]'d, #27 CAR layout byte-equivalence, #28 signed commit construction parity) plus the #30 MST layer-detection fix that #26 surfaced. Single commit because the differential tests can only be un-#[ignore]'d once #30 is fixed; splitting them would make CI red between commits.",
+  "created_at": "2026-05-09T01:22:38.054424105Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAD/SHi4OQezxRqOSunR3lF5rdm12vVv6vZ/Pq8RXyTYdwwxysZL94uUyWQk7RpqOvBbRoqFY9VW8BhAft/oi/Cg=="
+}
