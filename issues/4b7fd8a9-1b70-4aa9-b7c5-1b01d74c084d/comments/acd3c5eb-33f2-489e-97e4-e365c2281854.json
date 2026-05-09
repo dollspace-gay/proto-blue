@@ -1,0 +1,10 @@
+{
+  "uuid": "acd3c5eb-33f2-489e-97e4-e365c2281854",
+  "issue_uuid": "4b7fd8a9-1b70-4aa9-b7c5-1b01d74c084d",
+  "author": "5kO0",
+  "content": "Root cause: MstNode::detect_layer returned None for nodes containing only tree children (no leaves), causing get_layer() to fall back to 0. This corrupted the layer of intermediate parents built by insert_into_child for keys whose layer is several levels below the current root, producing structurally-illegal trees (a layer-0 node holding a layer-1 subtree) and breaking insertion-order independence.\n\nFix in proto-blue-repo/src/mst/node.rs:\n1. detect_layer: when no leaves are present, infer layer from first tree child (parent_layer = child_layer + 1)\n2. insert_into_child: explicitly preserve self.get_layer() on the returned node instead of relying on detect_layer\n\nVerification:\n- mst::node::tests::layer_invariant_holds_after_mixed_insertions (new) — asserts every Tree child sits at parent_layer - 1\n- mst::node::tests::order_independence_bisect (new) — iterates 1..=50 keys forward vs reverse, every prefix's CIDs match\n- differential_mst_root_cid_multi_leaf (un-#[ignore]'d) — passes against @atproto/repo TS reference for all 5 multi-leaf fixtures (two_keys, dense_small, tid_shape, fifty_keys, mixed_collections)\n- differential_mst_root_cid_insertion_order_independent (un-#[ignore]'d) — passes against TS for the 6-leaf scrambled fixture\n\nTest counts: 125 lib + 13 integration + 13 property + 2 doctests passing; clippy --all-targets -D warnings clean for proto-blue-repo.",
+  "created_at": "2026-05-09T00:57:27.048726106Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAqyxhmuxiczIBUX+j0WihNwNDpaRI/3BE8+X7FPkdFMwV1JpapxX12Vi8OEfFX7267RN4bptJ7ik2A4L9UY4CAA=="
+}
