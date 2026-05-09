@@ -14,10 +14,10 @@ pub struct Set {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetView {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     pub name: String,
     pub set_size: i64,
-    pub updated_at: String,
+    pub updated_at: proto_blue_syntax::Datetime,
 }

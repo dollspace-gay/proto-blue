@@ -6,19 +6,45 @@ use serde::{Deserialize, Serialize};
 /// Update the service-specific admin status of a subject (account, record, or blob).
 /// XRPC Procedure: com.atproto.admin.updateSubjectStatus
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum InputSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(rename = "com.atproto.admin.defs#repoBlobRef")]
+    AtprotoAdminDefsRepoBlobRef(Box<crate::com::atproto::admin::defs::RepoBlobRef>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deactivated: Option<crate::com::atproto::admin::defs::StatusAttr>,
-    pub subject: serde_json::Value,
+    pub subject: InputSubjectRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub takedown: Option<crate::com::atproto::admin::defs::StatusAttr>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(rename = "com.atproto.admin.defs#repoBlobRef")]
+    AtprotoAdminDefsRepoBlobRef(Box<crate::com::atproto::admin::defs::RepoBlobRef>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub subject: serde_json::Value,
+    pub subject: OutputSubjectRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub takedown: Option<crate::com::atproto::admin::defs::StatusAttr>,
 }

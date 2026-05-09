@@ -41,13 +41,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.country_code;
         qp.insert(
             "countryCode".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.region_code {
         qp.insert(
             "regionCode".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp

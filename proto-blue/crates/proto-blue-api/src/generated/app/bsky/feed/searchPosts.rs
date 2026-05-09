@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<String>,
+    pub author: Option<proto_blue_syntax::AtIdentifier>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,7 +19,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mentions: Option<String>,
+    pub mentions: Option<proto_blue_syntax::AtIdentifier>,
     pub q: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub since: Option<String>,
@@ -68,25 +68,25 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.author {
         qp.insert(
             "author".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.domain {
         qp.insert(
             "domain".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.lang {
         qp.insert(
             "lang".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -98,26 +98,26 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.mentions {
         qp.insert(
             "mentions".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.q;
         qp.insert(
             "q".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.since {
         qp.insert(
             "since".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.sort {
         qp.insert(
             "sort".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.tag {
@@ -125,7 +125,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "tag".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -133,13 +133,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.until {
         qp.insert(
             "until".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.url {
         qp.insert(
             "url".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -198,12 +198,18 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        author: ctx.params.get("author").cloned(),
+        author: ctx
+            .params
+            .get("author")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()),
         cursor: ctx.params.get("cursor").cloned(),
         domain: ctx.params.get("domain").cloned(),
         lang: ctx.params.get("lang").cloned(),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        mentions: ctx.params.get("mentions").cloned(),
+        mentions: ctx
+            .params
+            .get("mentions")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()),
         q: (ctx.params.get("q").cloned())?,
         since: ctx.params.get("since").cloned(),
         sort: ctx.params.get("sort").cloned(),

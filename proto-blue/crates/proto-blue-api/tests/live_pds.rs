@@ -24,6 +24,7 @@
 #![cfg(feature = "fetch-reqwest")]
 
 use proto_blue_api::Agent;
+use proto_blue_syntax::{AtIdentifier, AtUri};
 
 /// Shared harness for tests that require live-PDS credentials.
 /// Returns `None` (and prints a skip notice) when any required env
@@ -59,13 +60,18 @@ async fn session_lifecycle_roundtrip() {
         return;
     };
     let agent = Agent::new(&creds.pds_url).expect("construct agent");
+    let identifier =
+        AtIdentifier::new(&creds.handle).expect("PDS_TEST_HANDLE must parse as a handle or DID");
 
     // Login → the agent now holds a session.
     let session = agent
-        .login(&creds.handle, &creds.password)
+        .login(&identifier, &creds.password)
         .await
         .expect("login must succeed against a real PDS");
-    assert!(!session.did.is_empty(), "session DID must be non-empty");
+    assert!(
+        !session.did.as_str().is_empty(),
+        "session DID must be non-empty"
+    );
     assert!(
         !session.access_jwt.is_empty(),
         "access JWT must be non-empty"
@@ -115,8 +121,10 @@ async fn post_then_delete_roundtrip() {
     };
 
     let agent = Agent::new(&creds.pds_url).expect("construct agent");
+    let identifier =
+        AtIdentifier::new(&creds.handle).expect("PDS_TEST_HANDLE must parse as a handle or DID");
     agent
-        .login(&creds.handle, &creds.password)
+        .login(&identifier, &creds.password)
         .await
         .expect("login");
 
@@ -129,20 +137,21 @@ async fn post_then_delete_roundtrip() {
         .post(&body, None, None)
         .await
         .expect("Agent::post must succeed on a live session");
-    let uri = created
+    let uri_str = created
         .get("uri")
         .and_then(|v| v.as_str())
         .expect("post response must include a `uri`");
     assert!(
-        uri.starts_with("at://"),
-        "post URI must be an AT-URI, got {uri:?}"
+        uri_str.starts_with("at://"),
+        "post URI must be an AT-URI, got {uri_str:?}"
     );
+    let uri = AtUri::new(uri_str).expect("server-returned URI must parse as an AT-URI");
 
     // Clean up — even on assertion failure, the test account
     // shouldn't accumulate test posts. `delete_post` is idempotent
     // against a missing record, so a double-delete on panic is safe.
     agent
-        .delete_post(uri)
+        .delete_post(&uri)
         .await
         .expect("delete_post must succeed on a record we just created");
 

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub seen_at: String,
+    pub seen_at: proto_blue_syntax::Datetime,
 }
 
 /// Errors a `call()` on this method can return.

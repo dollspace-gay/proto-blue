@@ -10,9 +10,32 @@ pub struct Main {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ViewRecordRefs {
+    #[serde(rename = "app.bsky.embed.record#viewRecord")]
+    BskyEmbedRecordViewRecord(Box<ViewRecord>),
+    #[serde(rename = "app.bsky.embed.record#viewNotFound")]
+    BskyEmbedRecordViewNotFound(Box<ViewNotFound>),
+    #[serde(rename = "app.bsky.embed.record#viewBlocked")]
+    BskyEmbedRecordViewBlocked(Box<ViewBlocked>),
+    #[serde(rename = "app.bsky.embed.record#viewDetached")]
+    BskyEmbedRecordViewDetached(Box<ViewDetached>),
+    #[serde(rename = "app.bsky.feed.defs#generatorView")]
+    BskyFeedDefsGeneratorView(Box<crate::app::bsky::feed::defs::GeneratorView>),
+    #[serde(rename = "app.bsky.graph.defs#listView")]
+    BskyGraphDefsListView(Box<crate::app::bsky::graph::defs::ListView>),
+    #[serde(rename = "app.bsky.labeler.defs#labelerView")]
+    BskyLabelerDefsLabelerView(Box<crate::app::bsky::labeler::defs::LabelerView>),
+    #[serde(rename = "app.bsky.graph.defs#starterPackViewBasic")]
+    BskyGraphDefsStarterPackViewBasic(Box<crate::app::bsky::graph::defs::StarterPackViewBasic>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct View {
-    pub record: serde_json::Value,
+    pub record: ViewRecordRefs,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,21 +43,38 @@ pub struct View {
 pub struct ViewBlocked {
     pub author: crate::app::bsky::feed::defs::BlockedAuthor,
     pub blocked: bool,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewDetached {
     pub detached: bool,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewNotFound {
     pub not_found: bool,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ViewRecordEmbedsItemRefs {
+    #[serde(rename = "app.bsky.embed.images#view")]
+    BskyEmbedImagesView(Box<crate::app::bsky::embed::images::View>),
+    #[serde(rename = "app.bsky.embed.video#view")]
+    BskyEmbedVideoView(Box<crate::app::bsky::embed::video::View>),
+    #[serde(rename = "app.bsky.embed.external#view")]
+    BskyEmbedExternalView(Box<crate::app::bsky::embed::external::View>),
+    #[serde(rename = "app.bsky.embed.record#view")]
+    BskyEmbedRecordView(Box<View>),
+    #[serde(rename = "app.bsky.embed.recordWithMedia#view")]
+    BskyEmbedRecordWithMediaView(Box<crate::app::bsky::embed::record_with_media::View>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,8 +83,8 @@ pub struct ViewRecord {
     pub author: crate::app::bsky::actor::defs::ProfileViewBasic,
     pub cid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embeds: Option<Vec<serde_json::Value>>,
-    pub indexed_at: String,
+    pub embeds: Option<Vec<ViewRecordEmbedsItemRefs>>,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,6 +95,6 @@ pub struct ViewRecord {
     pub reply_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repost_count: Option<i64>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     pub value: serde_json::Value,
 }

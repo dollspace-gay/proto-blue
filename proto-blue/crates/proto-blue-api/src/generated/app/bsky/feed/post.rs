@@ -13,6 +13,33 @@ pub struct Entity {
     pub value: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainEmbedRefs {
+    #[serde(rename = "app.bsky.embed.images")]
+    BskyEmbedImages(Box<crate::app::bsky::embed::images::Main>),
+    #[serde(rename = "app.bsky.embed.video")]
+    BskyEmbedVideo(Box<crate::app::bsky::embed::video::Main>),
+    #[serde(rename = "app.bsky.embed.external")]
+    BskyEmbedExternal(Box<crate::app::bsky::embed::external::Main>),
+    #[serde(rename = "app.bsky.embed.record")]
+    BskyEmbedRecord(Box<crate::app::bsky::embed::record::Main>),
+    #[serde(rename = "app.bsky.embed.recordWithMedia")]
+    BskyEmbedRecordWithMedia(Box<crate::app::bsky::embed::record_with_media::Main>),
+    #[serde(other)]
+    Other,
+}
+
+/// Self-label values for this post. Effectively content warnings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainLabelsRefs {
+    #[serde(rename = "com.atproto.label.defs#selfLabels")]
+    AtprotoLabelDefsSelfLabels(Box<crate::com::atproto::label::defs::SelfLabels>),
+    #[serde(other)]
+    Other,
+}
+
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.feed.post";
 
@@ -22,15 +49,15 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<MainEmbedRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub entities: Option<Vec<Entity>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<serde_json::Value>,
+    pub labels: Option<MainLabelsRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub langs: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

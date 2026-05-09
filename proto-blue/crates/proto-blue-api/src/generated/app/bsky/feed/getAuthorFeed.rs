@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub actor: String,
+    pub actor: proto_blue_syntax::AtIdentifier,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -56,19 +56,19 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.actor;
         qp.insert(
             "actor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.filter {
         qp.insert(
             "filter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.include_pins {
@@ -139,7 +139,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        actor: (ctx.params.get("actor").cloned())?,
+        actor: (ctx
+            .params
+            .get("actor")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()))?,
         cursor: ctx.params.get("cursor").cloned(),
         filter: ctx.params.get("filter").cloned(),
         include_pins: ctx

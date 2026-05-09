@@ -48,7 +48,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -60,19 +60,19 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.name_prefix {
         qp.insert(
             "namePrefix".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.sort_by {
         qp.insert(
             "sortBy".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.sort_direction {
         qp.insert(
             "sortDirection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp

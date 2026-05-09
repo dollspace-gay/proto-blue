@@ -8,16 +8,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub repo: String,
+    pub repo: proto_blue_syntax::AtIdentifier,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub collections: Vec<String>,
-    pub did: String,
+    pub collections: Vec<proto_blue_syntax::Nsid>,
+    pub did: proto_blue_syntax::Did,
     pub did_doc: serde_json::Value,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     pub handle_is_correct: bool,
 }
 
@@ -42,7 +42,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.repo;
         qp.insert(
             "repo".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -101,6 +101,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        repo: (ctx.params.get("repo").cloned())?,
+        repo: (ctx
+            .params
+            .get("repo")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()))?,
     })
 }

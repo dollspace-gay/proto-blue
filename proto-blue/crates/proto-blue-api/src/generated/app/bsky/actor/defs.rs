@@ -33,7 +33,7 @@ pub struct BskyAppStatePref {
 pub struct ContentLabelPref {
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub labeler_did: Option<String>,
+    pub labeler_did: Option<proto_blue_syntax::Did>,
     pub visibility: String,
 }
 
@@ -68,7 +68,7 @@ pub struct FeedViewPref {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HiddenPostsPref {
-    pub items: Vec<String>,
+    pub items: Vec<proto_blue_syntax::AtUri>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,7 +88,7 @@ pub struct KnownFollowers {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LabelerPrefItem {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,7 +114,7 @@ pub struct MutedWord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub actor_target: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<String>,
+    pub expires_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub targets: Vec<MutedWordTarget>,
@@ -139,7 +139,7 @@ pub struct Nux {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<String>,
+    pub expires_at: Option<proto_blue_syntax::Datetime>,
     pub id: String,
 }
 
@@ -147,7 +147,31 @@ pub struct Nux {
 #[serde(rename_all = "camelCase")]
 pub struct PersonalDetailsPref {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub birth_date: Option<String>,
+    pub birth_date: Option<proto_blue_syntax::Datetime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum PostInteractionSettingsPrefPostgateEmbeddingRulesItemRefs {
+    #[serde(rename = "app.bsky.feed.postgate#disableRule")]
+    BskyFeedPostgateDisableRule(Box<crate::app::bsky::feed::postgate::DisableRule>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum PostInteractionSettingsPrefThreadgateAllowRulesItemRefs {
+    #[serde(rename = "app.bsky.feed.threadgate#mentionRule")]
+    BskyFeedThreadgateMentionRule(Box<crate::app::bsky::feed::threadgate::MentionRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#followerRule")]
+    BskyFeedThreadgateFollowerRule(Box<crate::app::bsky::feed::threadgate::FollowerRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#followingRule")]
+    BskyFeedThreadgateFollowingRule(Box<crate::app::bsky::feed::threadgate::FollowingRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#listRule")]
+    BskyFeedThreadgateListRule(Box<crate::app::bsky::feed::threadgate::ListRule>),
+    #[serde(other)]
+    Other,
 }
 
 /// Default post interaction settings for the account. These values should be applied as default values when creating new posts. These refs should mirror the threadgate and postgate records exactly.
@@ -155,9 +179,11 @@ pub struct PersonalDetailsPref {
 #[serde(rename_all = "camelCase")]
 pub struct PostInteractionSettingsPref {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub postgate_embedding_rules: Option<Vec<serde_json::Value>>,
+    pub postgate_embedding_rules:
+        Option<Vec<PostInteractionSettingsPrefPostgateEmbeddingRulesItemRefs>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub threadgate_allow_rules: Option<Vec<serde_json::Value>>,
+    pub threadgate_allow_rules:
+        Option<Vec<PostInteractionSettingsPrefThreadgateAllowRulesItemRefs>>,
 }
 
 pub type Preferences = Vec<serde_json::Value>;
@@ -208,17 +234,17 @@ pub struct ProfileView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debug: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub indexed_at: Option<String>,
+    pub indexed_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -239,13 +265,13 @@ pub struct ProfileViewBasic {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debug: Option<serde_json::Value>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -268,21 +294,21 @@ pub struct ProfileViewDetailed {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub banner: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debug: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub followers_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub follows_count: Option<i64>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub indexed_at: Option<String>,
+    pub indexed_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub joined_via_starter_pack: Option<crate::app::bsky::graph::defs::StarterPackViewBasic>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -316,8 +342,8 @@ pub struct SavedFeed {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SavedFeedsPref {
-    pub pinned: Vec<String>,
-    pub saved: Vec<String>,
+    pub pinned: Vec<proto_blue_syntax::AtUri>,
+    pub saved: Vec<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeline_index: Option<i64>,
 }
@@ -328,15 +354,25 @@ pub struct SavedFeedsPrefV2 {
     pub items: Vec<SavedFeed>,
 }
 
+/// An optional embed associated with the status.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum StatusViewEmbedRefs {
+    #[serde(rename = "app.bsky.embed.external#view")]
+    BskyEmbedExternalView(Box<crate::app::bsky::embed::external::View>),
+    #[serde(other)]
+    Other,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StatusView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<StatusViewEmbedRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expires_at: Option<String>,
+    pub expires_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_active: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -344,7 +380,7 @@ pub struct StatusView {
     pub record: serde_json::Value,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<String>,
+    pub uri: Option<proto_blue_syntax::AtUri>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -375,10 +411,10 @@ pub struct VerificationState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerificationView {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub is_valid: bool,
-    pub issuer: String,
-    pub uri: String,
+    pub issuer: proto_blue_syntax::Did,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// Metadata about the requesting account's relationship with the subject account. Only has meaningful content for authed requests.
@@ -390,13 +426,13 @@ pub struct ViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub blocked_by: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocking: Option<String>,
+    pub blocking: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub blocking_by_list: Option<crate::app::bsky::graph::defs::ListViewBasic>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub followed_by: Option<String>,
+    pub followed_by: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub following: Option<String>,
+    pub following: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub known_followers: Option<KnownFollowers>,
     #[serde(skip_serializing_if = "Option::is_none")]

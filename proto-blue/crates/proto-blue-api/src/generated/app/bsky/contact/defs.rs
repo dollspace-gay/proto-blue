@@ -16,13 +16,13 @@ pub struct MatchAndContactIndex {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
-    pub from: String,
-    pub to: String,
+    pub from: proto_blue_syntax::Did,
+    pub to: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SyncStatus {
     pub matches_count: i64,
-    pub synced_at: String,
+    pub synced_at: proto_blue_syntax::Datetime,
 }

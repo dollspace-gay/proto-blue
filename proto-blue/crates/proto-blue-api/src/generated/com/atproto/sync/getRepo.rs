@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub since: Option<String>,
+    pub since: Option<proto_blue_syntax::Tid>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -48,13 +48,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.did;
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.since {
         qp.insert(
             "since".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -107,7 +107,13 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        did: (ctx.params.get("did").cloned())?,
-        since: ctx.params.get("since").cloned(),
+        did: (ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
+        since: ctx
+            .params
+            .get("since")
+            .and_then(|v| proto_blue_syntax::Tid::new(v).ok()),
     })
 }

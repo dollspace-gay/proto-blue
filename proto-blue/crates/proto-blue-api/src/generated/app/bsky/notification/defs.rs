@@ -59,5 +59,5 @@ pub struct RecordDeleted {}
 #[serde(rename_all = "camelCase")]
 pub struct SubjectActivitySubscription {
     pub activity_subscription: ActivitySubscription,
-    pub subject: String,
+    pub subject: proto_blue_syntax::Did,
 }

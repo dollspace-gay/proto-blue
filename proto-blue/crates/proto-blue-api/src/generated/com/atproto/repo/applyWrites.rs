@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Create {
-    pub collection: String,
+    pub collection: proto_blue_syntax::Nsid,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rkey: Option<String>,
+    pub rkey: Option<proto_blue_syntax::RecordKey>,
     pub value: serde_json::Value,
 }
 
@@ -17,7 +17,7 @@ pub struct Create {
 #[serde(rename_all = "camelCase")]
 pub struct CreateResult {
     pub cid: String,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validation_status: Option<String>,
 }
@@ -26,8 +26,8 @@ pub struct CreateResult {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Delete {
-    pub collection: String,
-    pub rkey: String,
+    pub collection: proto_blue_syntax::Nsid,
+    pub rkey: proto_blue_syntax::RecordKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,14 +37,36 @@ pub struct DeleteResult {}
 /// Apply a batch transaction of repository creates, updates, and deletes. Requires auth, implemented by PDS.
 /// XRPC Procedure: com.atproto.repo.applyWrites
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum InputWritesItemRefs {
+    #[serde(rename = "com.atproto.repo.applyWrites#create")]
+    AtprotoRepoApplyWritesCreate(Box<Create>),
+    #[serde(rename = "com.atproto.repo.applyWrites#update")]
+    AtprotoRepoApplyWritesUpdate(Box<Update>),
+    #[serde(rename = "com.atproto.repo.applyWrites#delete")]
+    AtprotoRepoApplyWritesDelete(Box<Delete>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub repo: String,
+    pub repo: proto_blue_syntax::AtIdentifier,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub swap_commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validate: Option<bool>,
-    pub writes: Vec<serde_json::Value>,
+    pub writes: Vec<InputWritesItemRefs>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputResultsItemRefs {
+    #[serde(rename = "com.atproto.repo.applyWrites#createResult")]
+    AtprotoRepoApplyWritesCreateResult(Box<CreateResult>),
+    #[serde(rename = "com.atproto.repo.applyWrites#updateResult")]
+    AtprotoRepoApplyWritesUpdateResult(Box<UpdateResult>),
+    #[serde(rename = "com.atproto.repo.applyWrites#deleteResult")]
+    AtprotoRepoApplyWritesDeleteResult(Box<DeleteResult>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +75,7 @@ pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit: Option<crate::com::atproto::repo::defs::CommitMeta>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub results: Option<Vec<serde_json::Value>>,
+    pub results: Option<Vec<OutputResultsItemRefs>>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -137,8 +159,8 @@ where
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Update {
-    pub collection: String,
-    pub rkey: String,
+    pub collection: proto_blue_syntax::Nsid,
+    pub rkey: proto_blue_syntax::RecordKey,
     pub value: serde_json::Value,
 }
 
@@ -146,7 +168,7 @@ pub struct Update {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateResult {
     pub cid: String,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validation_status: Option<String>,
 }

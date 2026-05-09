@@ -12,10 +12,10 @@ pub struct ProfileViewBasic {
     pub avatar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chat_disabled: Option<bool>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]

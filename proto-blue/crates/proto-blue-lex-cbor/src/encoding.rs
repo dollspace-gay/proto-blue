@@ -6,6 +6,45 @@
 //! - Map keys must be strings, sorted by byte length then lexicographically
 //! - No duplicate map keys
 //! - CIDs encoded with CBOR tag 42 and leading 0x00 byte
+//!
+//! ## Why ciborium and not `serde_ipld_dagcbor`?
+//!
+//! An external review (#8) suggested replacing the ciborium-based
+//! implementation with the purpose-built `serde_ipld_dagcbor` crate on
+//! the grounds that the latter "gets the rules right by construction"
+//! whereas this module wraps a general-purpose CBOR library with
+//! hand-written canonical-form enforcement.
+//!
+//! After investigation we kept ciborium for three reasons:
+//!
+//! 1. **`LexValue` has no native `Serialize` / `Deserialize` impl** —
+//!    using `serde_ipld_dagcbor` would require writing custom serde
+//!    impls for `LexValue` that handle AT Protocol's CID encoding
+//!    (CBOR tag 42 + a leading `0x00` byte before the CID bytes — the
+//!    "DAG-PB legacy" prefix that's atproto-specific, not IPLD-standard).
+//!    That custom impl re-implements the same logic as `lex_to_cbor`
+//!    and `cbor_to_lex` below, just inside serde-derived plumbing. Net
+//!    change: more code, not less.
+//!
+//! 2. **The current implementation is empirically correct.** The decode
+//!    path validates canonical form via a re-encode comparison
+//!    (`decode()` round-trips through the canonical encoder and
+//!    rejects on byte mismatch — see [`decode`]); the strict-rejection
+//!    tests at the bottom of this file pin every dag-cbor canonicality
+//!    rule (`rejects_non_canonical_map_key_order`,
+//!    `rejects_non_shortest_integer`, `rejects_indefinite_length_*`,
+//!    etc.) and pass against the TS-reference golden vectors plus 2000+
+//!    fuzz cases via `lex_cbor_decode` / `lex_cbor_canonical`.
+//!
+//! 3. **The one concrete leniency** the audit flagged (integral-float
+//!    acceptance in `cbor_to_lex` — see [`decode_lenient`]) is tracked
+//!    as a separate fix (#9), and is a 5-line change in this module
+//!    rather than a reason to swap codec libraries.
+//!
+//! If a future change makes `LexValue` serde-native (e.g. for codegen
+//! reuse), revisiting this trade-off becomes cheaper. Until then the
+//! ciborium-wrap-with-canonical-form-validation pattern is the
+//! pragmatic local minimum.
 
 use std::collections::BTreeMap;
 
@@ -164,17 +203,21 @@ fn cbor_to_lex(value: ciborium::Value) -> Result<LexValue, CborError> {
                 .map_err(|_| CborError::Decode("Integer out of i64 range".into()))?;
             Ok(LexValue::Integer(i64_val))
         }
-        ciborium::Value::Float(f) => {
-            // AT Data Model doesn't support floats.
-            // Some CBOR encoders may encode integers as floats, so accept exact integers.
-            if f.is_nan() || f.is_infinite() {
-                return Err(CborError::FloatNotSupported);
-            }
-            if f.fract() == 0.0 && f >= i64::MIN as f64 && f <= i64::MAX as f64 {
-                Ok(LexValue::Integer(f as i64))
-            } else {
-                Err(CborError::FloatNotSupported)
-            }
+        ciborium::Value::Float(_) => {
+            // AT Data Model has NO floats. Per the dag-cbor spec, integers
+            // MUST be encoded as CBOR integer types (major types 0/1), not
+            // as floats. A float-encoded integer is a wire-format spec
+            // violation, not a leniency case to silently coerce — accepting
+            // it would launder bad input through the decoder and let
+            // misbehaving emitters round-trip. Reject unconditionally.
+            //
+            // The strict `decode()` path catches this same case via its
+            // re-encode canonical-form check (a float encoded on the wire
+            // can't match a re-encoded integer), but `decode_lenient` is
+            // also pub — and a permissive `cbor_to_lex` would silently
+            // accept the bad input there. Strict-by-construction beats
+            // strict-by-belt-and-braces. Audit reference: epic #1, #9.
+            Err(CborError::FloatNotSupported)
         }
         ciborium::Value::Bytes(b) => Ok(LexValue::Bytes(b)),
         ciborium::Value::Text(s) => Ok(LexValue::String(s)),
@@ -683,5 +726,54 @@ mod tests {
 
         let decoded = decode(&encoded).unwrap();
         assert_eq!(val, decoded);
+    }
+
+    /// Regression test for #9: a CBOR float-encoded integer (e.g.
+    /// f64(5.0)) is a dag-cbor spec violation — integers must be
+    /// encoded as CBOR integer types, never as floats. Both the strict
+    /// `decode()` path and the `decode_lenient()` path must reject it
+    /// rather than silently coerce to `LexValue::Integer(5)`. Previously
+    /// `cbor_to_lex` accepted `Float(integral)` and laundered bad input.
+    #[test]
+    fn rejects_float_encoded_integer_on_lenient_path() {
+        // Hand-craft CBOR bytes for f64(5.0): major type 7 (simple/float),
+        // additional info 27 (8-byte float), then the f64 bits for 5.0.
+        let mut bytes = vec![0xfb]; // 0b111_11011 = simple type 27 (f64)
+        bytes.extend_from_slice(&5.0_f64.to_be_bytes());
+
+        let lenient_err = decode_lenient(&bytes).unwrap_err();
+        assert!(
+            matches!(lenient_err, CborError::FloatNotSupported),
+            "decode_lenient must reject float-encoded integer with \
+             FloatNotSupported, got: {lenient_err:?}",
+        );
+
+        // Strict decode also rejects: it chains through `decode_lenient`
+        // first (line 89 of this file), so the FloatNotSupported above
+        // propagates before the canonical-form re-encode check ever
+        // gets a chance to fire. Either reason is correct rejection.
+        let strict_err = decode(&bytes).unwrap_err();
+        assert!(
+            matches!(
+                strict_err,
+                CborError::FloatNotSupported | CborError::NonCanonical { .. }
+            ),
+            "decode must reject float-encoded integer with FloatNotSupported \
+             (lenient path) or NonCanonical (re-encode-mismatch path), got: {strict_err:?}",
+        );
+    }
+
+    /// Regression test for #9: a non-integral float (genuine f64 fraction)
+    /// must also be rejected. This case worked before — the regression
+    /// guard is to lock in that BOTH integral and non-integral floats
+    /// reject through the same path now.
+    #[test]
+    fn rejects_genuine_float() {
+        // f64(3.5) — non-integral, definitely not coerce-to-integer.
+        let mut bytes = vec![0xfb];
+        bytes.extend_from_slice(&3.5_f64.to_be_bytes());
+
+        let err = decode_lenient(&bytes).unwrap_err();
+        assert!(matches!(err, CborError::FloatNotSupported));
     }
 }

@@ -42,7 +42,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -117,9 +117,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
 pub struct Repo {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub head: String,
-    pub rev: String,
+    pub rev: proto_blue_syntax::Tid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
 }

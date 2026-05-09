@@ -12,7 +12,7 @@ pub struct AgeAssuranceEvent {
     pub complete_ip: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub complete_ua: Option<String>,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -27,26 +27,26 @@ pub struct AgeAssuranceEvent {
 #[serde(rename_all = "camelCase")]
 pub struct AgeAssuranceState {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_initiated_at: Option<String>,
+    pub last_initiated_at: Option<proto_blue_syntax::Datetime>,
     pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkeletonSearchActor {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkeletonSearchPost {
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkeletonSearchStarterPack {
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,11 +54,11 @@ pub struct SkeletonSearchStarterPack {
 pub struct SkeletonTrend {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
-    pub dids: Vec<String>,
+    pub dids: Vec<proto_blue_syntax::Did>,
     pub display_name: String,
     pub link: String,
     pub post_count: i64,
-    pub started_at: String,
+    pub started_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     pub topic: String,
@@ -98,7 +98,7 @@ pub struct TrendView {
     pub display_name: String,
     pub link: String,
     pub post_count: i64,
-    pub started_at: String,
+    pub started_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     pub topic: String,

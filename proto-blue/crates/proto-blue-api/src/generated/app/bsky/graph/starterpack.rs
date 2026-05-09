@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeedItem {
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// `$type` discriminator for this record on the wire.
@@ -18,14 +18,14 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description_facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feeds: Option<Vec<FeedItem>>,
-    pub list: String,
+    pub list: proto_blue_syntax::AtUri,
     pub name: String,
 }
 

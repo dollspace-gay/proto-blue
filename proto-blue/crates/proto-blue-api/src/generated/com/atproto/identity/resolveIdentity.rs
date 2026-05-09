@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub identifier: String,
+    pub identifier: proto_blue_syntax::AtIdentifier,
 }
 
 pub type Output = crate::com::atproto::identity::defs::IdentityInfo;
@@ -48,7 +48,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.identifier;
         qp.insert(
             "identifier".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -107,6 +107,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        identifier: (ctx.params.get("identifier").cloned())?,
+        identifier: (ctx
+            .params
+            .get("identifier")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()))?,
     })
 }

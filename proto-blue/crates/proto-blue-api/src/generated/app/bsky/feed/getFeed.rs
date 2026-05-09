@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
-    pub feed: String,
+    pub feed: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
 }
@@ -48,14 +48,14 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.feed;
         qp.insert(
             "feed".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -121,7 +121,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         cursor: ctx.params.get("cursor").cloned(),
-        feed: (ctx.params.get("feed").cloned())?,
+        feed: (ctx
+            .params
+            .get("feed")
+            .and_then(|v| proto_blue_syntax::AtUri::new(v).ok()))?,
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
     })
 }

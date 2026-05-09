@@ -9,14 +9,14 @@ use serde::{Deserialize, Serialize};
 pub struct Label {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<String>,
-    pub cts: String,
+    pub cts: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub exp: Option<String>,
+    pub exp: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub neg: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sig: Option<Vec<u8>>,
-    pub src: String,
+    pub src: proto_blue_syntax::Did,
     pub uri: String,
     pub val: String,
     #[serde(skip_serializing_if = "Option::is_none")]

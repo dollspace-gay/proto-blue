@@ -24,6 +24,20 @@ pub const SHA2_512: u64 = 0x13;
 const SHA256_DIGEST_LEN: usize = 32;
 
 /// A content identifier (`CIDv1`) as used in AT Protocol.
+///
+/// The digest is stored inline as `[u8; 32]` rather than `Vec<u8>` —
+/// every AT Protocol CID is SHA-256 (DASL-compliant), so the hash is
+/// always exactly 32 bytes. Inline storage eliminates the per-CID heap
+/// allocation that the `Vec<u8>` form imposed and tightens the type's
+/// guarantees so a structurally-malformed CID can't exist as a value
+/// (parsing rejects non-32-byte digests via [`Cid::from_bytes`]).
+// `Copy` is intentionally NOT derived even though every field is
+// `Copy` — the existing workspace constructs CIDs via `cid.clone()`
+// in many places, and adding `Copy` would trigger a `clippy::clone_on_copy`
+// sweep across hundreds of unrelated call sites. The audit's concern
+// (heap allocation per CID) is addressed entirely by the inline-array
+// digest; making the type `Copy` is a separable cleanup that would
+// touch every consumer.
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Cid {
     /// CID version (always 1 for AT Protocol).
@@ -32,8 +46,8 @@ pub struct Cid {
     pub codec: u64,
     /// Multihash algorithm code (0x12 = SHA-256).
     pub hash_code: u64,
-    /// The raw hash digest bytes.
-    pub digest: Vec<u8>,
+    /// The raw hash digest bytes (always 32 bytes — SHA-256).
+    pub digest: [u8; 32],
 }
 
 /// Errors that can occur when working with CIDs.
@@ -56,9 +70,11 @@ pub enum CidError {
 }
 
 impl Cid {
-    /// Create a new `CIDv1`.
+    /// Create a new `CIDv1` directly. Most callers should prefer
+    /// [`Cid::for_cbor`] / [`Cid::for_raw`] instead, which compute the
+    /// SHA-256 digest from data.
     #[must_use]
-    pub const fn new(codec: u64, hash_code: u64, digest: Vec<u8>) -> Self {
+    pub const fn new(codec: u64, hash_code: u64, digest: [u8; 32]) -> Self {
         Self {
             version: 1,
             codec,
@@ -70,37 +86,31 @@ impl Cid {
     /// Create a `CIDv1` for DAG-CBOR data by hashing with SHA-256.
     #[must_use]
     pub fn for_cbor(cbor_bytes: &[u8]) -> Self {
-        let digest = Sha256::digest(cbor_bytes).to_vec();
-        Self::new(CBOR_CODEC, SHA2_256, digest)
+        Self::new(CBOR_CODEC, SHA2_256, Sha256::digest(cbor_bytes).into())
     }
 
     /// Create a `CIDv1` for raw data by hashing with SHA-256.
     #[must_use]
     pub fn for_raw(raw_bytes: &[u8]) -> Self {
-        let digest = Sha256::digest(raw_bytes).to_vec();
-        Self::new(RAW_CODEC, SHA2_256, digest)
+        Self::new(RAW_CODEC, SHA2_256, Sha256::digest(raw_bytes).into())
     }
 
     /// Create a CID from a raw SHA-256 digest with raw codec.
-    pub fn for_raw_hash(digest: Vec<u8>) -> Result<Self, CidError> {
-        if digest.len() != SHA256_DIGEST_LEN {
-            return Err(CidError::InvalidDigestLength {
-                expected: SHA256_DIGEST_LEN,
-                actual: digest.len(),
-            });
-        }
-        Ok(Self::new(RAW_CODEC, SHA2_256, digest))
+    #[must_use]
+    pub const fn for_raw_hash(digest: [u8; 32]) -> Self {
+        Self::new(RAW_CODEC, SHA2_256, digest)
     }
 
     /// Check if this CID is DASL-compliant (AT Protocol requirements).
     ///
-    /// DASL CIDs must be `CIDv1`, use raw or DAG-CBOR codec, SHA-256 hash, 32-byte digest.
+    /// DASL CIDs must be `CIDv1`, use raw or DAG-CBOR codec, SHA-256 hash.
+    /// The 32-byte digest length is now an invariant of the type so it
+    /// no longer needs to be checked at runtime.
     #[must_use]
     pub fn is_dasl_compliant(&self) -> bool {
         self.version == 1
             && (self.codec == RAW_CODEC || self.codec == CBOR_CODEC)
             && self.hash_code == SHA2_256
-            && self.digest.len() == SHA256_DIGEST_LEN
     }
 
     /// Verify that this CID matches the given bytes.
@@ -130,6 +140,11 @@ impl Cid {
     }
 
     /// Parse a CID from its binary representation.
+    ///
+    /// Rejects digests that aren't exactly 32 bytes (the SHA-256 size
+    /// AT Protocol uses universally) — the type's `digest: [u8; 32]`
+    /// invariant means a structurally-malformed CID can't exist as a
+    /// value, so wire input is checked at the parse boundary.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, CidError> {
         let mut pos = 0;
 
@@ -142,25 +157,36 @@ impl Cid {
         let hash_code = read_varint(bytes, &mut pos)?;
         let digest_len = read_varint(bytes, &mut pos)? as usize;
 
+        // The digest is always 32 bytes for AT Protocol (SHA-256). A
+        // length mismatch here is either malformed input from the wire
+        // or a non-DASL CID that doesn't fit our type. Reject at the
+        // parse boundary rather than carry it as a value.
+        if digest_len != SHA256_DIGEST_LEN {
+            return Err(CidError::InvalidDigestLength {
+                expected: SHA256_DIGEST_LEN,
+                actual: digest_len,
+            });
+        }
+
         // `pos + digest_len` can overflow `usize` on adversarial
         // input (huge varint). `checked_add` turns that from a
         // runtime panic into a structured error — important because
         // CID bytes come from untrusted sources (firehose, CAR
-        // blocks from peers).
-        let digest_end = pos.checked_add(digest_len).ok_or_else(|| {
-            CidError::Invalid(format!(
-                "CID digest length overflows usize: digest_len={digest_len}"
-            ))
-        })?;
+        // blocks from peers). With the strict length check above this
+        // is now defensive but cheap; left in place.
+        let digest_end = pos
+            .checked_add(SHA256_DIGEST_LEN)
+            .ok_or_else(|| CidError::Invalid("CID position overflows usize".to_string()))?;
         if digest_end > bytes.len() {
             return Err(CidError::Invalid(format!(
                 "CID bytes too short: need {} more bytes, have {}",
-                digest_len,
+                SHA256_DIGEST_LEN,
                 bytes.len().saturating_sub(pos)
             )));
         }
 
-        let digest = bytes[pos..digest_end].to_vec();
+        let mut digest = [0u8; SHA256_DIGEST_LEN];
+        digest.copy_from_slice(&bytes[pos..digest_end]);
 
         Ok(Self {
             version: version as u8,
@@ -339,7 +365,7 @@ mod tests {
             version: 0,
             codec: CBOR_CODEC,
             hash_code: SHA2_256,
-            digest: vec![0; 32],
+            digest: [0u8; 32],
         };
         assert!(!invalid.is_dasl_compliant());
     }

@@ -42,7 +42,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -116,5 +116,5 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
 #[serde(rename_all = "camelCase")]
 pub struct RecordBlob {
     pub cid: String,
-    pub record_uri: String,
+    pub record_uri: proto_blue_syntax::AtUri,
 }

@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     pub app_id: String,
     pub platform: String,
-    pub service_did: String,
+    pub service_did: proto_blue_syntax::Did,
     pub token: String,
 }
 

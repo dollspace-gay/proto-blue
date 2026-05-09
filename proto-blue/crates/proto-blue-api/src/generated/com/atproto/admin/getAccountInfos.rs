@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub dids: Vec<String>,
+    pub dids: Vec<proto_blue_syntax::Did>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,7 +40,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "dids".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -101,11 +101,11 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        dids: (Some(
-            ctx.params
-                .get("dids")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ))?,
+        dids: (ctx.params.get("dids").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Did::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }))?,
     })
 }

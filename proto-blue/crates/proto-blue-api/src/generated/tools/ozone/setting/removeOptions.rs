@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub keys: Vec<String>,
+    pub keys: Vec<proto_blue_syntax::Nsid>,
     pub scope: String,
 }
 

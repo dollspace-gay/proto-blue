@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub above: Option<bool>,
-    pub anchor: String,
+    pub anchor: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub below: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,7 +55,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.anchor;
         qp.insert(
             "anchor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.below {
@@ -73,7 +73,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.sort {
         qp.insert(
             "sort".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -133,7 +133,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         above: ctx.params.get("above").and_then(|v| v.parse::<bool>().ok()),
-        anchor: (ctx.params.get("anchor").cloned())?,
+        anchor: (ctx
+            .params
+            .get("anchor")
+            .and_then(|v| proto_blue_syntax::AtUri::new(v).ok()))?,
         below: ctx.params.get("below").and_then(|v| v.parse::<i64>().ok()),
         branching_factor: ctx
             .params
@@ -144,9 +147,26 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ThreadItemValueRefs {
+    #[serde(rename = "app.bsky.unspecced.defs#threadItemPost")]
+    BskyUnspeccedDefsThreadItemPost(Box<crate::app::bsky::unspecced::defs::ThreadItemPost>),
+    #[serde(rename = "app.bsky.unspecced.defs#threadItemNoUnauthenticated")]
+    BskyUnspeccedDefsThreadItemNoUnauthenticated(
+        Box<crate::app::bsky::unspecced::defs::ThreadItemNoUnauthenticated>,
+    ),
+    #[serde(rename = "app.bsky.unspecced.defs#threadItemNotFound")]
+    BskyUnspeccedDefsThreadItemNotFound(Box<crate::app::bsky::unspecced::defs::ThreadItemNotFound>),
+    #[serde(rename = "app.bsky.unspecced.defs#threadItemBlocked")]
+    BskyUnspeccedDefsThreadItemBlocked(Box<crate::app::bsky::unspecced::defs::ThreadItemBlocked>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreadItem {
     pub depth: i64,
-    pub uri: String,
-    pub value: serde_json::Value,
+    pub uri: proto_blue_syntax::AtUri,
+    pub value: ThreadItemValueRefs,
 }

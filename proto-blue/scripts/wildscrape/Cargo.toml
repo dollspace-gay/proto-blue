@@ -1,0 +1,23 @@
+[package]
+name = "proto-blue-wildscrape"
+version = "0.0.0"
+publish = false
+edition = "2024"
+description = "Scrapes the full lexicon.garden corpus to lexicons.wild/ for codegen-validation testing."
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+regex = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# This is a developer tool, not part of the published workspace —
+# excluded so its dependency footprint doesn't pollute the SDK build.
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "wildscrape"
+path = "src/main.rs"

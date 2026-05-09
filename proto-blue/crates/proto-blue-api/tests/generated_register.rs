@@ -26,12 +26,12 @@ async fn generated_register_wraps_typed_query_handler() {
     let server = get_session::register(server, |_ctx| async move {
         Ok(get_session::Output {
             active: Some(true),
-            did: "did:plc:generated".to_string(),
+            did: proto_blue_syntax::Did::new("did:plc:generated").unwrap(),
             did_doc: None,
             email: None,
             email_auth_factor: None,
             email_confirmed: None,
-            handle: "alice.test".to_string(),
+            handle: proto_blue_syntax::Handle::new("alice.test").unwrap(),
             status: None,
         })
     });

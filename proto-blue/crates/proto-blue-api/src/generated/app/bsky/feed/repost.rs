@@ -12,7 +12,7 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub subject: crate::com::atproto::repo::strong_ref::Main,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub via: Option<crate::com::atproto::repo::strong_ref::Main>,

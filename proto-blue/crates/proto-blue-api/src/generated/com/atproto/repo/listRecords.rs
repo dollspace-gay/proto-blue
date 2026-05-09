@@ -8,12 +8,12 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub collection: String,
+    pub collection: proto_blue_syntax::Nsid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
-    pub repo: String,
+    pub repo: proto_blue_syntax::AtIdentifier,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reverse: Option<bool>,
 }
@@ -47,13 +47,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.collection;
         qp.insert(
             "collection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -66,7 +66,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.repo;
         qp.insert(
             "repo".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.reverse {
@@ -131,10 +131,16 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        collection: (ctx.params.get("collection").cloned())?,
+        collection: (ctx
+            .params
+            .get("collection")
+            .and_then(|v| proto_blue_syntax::Nsid::new(v).ok()))?,
         cursor: ctx.params.get("cursor").cloned(),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        repo: (ctx.params.get("repo").cloned())?,
+        repo: (ctx
+            .params
+            .get("repo")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()))?,
         reverse: ctx
             .params
             .get("reverse")
@@ -146,6 +152,6 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
 #[serde(rename_all = "camelCase")]
 pub struct Record {
     pub cid: String,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     pub value: serde_json::Value,
 }

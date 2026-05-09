@@ -1,6 +1,11 @@
 /atproto-ts/
 /proto-blue/target/
 /.compare/
+# Wild-lexicon corpus scraped from lexicon.garden (third-party schemas;
+# we don't redistribute — the scraper at proto-blue/scripts/wildscrape
+# rebuilds this on demand).
+/proto-blue/lexicons.wild/
+/proto-blue/scripts/wildscrape/target/
 .ripsed/
 .chainlink/
 .mcp.json

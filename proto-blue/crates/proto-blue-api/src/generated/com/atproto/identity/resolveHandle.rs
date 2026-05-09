@@ -8,13 +8,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 /// Errors a `call()` on this method can return.
@@ -44,7 +44,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.handle;
         qp.insert(
             "handle".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -103,6 +103,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        handle: (ctx.params.get("handle").cloned())?,
+        handle: (ctx
+            .params
+            .get("handle")
+            .and_then(|v| proto_blue_syntax::Handle::new(v).ok()))?,
     })
 }

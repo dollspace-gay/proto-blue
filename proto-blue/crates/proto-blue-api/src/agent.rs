@@ -6,6 +6,8 @@
 use std::sync::{Arc, Mutex};
 use tokio::sync::{Mutex as AsyncMutex, RwLock};
 
+use proto_blue_lex_data::Cid;
+use proto_blue_syntax::{AtIdentifier, AtUri, Did, Handle};
 use proto_blue_xrpc::{
     CallOptions, HeadersMap, QueryParams, QueryValue, ResponseType, XrpcBody, XrpcClient,
 };
@@ -41,11 +43,17 @@ pub enum AtpSessionEvent {
 pub type SessionEventCallback = Arc<dyn Fn(AtpSessionEvent, Option<&Session>) + Send + Sync>;
 
 /// Session data for an authenticated agent.
+///
+/// `did` and `handle` are typed as the validated `proto_blue_syntax`
+/// newtypes so callers can't accidentally pass random strings; the
+/// JWTs and email stay as `String` (no validated newtype exists for
+/// either, and over-validating an opaque token would just mean
+/// re-parsing on every request).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
-    pub did: String,
-    pub handle: String,
+    pub did: Did,
+    pub handle: Handle,
     pub access_jwt: String,
     pub refresh_jwt: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -106,7 +114,7 @@ pub struct Agent {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LabelerOpts {
     /// The labeler's DID (e.g. `did:plc:<labeler>`).
-    pub did: String,
+    pub did: Did,
     /// When `true`, this labeler is redirected to (sent as
     /// `atproto-accept-labelers: did;redirect`). Matches TS behaviour.
     pub redirect: bool,
@@ -118,7 +126,7 @@ impl LabelerOpts {
         if self.redirect {
             format!("{};redirect", self.did)
         } else {
-            self.did.clone()
+            self.did.to_string()
         }
     }
 }
@@ -177,7 +185,7 @@ impl Agent {
     }
 
     /// Get the current session's DID, if logged in.
-    pub async fn did(&self) -> Option<String> {
+    pub async fn did(&self) -> Option<Did> {
         self.session.read().await.as_ref().map(|s| s.did.clone())
     }
 
@@ -284,7 +292,11 @@ impl Agent {
     /// Emits [`AtpSessionEvent::Create`] on success, or
     /// [`AtpSessionEvent::CreateFailed`] if the server rejected the
     /// credentials.
-    pub async fn login(&self, identifier: &str, password: &str) -> Result<Session, AgentError> {
+    pub async fn login(
+        &self,
+        identifier: &AtIdentifier,
+        password: &str,
+    ) -> Result<Session, AgentError> {
         let body = serde_json::json!({
             "identifier": identifier,
             "password": password,
@@ -340,7 +352,9 @@ impl Agent {
             .data
             .get("did")
             .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string);
+            .map(Did::new)
+            .transpose()
+            .map_err(|e| AgentError::Other(format!("server returned invalid DID: {e}")))?;
 
         // Verification succeeded — atomically commit state in a single write lock
         let mut committed = session;
@@ -409,7 +423,7 @@ impl Agent {
     // --- Convenience helpers ---
 
     /// Ensure the agent is authenticated, returning the DID.
-    async fn assert_did(&self) -> Result<String, AgentError> {
+    async fn assert_did(&self) -> Result<Did, AgentError> {
         self.did().await.ok_or(AgentError::NotAuthenticated)
     }
 
@@ -535,12 +549,11 @@ impl Agent {
     }
 
     /// Helper: delete a record by AT-URI.
-    async fn delete_record(&self, collection: &str, uri: &str) -> Result<(), AgentError> {
+    async fn delete_record(&self, collection: &str, uri: &AtUri) -> Result<(), AgentError> {
         let did = self.assert_did().await?;
         let rkey = uri
-            .rsplit('/')
-            .next()
-            .ok_or_else(|| AgentError::Other("Invalid AT-URI".into()))?;
+            .rkey()
+            .ok_or_else(|| AgentError::Other("AT-URI has no rkey segment".into()))?;
 
         let body = serde_json::json!({
             "repo": did,
@@ -601,7 +614,7 @@ impl Agent {
     }
 
     /// Delete a post by AT-URI.
-    pub async fn delete_post(&self, uri: &str) -> Result<(), AgentError> {
+    pub async fn delete_post(&self, uri: &AtUri) -> Result<(), AgentError> {
         self.delete_record("app.bsky.feed.post", uri).await
     }
 
@@ -612,8 +625,8 @@ impl Agent {
     /// If `created_at` is `None`, the current time is used.
     pub async fn like(
         &self,
-        uri: &str,
-        cid: &str,
+        uri: &AtUri,
+        cid: &Cid,
         created_at: Option<&str>,
     ) -> Result<serde_json::Value, AgentError> {
         let record = serde_json::json!({
@@ -625,7 +638,7 @@ impl Agent {
     }
 
     /// Unlike a post by AT-URI of the like record.
-    pub async fn delete_like(&self, like_uri: &str) -> Result<(), AgentError> {
+    pub async fn delete_like(&self, like_uri: &AtUri) -> Result<(), AgentError> {
         self.delete_record("app.bsky.feed.like", like_uri).await
     }
 
@@ -634,8 +647,8 @@ impl Agent {
     /// If `created_at` is `None`, the current time is used.
     pub async fn repost(
         &self,
-        uri: &str,
-        cid: &str,
+        uri: &AtUri,
+        cid: &Cid,
         created_at: Option<&str>,
     ) -> Result<serde_json::Value, AgentError> {
         let record = serde_json::json!({
@@ -647,7 +660,7 @@ impl Agent {
     }
 
     /// Delete a repost by AT-URI.
-    pub async fn delete_repost(&self, repost_uri: &str) -> Result<(), AgentError> {
+    pub async fn delete_repost(&self, repost_uri: &AtUri) -> Result<(), AgentError> {
         self.delete_record("app.bsky.feed.repost", repost_uri).await
     }
 
@@ -658,7 +671,7 @@ impl Agent {
     /// If `created_at` is `None`, the current time is used.
     pub async fn follow(
         &self,
-        subject_did: &str,
+        subject_did: &Did,
         created_at: Option<&str>,
     ) -> Result<serde_json::Value, AgentError> {
         let record = serde_json::json!({
@@ -670,7 +683,7 @@ impl Agent {
     }
 
     /// Unfollow by AT-URI of the follow record.
-    pub async fn delete_follow(&self, follow_uri: &str) -> Result<(), AgentError> {
+    pub async fn delete_follow(&self, follow_uri: &AtUri) -> Result<(), AgentError> {
         self.delete_record("app.bsky.graph.follow", follow_uri)
             .await
     }
@@ -678,9 +691,9 @@ impl Agent {
     // --- Query helpers ---
 
     /// Get a user's profile.
-    pub async fn get_profile(&self, actor: &str) -> Result<serde_json::Value, AgentError> {
+    pub async fn get_profile(&self, actor: &AtIdentifier) -> Result<serde_json::Value, AgentError> {
         let mut params = QueryParams::new();
-        params.insert("actor".into(), QueryValue::String(actor.into()));
+        params.insert("actor".into(), QueryValue::String(actor.to_string()));
         self.xrpc_query("app.bsky.actor.getProfile", Some(&params))
             .await
     }
@@ -705,11 +718,11 @@ impl Agent {
     /// Get a post thread.
     pub async fn get_post_thread(
         &self,
-        uri: &str,
+        uri: &AtUri,
         depth: Option<i64>,
     ) -> Result<serde_json::Value, AgentError> {
         let mut params = QueryParams::new();
-        params.insert("uri".into(), QueryValue::String(uri.into()));
+        params.insert("uri".into(), QueryValue::String(uri.to_string()));
         if let Some(depth) = depth {
             params.insert("depth".into(), QueryValue::Integer(depth));
         }
@@ -733,16 +746,18 @@ impl Agent {
     }
 
     /// Resolve a handle to a DID.
-    pub async fn resolve_handle(&self, handle: &str) -> Result<String, AgentError> {
+    pub async fn resolve_handle(&self, handle: &Handle) -> Result<Did, AgentError> {
         let mut params = QueryParams::new();
-        params.insert("handle".into(), QueryValue::String(handle.into()));
+        params.insert("handle".into(), QueryValue::String(handle.to_string()));
         let data = self
             .xrpc_query("com.atproto.identity.resolveHandle", Some(&params))
             .await?;
-        data.get("did")
+        let did_str = data
+            .get("did")
             .and_then(|v| v.as_str())
-            .map(std::string::ToString::to_string)
-            .ok_or_else(|| AgentError::Other("Missing DID in response".into()))
+            .ok_or_else(|| AgentError::Other("Missing DID in response".into()))?;
+        Did::new(did_str)
+            .map_err(|e| AgentError::Other(format!("server returned invalid DID: {e}")))
     }
 
     /// Get notifications.
@@ -852,7 +867,7 @@ impl Agent {
     /// On success, the new session is stored and `Create` is emitted.
     pub async fn create_account(
         &self,
-        handle: &str,
+        handle: &Handle,
         password: &str,
         email: Option<&str>,
         extra: Option<serde_json::Value>,
@@ -920,7 +935,7 @@ impl Agent {
                     "com.atproto.repo.getRecord",
                     Some(&{
                         let mut p = QueryParams::new();
-                        p.insert("repo".into(), QueryValue::String(did.clone()));
+                        p.insert("repo".into(), QueryValue::String(did.to_string()));
                         p.insert(
                             "collection".into(),
                             QueryValue::String("app.bsky.actor.profile".into()),
@@ -1030,8 +1045,8 @@ mod tests {
     #[test]
     fn session_serde_roundtrip() {
         let session = Session {
-            did: "did:plc:abc123".to_string(),
-            handle: "alice.bsky.social".to_string(),
+            did: Did::new("did:plc:abc123").unwrap(),
+            handle: Handle::new("alice.bsky.social").unwrap(),
             access_jwt: "eyJ...".to_string(),
             refresh_jwt: "eyJ...".to_string(),
             email: Some("alice@example.com".to_string()),
@@ -1040,8 +1055,8 @@ mod tests {
 
         let json = serde_json::to_string(&session).unwrap();
         let parsed: Session = serde_json::from_str(&json).unwrap();
-        assert_eq!(parsed.did, "did:plc:abc123");
-        assert_eq!(parsed.handle, "alice.bsky.social");
+        assert_eq!(parsed.did.as_str(), "did:plc:abc123");
+        assert_eq!(parsed.handle.as_str(), "alice.bsky.social");
         assert_eq!(parsed.email, Some("alice@example.com".to_string()));
     }
 
@@ -1196,7 +1211,7 @@ mod tests {
     }
 
     fn login_body() -> Vec<u8> {
-        br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a1","refreshJwt":"r1"}"#.to_vec()
+        br#"{"did":"did:plc:u","handle":"alice.test","accessJwt":"a1","refreshJwt":"r1"}"#.to_vec()
     }
 
     fn agent_with_fetcher(fetcher: Arc<ScriptedFetcher>) -> Agent {
@@ -1220,7 +1235,10 @@ mod tests {
         let ev_clone = events.clone();
         agent.on_session(move |e, _| ev_clone.lock().unwrap().push(e));
 
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
         let got = events.lock().unwrap().clone();
         assert_eq!(got, vec![AtpSessionEvent::Create]);
     }
@@ -1245,7 +1263,10 @@ mod tests {
         // Override `createsession_body` handler: scripts take precedence.
         // ScriptedFetcher's createSession short-circuit only fires when
         // NOT scripted; since we scripted it, the 401 flows through.
-        let _ = agent.login("alice", "bad").await.unwrap_err();
+        let _ = agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "bad")
+            .await
+            .unwrap_err();
         let got = events.lock().unwrap().clone();
         assert_eq!(got, vec![AtpSessionEvent::CreateFailed]);
     }
@@ -1273,13 +1294,16 @@ mod tests {
             "com.atproto.server.refreshSession",
             vec![ScriptedResponse {
                 status: 200,
-                body: br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a2","refreshJwt":"r2"}"#
+                body: br#"{"did":"did:plc:u","handle":"alice.test","accessJwt":"a2","refreshJwt":"r2"}"#
                     .to_vec(),
             }],
         );
 
         let agent = agent_with_fetcher(fetcher.clone());
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
 
         let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let ev_clone = events.clone();
@@ -1321,13 +1345,16 @@ mod tests {
             "com.atproto.server.refreshSession",
             vec![ScriptedResponse {
                 status: 200,
-                body: br#"{"did":"did:plc:u","handle":"alice","accessJwt":"a2","refreshJwt":"r2"}"#
+                body: br#"{"did":"did:plc:u","handle":"alice.test","accessJwt":"a2","refreshJwt":"r2"}"#
                     .to_vec(),
             }],
         );
 
         let agent = Arc::new(agent_with_fetcher(fetcher.clone()));
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
 
         // 5 concurrent calls all hit 401 on first attempt. Refresh
         // must fire exactly once — the dedup lock + access-token
@@ -1380,11 +1407,11 @@ mod tests {
         agent
             .configure_labelers(&[
                 LabelerOpts {
-                    did: "did:plc:a".into(),
+                    did: Did::new("did:plc:a").unwrap(),
                     redirect: false,
                 },
                 LabelerOpts {
-                    did: "did:plc:b".into(),
+                    did: Did::new("did:plc:b").unwrap(),
                     redirect: true,
                 },
             ])
@@ -1406,7 +1433,10 @@ mod tests {
             }],
         );
         let agent = agent_with_fetcher(fetcher.clone());
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
         assert!(agent.session().await.is_some());
         agent.logout().await.unwrap();
         assert!(agent.session().await.is_none());
@@ -1424,7 +1454,10 @@ mod tests {
             }],
         );
         let agent = agent_with_fetcher(fetcher);
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
         // Server call fails, but local state must still be cleared.
         let _ = agent.logout().await;
         assert!(agent.session().await.is_none());
@@ -1438,7 +1471,7 @@ mod tests {
             vec![ScriptedResponse {
                 status: 200,
                 body:
-                    br#"{"did":"did:plc:new","handle":"newuser","accessJwt":"a","refreshJwt":"r"}"#
+                    br#"{"did":"did:plc:new","handle":"newuser.test","accessJwt":"a","refreshJwt":"r"}"#
                         .to_vec(),
             }],
         );
@@ -1449,10 +1482,15 @@ mod tests {
         agent.on_session(move |e, _| ev.lock().unwrap().push(e));
 
         let session = agent
-            .create_account("newuser", "pw", Some("new@example.com"), None)
+            .create_account(
+                &Handle::new("newuser.test").unwrap(),
+                "pw",
+                Some("new@example.com"),
+                None,
+            )
             .await
             .unwrap();
-        assert_eq!(session.did, "did:plc:new");
+        assert_eq!(session.did.as_str(), "did:plc:new");
         assert_eq!(
             events.lock().unwrap().clone(),
             vec![AtpSessionEvent::Create]
@@ -1479,7 +1517,10 @@ mod tests {
             }],
         );
         let agent = agent_with_fetcher(fetcher);
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
 
         let result = agent
             .upsert_profile(|prev| {
@@ -1502,7 +1543,10 @@ mod tests {
             }],
         );
         let agent = agent_with_fetcher(fetcher);
-        agent.login("alice", "secret").await.unwrap();
+        agent
+            .login(&AtIdentifier::new("alice.test").unwrap(), "secret")
+            .await
+            .unwrap();
 
         let events: Arc<Mutex<Vec<AtpSessionEvent>>> = Arc::new(Mutex::new(Vec::new()));
         let ev_clone = events.clone();

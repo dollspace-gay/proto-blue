@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<String>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 pub type Output = crate::tools::ozone::moderation::defs::RecordViewDetail;
@@ -40,14 +40,14 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cid {
         qp.insert(
             "cid".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.uri;
         qp.insert(
             "uri".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -107,6 +107,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         cid: ctx.params.get("cid").cloned(),
-        uri: (ctx.params.get("uri").cloned())?,
+        uri: (ctx
+            .params
+            .get("uri")
+            .and_then(|v| proto_blue_syntax::AtUri::new(v).ok()))?,
     })
 }

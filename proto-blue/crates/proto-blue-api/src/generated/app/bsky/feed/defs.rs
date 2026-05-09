@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockedAuthor {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<crate::app::bsky::actor::defs::ViewerState>,
 }
@@ -16,7 +16,7 @@ pub struct BlockedAuthor {
 pub struct BlockedPost {
     pub author: BlockedAuthor,
     pub blocked: bool,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// User clicked through to the author of the feed item
@@ -38,13 +38,24 @@ pub const CONTENT_MODE_UNSPECIFIED: &str = "app.bsky.feed.defs#contentModeUnspec
 pub const CONTENT_MODE_VIDEO: &str = "app.bsky.feed.defs#contentModeVideo";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum FeedViewPostReasonRefs {
+    #[serde(rename = "app.bsky.feed.defs#reasonRepost")]
+    BskyFeedDefsReasonRepost(Box<ReasonRepost>),
+    #[serde(rename = "app.bsky.feed.defs#reasonPin")]
+    BskyFeedDefsReasonPin(Box<ReasonPin>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeedViewPost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feed_context: Option<String>,
     pub post: PostView,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<serde_json::Value>,
+    pub reason: Option<FeedViewPostReasonRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply: Option<ReplyRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -66,14 +77,14 @@ pub struct GeneratorView {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description_facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub display_name: String,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub like_count: Option<i64>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<GeneratorViewerState>,
 }
@@ -82,7 +93,7 @@ pub struct GeneratorView {
 #[serde(rename_all = "camelCase")]
 pub struct GeneratorViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub like: Option<String>,
+    pub like: Option<proto_blue_syntax::AtUri>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,7 +104,7 @@ pub struct Interaction {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feed_context: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub item: Option<String>,
+    pub item: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub req_id: Option<String>,
 }
@@ -120,7 +131,24 @@ pub const INTERACTION_SHARE: &str = "app.bsky.feed.defs#interactionShare";
 #[serde(rename_all = "camelCase")]
 pub struct NotFoundPost {
     pub not_found: bool,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum PostViewEmbedRefs {
+    #[serde(rename = "app.bsky.embed.images#view")]
+    BskyEmbedImagesView(Box<crate::app::bsky::embed::images::View>),
+    #[serde(rename = "app.bsky.embed.video#view")]
+    BskyEmbedVideoView(Box<crate::app::bsky::embed::video::View>),
+    #[serde(rename = "app.bsky.embed.external#view")]
+    BskyEmbedExternalView(Box<crate::app::bsky::embed::external::View>),
+    #[serde(rename = "app.bsky.embed.record#view")]
+    BskyEmbedRecordView(Box<crate::app::bsky::embed::record::View>),
+    #[serde(rename = "app.bsky.embed.recordWithMedia#view")]
+    BskyEmbedRecordWithMediaView(Box<crate::app::bsky::embed::record_with_media::View>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,8 +161,8 @@ pub struct PostView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debug: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
-    pub indexed_at: String,
+    pub embed: Option<PostViewEmbedRefs>,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -148,7 +176,7 @@ pub struct PostView {
     pub repost_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub threadgate: Option<ThreadgateView>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<ViewerState>,
 }
@@ -163,9 +191,35 @@ pub struct ReasonRepost {
     pub by: crate::app::bsky::actor::defs::ProfileViewBasic,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<String>,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<String>,
+    pub uri: Option<proto_blue_syntax::AtUri>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ReplyRefParentRefs {
+    #[serde(rename = "app.bsky.feed.defs#postView")]
+    BskyFeedDefsPostView(Box<PostView>),
+    #[serde(rename = "app.bsky.feed.defs#notFoundPost")]
+    BskyFeedDefsNotFoundPost(Box<NotFoundPost>),
+    #[serde(rename = "app.bsky.feed.defs#blockedPost")]
+    BskyFeedDefsBlockedPost(Box<BlockedPost>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ReplyRefRootRefs {
+    #[serde(rename = "app.bsky.feed.defs#postView")]
+    BskyFeedDefsPostView(Box<PostView>),
+    #[serde(rename = "app.bsky.feed.defs#notFoundPost")]
+    BskyFeedDefsNotFoundPost(Box<NotFoundPost>),
+    #[serde(rename = "app.bsky.feed.defs#blockedPost")]
+    BskyFeedDefsBlockedPost(Box<BlockedPost>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,8 +227,8 @@ pub struct ReasonRepost {
 pub struct ReplyRef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grandparent_author: Option<crate::app::bsky::actor::defs::ProfileViewBasic>,
-    pub parent: serde_json::Value,
-    pub root: serde_json::Value,
+    pub parent: ReplyRefParentRefs,
+    pub root: ReplyRefRootRefs,
 }
 
 /// Request that less content like the given feed item be shown in the feed
@@ -184,13 +238,24 @@ pub const REQUEST_LESS: &str = "app.bsky.feed.defs#requestLess";
 pub const REQUEST_MORE: &str = "app.bsky.feed.defs#requestMore";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum SkeletonFeedPostReasonRefs {
+    #[serde(rename = "app.bsky.feed.defs#skeletonReasonRepost")]
+    BskyFeedDefsSkeletonReasonRepost(Box<SkeletonReasonRepost>),
+    #[serde(rename = "app.bsky.feed.defs#skeletonReasonPin")]
+    BskyFeedDefsSkeletonReasonPin(Box<SkeletonReasonPin>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkeletonFeedPost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feed_context: Option<String>,
-    pub post: String,
+    pub post: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<serde_json::Value>,
+    pub reason: Option<SkeletonFeedPostReasonRefs>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,7 +265,7 @@ pub struct SkeletonReasonPin {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SkeletonReasonRepost {
-    pub repost: String,
+    pub repost: proto_blue_syntax::AtUri,
 }
 
 /// Metadata about this post within the context of the thread it is in.
@@ -208,17 +273,43 @@ pub struct SkeletonReasonRepost {
 #[serde(rename_all = "camelCase")]
 pub struct ThreadContext {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub root_author_like: Option<String>,
+    pub root_author_like: Option<proto_blue_syntax::AtUri>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ThreadViewPostParentRefs {
+    #[serde(rename = "app.bsky.feed.defs#threadViewPost")]
+    BskyFeedDefsThreadViewPost(Box<ThreadViewPost>),
+    #[serde(rename = "app.bsky.feed.defs#notFoundPost")]
+    BskyFeedDefsNotFoundPost(Box<NotFoundPost>),
+    #[serde(rename = "app.bsky.feed.defs#blockedPost")]
+    BskyFeedDefsBlockedPost(Box<BlockedPost>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ThreadViewPostRepliesItemRefs {
+    #[serde(rename = "app.bsky.feed.defs#threadViewPost")]
+    BskyFeedDefsThreadViewPost(Box<ThreadViewPost>),
+    #[serde(rename = "app.bsky.feed.defs#notFoundPost")]
+    BskyFeedDefsNotFoundPost(Box<NotFoundPost>),
+    #[serde(rename = "app.bsky.feed.defs#blockedPost")]
+    BskyFeedDefsBlockedPost(Box<BlockedPost>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreadViewPost {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parent: Option<serde_json::Value>,
+    pub parent: Option<ThreadViewPostParentRefs>,
     pub post: PostView,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub replies: Option<Vec<serde_json::Value>>,
+    pub replies: Option<Vec<ThreadViewPostRepliesItemRefs>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thread_context: Option<ThreadContext>,
 }
@@ -233,7 +324,7 @@ pub struct ThreadgateView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub record: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<String>,
+    pub uri: Option<proto_blue_syntax::AtUri>,
 }
 
 /// Metadata about the requesting account's relationship with the subject content. Only has meaningful content for authed requests.
@@ -245,13 +336,13 @@ pub struct ViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_disabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub like: Option<String>,
+    pub like: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pinned: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply_disabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub repost: Option<String>,
+    pub repost: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thread_muted: Option<bool>,
 }

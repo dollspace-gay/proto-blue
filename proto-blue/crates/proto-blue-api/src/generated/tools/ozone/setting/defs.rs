@@ -7,17 +7,17 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct LexOption {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
-    pub created_by: String,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
+    pub created_by: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub did: String,
-    pub key: String,
-    pub last_updated_by: String,
+    pub did: proto_blue_syntax::Did,
+    pub key: proto_blue_syntax::Nsid,
+    pub last_updated_by: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manager_role: Option<String>,
     pub scope: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<String>,
+    pub updated_at: Option<proto_blue_syntax::Datetime>,
     pub value: serde_json::Value,
 }

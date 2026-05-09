@@ -12,7 +12,7 @@ pub struct Input {
     pub age_restricted: Option<bool>,
     pub app_id: String,
     pub platform: String,
-    pub service_did: String,
+    pub service_did: proto_blue_syntax::Did,
     pub token: String,
 }
 

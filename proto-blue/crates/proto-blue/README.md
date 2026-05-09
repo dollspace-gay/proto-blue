@@ -6,8 +6,14 @@ This is the top-level facade crate that re-exports all proto-blue modules. Add a
 
 ```toml
 [dependencies]
-proto-blue = "0.1"
+proto-blue = "0.3"
 ```
+
+Since v0.3.0, the `api` module's `Agent` / `Session` / `LabelerOpts`
+public surface uses validated `syntax` newtypes (`Did`, `Handle`,
+`AtIdentifier`, `AtUri`) and `lex_data::Cid` instead of `String` /
+`&str`. Wire format is unchanged — wrap at the call site with
+`Did::new(s)?`, `Handle::new(s)?`, etc.
 
 ## Modules
 
@@ -31,8 +37,14 @@ proto-blue = "0.1"
 
 ```rust
 use proto_blue::api::Agent;
-use proto_blue::syntax::Did;
+use proto_blue::syntax::{AtIdentifier, Did, Handle};
 use proto_blue::oauth::OAuthClient;
+
+# async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+let agent = Agent::new("https://bsky.social")?;
+let id = AtIdentifier::new("alice.bsky.social")?;
+agent.login(&id, "app-password").await?;
+# Ok(()) }
 ```
 
 ## License

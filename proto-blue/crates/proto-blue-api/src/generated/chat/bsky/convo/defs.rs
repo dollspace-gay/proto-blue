@@ -4,13 +4,33 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ConvoViewLastMessageRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<DeletedMessageView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ConvoViewLastReactionRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageAndReactionView")]
+    BskyConvoDefsMessageAndReactionView(Box<MessageAndReactionView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConvoView {
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_message: Option<serde_json::Value>,
+    pub last_message: Option<ConvoViewLastMessageRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_reaction: Option<serde_json::Value>,
+    pub last_reaction: Option<ConvoViewLastReactionRefs>,
     pub members: Vec<crate::chat::bsky::actor::defs::ProfileViewBasic>,
     pub muted: bool,
     pub rev: String,
@@ -25,7 +45,7 @@ pub struct DeletedMessageView {
     pub id: String,
     pub rev: String,
     pub sender: MessageViewSender,
-    pub sent_at: String,
+    pub sent_at: proto_blue_syntax::Datetime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,10 +56,21 @@ pub struct LogAcceptConvo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum LogAddReactionMessageRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<DeletedMessageView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogAddReaction {
     pub convo_id: String,
-    pub message: serde_json::Value,
+    pub message: LogAddReactionMessageRefs,
     pub reaction: ReactionView,
     pub rev: String,
 }
@@ -52,18 +83,40 @@ pub struct LogBeginConvo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum LogCreateMessageMessageRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<DeletedMessageView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogCreateMessage {
     pub convo_id: String,
-    pub message: serde_json::Value,
+    pub message: LogCreateMessageMessageRefs,
     pub rev: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum LogDeleteMessageMessageRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<DeletedMessageView>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogDeleteMessage {
     pub convo_id: String,
-    pub message: serde_json::Value,
+    pub message: LogDeleteMessageMessageRefs,
     pub rev: String,
 }
 
@@ -82,18 +135,40 @@ pub struct LogMuteConvo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum LogReadMessageMessageRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<DeletedMessageView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogReadMessage {
     pub convo_id: String,
-    pub message: serde_json::Value,
+    pub message: LogReadMessageMessageRefs,
     pub rev: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum LogRemoveReactionMessageRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<DeletedMessageView>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LogRemoveReaction {
     pub convo_id: String,
-    pub message: serde_json::Value,
+    pub message: LogRemoveReactionMessageRefs,
     pub reaction: ReactionView,
     pub rev: String,
 }
@@ -113,10 +188,19 @@ pub struct MessageAndReactionView {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MessageInputEmbedRefs {
+    #[serde(rename = "app.bsky.embed.record")]
+    BskyEmbedRecord(Box<crate::app::bsky::embed::record::Main>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageInput {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<MessageInputEmbedRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
     pub text: String,
@@ -126,15 +210,24 @@ pub struct MessageInput {
 #[serde(rename_all = "camelCase")]
 pub struct MessageRef {
     pub convo_id: String,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub message_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MessageViewEmbedRefs {
+    #[serde(rename = "app.bsky.embed.record#view")]
+    BskyEmbedRecordView(Box<crate::app::bsky::embed::record::View>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<MessageViewEmbedRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
     pub id: String,
@@ -142,20 +235,20 @@ pub struct MessageView {
     pub reactions: Option<Vec<ReactionView>>,
     pub rev: String,
     pub sender: MessageViewSender,
-    pub sent_at: String,
+    pub sent_at: proto_blue_syntax::Datetime,
     pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageViewSender {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactionView {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub sender: ReactionViewSender,
     pub value: String,
 }
@@ -163,5 +256,5 @@ pub struct ReactionView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactionViewSender {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }

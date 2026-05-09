@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct InviteCode {
     pub available: i64,
     pub code: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub created_by: String,
     pub disabled: bool,
     pub for_account: String,
@@ -18,6 +18,6 @@ pub struct InviteCode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InviteCodeUse {
-    pub used_at: String,
-    pub used_by: String,
+    pub used_at: proto_blue_syntax::Datetime,
+    pub used_by: proto_blue_syntax::Did,
 }

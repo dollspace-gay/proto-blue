@@ -11,9 +11,22 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub blob: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub did: Option<String>,
+    pub did: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub uri: Option<String>,
+    pub uri: Option<proto_blue_syntax::AtUri>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(rename = "com.atproto.admin.defs#repoBlobRef")]
+    AtprotoAdminDefsRepoBlobRef(Box<crate::com::atproto::admin::defs::RepoBlobRef>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -21,7 +34,7 @@ pub struct Params {
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub deactivated: Option<crate::com::atproto::admin::defs::StatusAttr>,
-    pub subject: serde_json::Value,
+    pub subject: OutputSubjectRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub takedown: Option<crate::com::atproto::admin::defs::StatusAttr>,
 }
@@ -46,19 +59,19 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.blob {
         qp.insert(
             "blob".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.did {
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.uri {
         qp.insert(
             "uri".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -118,7 +131,13 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         blob: ctx.params.get("blob").cloned(),
-        did: ctx.params.get("did").cloned(),
-        uri: ctx.params.get("uri").cloned(),
+        did: ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
+        uri: ctx
+            .params
+            .get("uri")
+            .and_then(|v| proto_blue_syntax::AtUri::new(v).ok()),
     })
 }

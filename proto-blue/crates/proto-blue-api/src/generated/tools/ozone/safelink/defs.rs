@@ -15,8 +15,8 @@ pub struct Event {
     pub action: ActionType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    pub created_at: String,
-    pub created_by: String,
+    pub created_at: proto_blue_syntax::Datetime,
+    pub created_by: proto_blue_syntax::Did,
     pub event_type: EventType,
     pub id: i64,
     pub pattern: PatternType,
@@ -46,10 +46,10 @@ pub struct UrlRule {
     pub action: ActionType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    pub created_at: String,
-    pub created_by: String,
+    pub created_at: proto_blue_syntax::Datetime,
+    pub created_by: proto_blue_syntax::Did,
     pub pattern: PatternType,
     pub reason: ReasonType,
-    pub updated_at: String,
+    pub updated_at: proto_blue_syntax::Datetime,
     pub url: String,
 }

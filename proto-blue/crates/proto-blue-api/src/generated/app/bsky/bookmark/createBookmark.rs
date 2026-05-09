@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     pub cid: String,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// Errors a `call()` on this method can return.

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 pub type Output = crate::tools::ozone::moderation::defs::RepoViewDetail;
@@ -39,7 +39,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.did;
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -98,6 +98,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        did: (ctx.params.get("did").cloned())?,
+        did: (ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
     })
 }

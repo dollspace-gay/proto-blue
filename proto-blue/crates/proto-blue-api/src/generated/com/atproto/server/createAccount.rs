@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub did: Option<String>,
+    pub did: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -32,10 +32,10 @@ pub struct Input {
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     pub access_jwt: String,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub did_doc: Option<serde_json::Value>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     pub refresh_jwt: String,
 }
 

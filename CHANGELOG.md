@@ -6,7 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-08
+
+This release lands the full audit-driven hardening pass from the external
+review by the [jacquard](https://github.com/jacquard) atproto SDK author —
+11 closed sub-issues covering codec strictness, type-safe API surface,
+codegen robustness, proof-pipeline test coverage, and TS-interop parity.
+**Public API breaking** on `proto-blue-api` (Agent surface), `proto-blue-lex-data`
+(`Cid::digest` shape), and the `proto-blue-codegen` output format. Wire
+format unchanged. See the entries below for the full list.
+
 ### Changed
+- interop: add diff tests for dag-cbor, CID, MST, CAR, commit construction against TS reference (#10)
+- lex-data: replace bespoke Cid with cid crate (or fix Vec<u8> digest to [u8; 32]) (#7)
+- codegen: rustc-compile wild corpus output (catch second-order errors) (#22)
+- codegen: validate against real-world scraped lexicon corpus (find collisions, weird edge cases) (#11)
 - Expanded TS-interop differential coverage from just `@atproto/syntax`
   to also cover `@atproto/common-web` (TID, s32, grapheme, DID-doc
   helpers), `@atproto/crypto` (DID-key parsing), and `@atproto/lexicon`
@@ -29,6 +43,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.6] - 2026-04-19
 
 ### Added
+- codegen: promote XRPC param strings to syntax newtypes (needs to_query_params + params_from_ctx template updates) (#21)
+- api: replace String with syntax newtypes in Agent/Session/LabelerOpts public surface (#6)
+- codegen: emit sum types for lexicon unions instead of serde_json::Value (#4)
+- codegen: emit syntax newtypes (Did/Handle/Nsid/AtUri/Tid/RecordKey/Datetime) for typed string fields (#3)
 - cargo-fuzz harnesses for every byte-level parser: `lex_cbor_decode`,
   `lex_cbor_canonical`, `lex_json_strict`, `car_parse`, `at_uri_parse`,
   `handle_parse`, `nsid_parse`, `did_parse`, `tid_parse`. Top-level
@@ -44,6 +62,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   well-formed DID documents. (#56)
 
 ### Fixed
+- lex-cbor: fix integral-float coercion strictness leak in cbor_to_lex / decode_lenient (#9)
+- codegen: multi-line lexicon description loses /// continuation, breaks rustc parse (#25)
+- codegen: NSID segments with dashes produce path/ident mismatch (com.bad-example.* → mod bad_example but dir bad-example/) (#24)
+- codegen: NSID-as-both-leaf-and-parent emits both <name>.rs and <name>/mod.rs (E0761) (#23)
+- codegen: handle edition-2024 keywords (gen, try) and detect sibling identifier collisions (#5)
+- repo: property + fuzz tests for proof pipeline (covering_proof, commit construction) (#2)
 - `proto-blue-repo::read_car`: integer overflow panic on adversarial
   varint lengths (`pos + header_len > data.len()` panics when the
   sum overflows `usize`). Replaced three sites with `checked_add`.

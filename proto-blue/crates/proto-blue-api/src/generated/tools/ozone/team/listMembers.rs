@@ -48,7 +48,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.disabled {
@@ -66,7 +66,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.q {
         qp.insert(
             "q".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.roles {
@@ -74,7 +74,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "roles".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );

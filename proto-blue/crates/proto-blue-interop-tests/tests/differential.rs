@@ -712,3 +712,177 @@ fn divergence_ts_aturi_accepts_non_json_pointer_fragment() {
          and the README divergence list"
     );
 }
+
+// ── DAG-CBOR encode / CID computation parity (#10) ──────────────────
+//
+// Feeds the same `LexValue` to both impls — Rust via
+// `proto_blue_lex_cbor::encode`, TS via `@atproto/common::cborEncode`
+// after rebuilding the IPLD value from a tagged-enum JSON wire format.
+// Asserts byte-exact equivalence on encoded bytes AND CID derivation.
+//
+// The wire format is a deliberate domain-specific encoding (NOT
+// proto-blue-lex-json's $link/$bytes shape) — using lex-json would
+// couple the parity test to lex-json's own correctness, hiding bugs.
+// See `lexValueJsonToIpld` in ts-runner/index.mjs for the receiver.
+
+use proto_blue_lex_data::{Cid, LexValue};
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+/// Convert a `LexValue` to its wire-format JSON representation.
+fn lex_value_to_wire(v: &LexValue) -> Value {
+    match v {
+        LexValue::Null => json!({"t": "null"}),
+        LexValue::Bool(b) => json!({"t": "bool", "v": b}),
+        LexValue::Integer(n) => json!({"t": "int", "v": n}),
+        LexValue::String(s) => json!({"t": "str", "v": s}),
+        LexValue::Bytes(b) => json!({"t": "bytes", "hex": hex::encode(b)}),
+        LexValue::Cid(c) => json!({"t": "cid", "s": c.to_string()}),
+        LexValue::Array(arr) => {
+            let items: Vec<Value> = arr.iter().map(lex_value_to_wire).collect();
+            json!({"t": "arr", "v": items})
+        }
+        LexValue::Map(map) => {
+            // Send entries in BTreeMap iteration order (which is
+            // bytewise-lex sorted, NOT length-then-lex). The encoder
+            // on each side re-sorts per dag-cbor rules — that's
+            // exactly what we're testing parity on.
+            let entries: Vec<Value> = map
+                .iter()
+                .map(|(k, v)| json!([k, lex_value_to_wire(v)]))
+                .collect();
+            json!({"t": "map", "v": entries})
+        }
+    }
+}
+
+/// Adversarial corpus — each value is engineered to hit a distinct
+/// dag-cbor wire encoding edge case. Add to this list when a real-world
+/// regression is found that a current fixture wouldn't have caught.
+fn cbor_parity_corpus() -> Vec<(&'static str, LexValue)> {
+    let mut large_map = BTreeMap::new();
+    // Same-length keys to exercise lexicographic-byte tiebreak.
+    large_map.insert("aaa".into(), LexValue::Integer(1));
+    large_map.insert("abc".into(), LexValue::Integer(2));
+    large_map.insert("aab".into(), LexValue::Integer(3));
+    // Different-length keys — dag-cbor sorts shorter first.
+    large_map.insert("z".into(), LexValue::Integer(4));
+    large_map.insert("zz".into(), LexValue::Integer(5));
+    large_map.insert("zzz".into(), LexValue::Integer(6));
+    // Multi-byte UTF-8 key (sorted bytewise, not codepoint-wise).
+    large_map.insert("é".into(), LexValue::Integer(7));
+
+    let mut nested_map = BTreeMap::new();
+    nested_map.insert("inner".into(), LexValue::Bool(true));
+    let mut outer_map = BTreeMap::new();
+    outer_map.insert("a".into(), LexValue::Map(nested_map));
+    outer_map.insert("b".into(), LexValue::Array(vec![LexValue::Integer(0)]));
+
+    let cid_a: Cid = "bafyreidfayvfuwqa7qlnopdjiqrxzs6blmoeu4rujcjtnci5beludirz2a"
+        .parse()
+        .unwrap();
+
+    vec![
+        ("null", LexValue::Null),
+        ("true", LexValue::Bool(true)),
+        ("false", LexValue::Bool(false)),
+        ("zero", LexValue::Integer(0)),
+        ("one", LexValue::Integer(1)),
+        ("neg_one", LexValue::Integer(-1)),
+        // CBOR major-type-0/1 boundary cases.
+        ("twentythree", LexValue::Integer(23)),
+        ("twentyfour", LexValue::Integer(24)),
+        ("u8_max", LexValue::Integer(255)),
+        ("u8_max_plus_one", LexValue::Integer(256)),
+        ("u16_max", LexValue::Integer(65_535)),
+        ("u32_max", LexValue::Integer(4_294_967_295)),
+        // Cap integers at the JS-safe range. JSON has no native i64
+        // representation — values outside [-(2^53-1), 2^53-1] lose
+        // precision passing through the JSON wire format and would
+        // arrive on the TS side as floats, producing a spurious
+        // codec divergence. A future enhancement could carry large
+        // ints as strings/BigInt; for the dag-cbor parity check we
+        // just stay inside the lossless JSON range. The Rust-only
+        // integer-encoding tests in `proto-blue-lex-cbor` cover
+        // i64::MAX / i64::MIN.
+        ("safe_pos_max", LexValue::Integer((1i64 << 53) - 1)),
+        ("safe_neg_max", LexValue::Integer(-((1i64 << 53) - 1))),
+        ("empty_string", LexValue::String(String::new())),
+        ("ascii", LexValue::String("hello".into())),
+        ("emoji", LexValue::String("hi 🚀 there".into())),
+        ("empty_bytes", LexValue::Bytes(Vec::new())),
+        ("short_bytes", LexValue::Bytes(vec![0xde, 0xad, 0xbe, 0xef])),
+        ("long_bytes", LexValue::Bytes(vec![0x42; 300])), // crosses 24-byte and 256-byte CBOR length thresholds
+        ("cid", LexValue::Cid(cid_a.clone())),
+        ("empty_arr", LexValue::Array(Vec::new())),
+        ("empty_map", LexValue::Map(BTreeMap::new())),
+        ("map_sort_edges", LexValue::Map(large_map)),
+        ("nested_map", LexValue::Map(outer_map)),
+        (
+            "deep_nest",
+            LexValue::Array(vec![LexValue::Array(vec![LexValue::Array(vec![
+                LexValue::Integer(42),
+            ])])]),
+        ),
+    ]
+}
+
+/// Wire-byte parity for `proto_blue_lex_cbor::encode` vs
+/// `@atproto/common::cborEncode`. Hex strings must match exactly.
+#[test]
+fn differential_dag_cbor_encode() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    for (name, val) in cbor_parity_corpus() {
+        let rust_bytes = proto_blue_lex_cbor::encode(&val)
+            .unwrap_or_else(|e| panic!("Rust encode({name}) failed: {e:?}"));
+        let rust_hex = hex::encode(&rust_bytes);
+
+        let wire = lex_value_to_wire(&val);
+        let ts_response: TsResult<serde_json::Value> = ts.call("cbor_encode_lexvalue", wire);
+        let ts_hex = ts_response
+            .into_ok()
+            .get("hex")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("TS cbor_encode_lexvalue({name}) returned no hex field"))
+            .to_string();
+
+        assert_eq!(
+            rust_hex, ts_hex,
+            "dag-cbor encode divergence on fixture {name:?}: \
+             Rust produced {rust_hex}, TS produced {ts_hex}"
+        );
+    }
+}
+
+/// CID derivation parity — encode the same LexValue, hash, multibase-encode
+/// the result. Same fixtures as `differential_dag_cbor_encode`; if encode
+/// parity holds then CID parity is automatic, but a separate test catches
+/// any divergence in the post-hash multibase / multihash framing.
+#[test]
+fn differential_cid_for_lexvalue() {
+    require_ts_runner!();
+    let mut ts = runner();
+
+    for (name, val) in cbor_parity_corpus() {
+        let rust_cid = proto_blue_lex_cbor::cid_for_lex(&val)
+            .unwrap_or_else(|e| panic!("Rust cid_for_lex({name}) failed: {e:?}"));
+        let rust_str = rust_cid.to_string();
+
+        let wire = lex_value_to_wire(&val);
+        let ts_response: TsResult<serde_json::Value> = ts.call("cid_for_lexvalue", wire);
+        let ts_str = ts_response
+            .into_ok()
+            .get("cid")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("TS cid_for_lexvalue({name}) returned no cid field"))
+            .to_string();
+
+        assert_eq!(
+            rust_str, ts_str,
+            "CID derivation divergence on fixture {name:?}: \
+             Rust produced {rust_str}, TS produced {ts_str}"
+        );
+    }
+}

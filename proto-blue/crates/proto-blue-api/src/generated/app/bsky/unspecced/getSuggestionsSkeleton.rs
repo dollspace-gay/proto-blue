@@ -13,9 +13,9 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub relative_to_did: Option<String>,
+    pub relative_to_did: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub viewer: Option<String>,
+    pub viewer: Option<proto_blue_syntax::Did>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,7 +27,7 @@ pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rec_id: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub relative_to_did: Option<String>,
+    pub relative_to_did: Option<proto_blue_syntax::Did>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -50,7 +50,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -62,13 +62,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.relative_to_did {
         qp.insert(
             "relativeToDid".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.viewer {
         qp.insert(
             "viewer".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -133,7 +133,13 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     Some(Params {
         cursor: ctx.params.get("cursor").cloned(),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        relative_to_did: ctx.params.get("relativeToDid").cloned(),
-        viewer: ctx.params.get("viewer").cloned(),
+        relative_to_did: ctx
+            .params
+            .get("relativeToDid")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
+        viewer: ctx
+            .params
+            .get("viewer")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
     })
 }

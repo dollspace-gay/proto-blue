@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Account {
     pub active: bool,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub seq: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    pub time: String,
+    pub time: proto_blue_syntax::Datetime,
 }
 
 /// Represents an update of repository state. Note that empty commits are allowed, which include no repo data changes, but an update to rev and signature.
@@ -26,11 +26,11 @@ pub struct Commit {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prev_data: Option<proto_blue_lex_data::Cid>,
     pub rebase: bool,
-    pub repo: String,
-    pub rev: String,
+    pub repo: proto_blue_syntax::Did,
+    pub rev: proto_blue_syntax::Tid,
     pub seq: i64,
-    pub since: Option<String>,
-    pub time: String,
+    pub since: Option<proto_blue_syntax::Tid>,
+    pub time: proto_blue_syntax::Datetime,
     pub too_big: bool,
 }
 
@@ -38,11 +38,11 @@ pub struct Commit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Identity {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub handle: Option<String>,
+    pub handle: Option<proto_blue_syntax::Handle>,
     pub seq: i64,
-    pub time: String,
+    pub time: proto_blue_syntax::Datetime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,8 +95,8 @@ pub struct RepoOp {
 #[serde(rename_all = "camelCase")]
 pub struct Sync {
     pub blocks: Vec<u8>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub rev: String,
     pub seq: i64,
-    pub time: String,
+    pub time: proto_blue_syntax::Datetime,
 }

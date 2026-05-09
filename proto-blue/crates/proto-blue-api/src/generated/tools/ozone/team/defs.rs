@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Member {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
-    pub did: String,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub disabled: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -17,7 +17,7 @@ pub struct Member {
     pub profile: Option<crate::app::bsky::actor::defs::ProfileViewDetailed>,
     pub role: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<String>,
+    pub updated_at: Option<proto_blue_syntax::Datetime>,
 }
 
 /// Admin role. Highest level of access, can perform all actions.

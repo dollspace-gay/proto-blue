@@ -40,7 +40,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "subjects".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );

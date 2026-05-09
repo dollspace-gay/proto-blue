@@ -10,7 +10,7 @@ pub const CURATELIST: &str = "app.bsky.graph.defs#curatelist";
 #[serde(rename_all = "camelCase")]
 pub struct ListItemView {
     pub subject: crate::app::bsky::actor::defs::ProfileView,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 pub type ListPurpose = String;
@@ -29,14 +29,14 @@ pub struct ListView {
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description_facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list_item_count: Option<i64>,
     pub name: String,
     pub purpose: ListPurpose,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<ListViewerState>,
 }
@@ -48,14 +48,14 @@ pub struct ListViewBasic {
     pub avatar: Option<String>,
     pub cid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub indexed_at: Option<String>,
+    pub indexed_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list_item_count: Option<i64>,
     pub name: String,
     pub purpose: ListPurpose,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<ListViewerState>,
 }
@@ -64,7 +64,7 @@ pub struct ListViewBasic {
 #[serde(rename_all = "camelCase")]
 pub struct ListViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocked: Option<String>,
+    pub blocked: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub muted: Option<bool>,
 }
@@ -76,7 +76,7 @@ pub const MODLIST: &str = "app.bsky.graph.defs#modlist";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NotFoundActor {
-    pub actor: String,
+    pub actor: proto_blue_syntax::AtIdentifier,
     pub not_found: bool,
 }
 
@@ -88,18 +88,18 @@ pub const REFERENCELIST: &str = "app.bsky.graph.defs#referencelist";
 #[serde(rename_all = "camelCase")]
 pub struct Relationship {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocked_by: Option<String>,
+    pub blocked_by: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocked_by_list: Option<String>,
+    pub blocked_by_list: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocking: Option<String>,
+    pub blocking: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub blocking_by_list: Option<String>,
-    pub did: String,
+    pub blocking_by_list: Option<proto_blue_syntax::AtUri>,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub followed_by: Option<String>,
+    pub followed_by: Option<proto_blue_syntax::AtUri>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub following: Option<String>,
+    pub following: Option<proto_blue_syntax::AtUri>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,7 +109,7 @@ pub struct StarterPackView {
     pub creator: crate::app::bsky::actor::defs::ProfileViewBasic,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub feeds: Option<Vec<crate::app::bsky::feed::defs::GeneratorView>>,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub joined_all_time_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -121,7 +121,7 @@ pub struct StarterPackView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list_items_sample: Option<Vec<ListItemView>>,
     pub record: serde_json::Value,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -129,7 +129,7 @@ pub struct StarterPackView {
 pub struct StarterPackViewBasic {
     pub cid: String,
     pub creator: crate::app::bsky::actor::defs::ProfileViewBasic,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub joined_all_time_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -139,5 +139,5 @@ pub struct StarterPackViewBasic {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub list_item_count: Option<i64>,
     pub record: serde_json::Value,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }

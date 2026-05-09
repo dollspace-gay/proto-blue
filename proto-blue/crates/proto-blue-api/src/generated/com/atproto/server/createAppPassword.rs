@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPassword {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub name: String,
     pub password: String,
     #[serde(skip_serializing_if = "Option::is_none")]

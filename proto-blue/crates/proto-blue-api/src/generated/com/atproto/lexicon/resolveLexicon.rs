@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub nsid: String,
+    pub nsid: proto_blue_syntax::Nsid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,7 +16,7 @@ pub struct Params {
 pub struct Output {
     pub cid: String,
     pub schema: crate::com::atproto::lexicon::schema::Main,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// Errors a `call()` on this method can return.
@@ -46,7 +46,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.nsid;
         qp.insert(
             "nsid".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -105,6 +105,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        nsid: (ctx.params.get("nsid").cloned())?,
+        nsid: (ctx
+            .params
+            .get("nsid")
+            .and_then(|v| proto_blue_syntax::Nsid::new(v).ok()))?,
     })
 }

@@ -18,11 +18,24 @@ pub struct Link {
     pub uri: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainFeaturesItemRefs {
+    #[serde(rename = "app.bsky.richtext.facet#mention")]
+    BskyRichtextFacetMention(Box<Mention>),
+    #[serde(rename = "app.bsky.richtext.facet#link")]
+    BskyRichtextFacetLink(Box<Link>),
+    #[serde(rename = "app.bsky.richtext.facet#tag")]
+    BskyRichtextFacetTag(Box<Tag>),
+    #[serde(other)]
+    Other,
+}
+
 /// Annotation of a sub-string within rich text.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
-    pub features: Vec<serde_json::Value>,
+    pub features: Vec<MainFeaturesItemRefs>,
     pub index: ByteSlice,
 }
 
@@ -30,7 +43,7 @@ pub struct Main {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Mention {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 /// Facet feature for a hashtag. The text usually includes a '#' prefix, but the facet reference should not (except in the case of 'double hash tags').

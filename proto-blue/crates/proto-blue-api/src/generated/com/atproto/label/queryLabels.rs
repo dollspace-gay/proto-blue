@@ -13,7 +13,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sources: Option<Vec<String>>,
+    pub sources: Option<Vec<proto_blue_syntax::Did>>,
     pub uri_patterns: Vec<String>,
 }
 
@@ -45,7 +45,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -59,7 +59,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "sources".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -70,7 +70,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "uriPatterns".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -133,12 +133,12 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     Some(Params {
         cursor: ctx.params.get("cursor").cloned(),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        sources: Some(
-            ctx.params
-                .get("sources")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        sources: ctx.params.get("sources").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Did::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
         uri_patterns: (Some(
             ctx.params
                 .get("uriPatterns")

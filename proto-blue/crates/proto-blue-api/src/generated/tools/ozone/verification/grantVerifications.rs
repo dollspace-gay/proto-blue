@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct GrantError {
     pub error: String,
-    pub subject: String,
+    pub subject: proto_blue_syntax::Did,
 }
 
 /// Grant verifications to multiple subjects. Allows batch processing of up to 100 verifications at once.
@@ -106,8 +106,8 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct VerificationInput {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     pub display_name: String,
-    pub handle: String,
-    pub subject: String,
+    pub handle: proto_blue_syntax::Handle,
+    pub subject: proto_blue_syntax::Did,
 }

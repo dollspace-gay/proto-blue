@@ -15,11 +15,22 @@ pub struct Params {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputMessagesItemRefs {
+    #[serde(rename = "chat.bsky.convo.defs#messageView")]
+    BskyConvoDefsMessageView(Box<crate::chat::bsky::convo::defs::MessageView>),
+    #[serde(rename = "chat.bsky.convo.defs#deletedMessageView")]
+    BskyConvoDefsDeletedMessageView(Box<crate::chat::bsky::convo::defs::DeletedMessageView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
-    pub messages: Vec<serde_json::Value>,
+    pub messages: Vec<OutputMessagesItemRefs>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -43,13 +54,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.convo_id;
         qp.insert(
             "convoId".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {

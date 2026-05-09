@@ -12,11 +12,38 @@ pub struct Params {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputLogsItemRefs {
+    #[serde(rename = "chat.bsky.convo.defs#logBeginConvo")]
+    BskyConvoDefsLogBeginConvo(Box<crate::chat::bsky::convo::defs::LogBeginConvo>),
+    #[serde(rename = "chat.bsky.convo.defs#logAcceptConvo")]
+    BskyConvoDefsLogAcceptConvo(Box<crate::chat::bsky::convo::defs::LogAcceptConvo>),
+    #[serde(rename = "chat.bsky.convo.defs#logLeaveConvo")]
+    BskyConvoDefsLogLeaveConvo(Box<crate::chat::bsky::convo::defs::LogLeaveConvo>),
+    #[serde(rename = "chat.bsky.convo.defs#logMuteConvo")]
+    BskyConvoDefsLogMuteConvo(Box<crate::chat::bsky::convo::defs::LogMuteConvo>),
+    #[serde(rename = "chat.bsky.convo.defs#logUnmuteConvo")]
+    BskyConvoDefsLogUnmuteConvo(Box<crate::chat::bsky::convo::defs::LogUnmuteConvo>),
+    #[serde(rename = "chat.bsky.convo.defs#logCreateMessage")]
+    BskyConvoDefsLogCreateMessage(Box<crate::chat::bsky::convo::defs::LogCreateMessage>),
+    #[serde(rename = "chat.bsky.convo.defs#logDeleteMessage")]
+    BskyConvoDefsLogDeleteMessage(Box<crate::chat::bsky::convo::defs::LogDeleteMessage>),
+    #[serde(rename = "chat.bsky.convo.defs#logReadMessage")]
+    BskyConvoDefsLogReadMessage(Box<crate::chat::bsky::convo::defs::LogReadMessage>),
+    #[serde(rename = "chat.bsky.convo.defs#logAddReaction")]
+    BskyConvoDefsLogAddReaction(Box<crate::chat::bsky::convo::defs::LogAddReaction>),
+    #[serde(rename = "chat.bsky.convo.defs#logRemoveReaction")]
+    BskyConvoDefsLogRemoveReaction(Box<crate::chat::bsky::convo::defs::LogRemoveReaction>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
-    pub logs: Vec<serde_json::Value>,
+    pub logs: Vec<OutputLogsItemRefs>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -39,7 +66,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp

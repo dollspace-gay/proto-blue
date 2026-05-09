@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     pub content_markdown: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_by: Option<String>,
+    pub created_by: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
     pub name: String,

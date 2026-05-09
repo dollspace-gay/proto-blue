@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct TemplateView {
     pub content_markdown: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub disabled: bool,
     pub id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
-    pub last_updated_by: String,
+    pub last_updated_by: proto_blue_syntax::Did,
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
-    pub updated_at: String,
+    pub updated_at: proto_blue_syntax::Datetime,
 }

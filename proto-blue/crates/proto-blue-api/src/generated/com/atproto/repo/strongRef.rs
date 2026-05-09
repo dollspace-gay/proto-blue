@@ -7,5 +7,5 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Main {
     pub cid: String,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }

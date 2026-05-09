@@ -9,17 +9,28 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub birth_date: Option<String>,
+    pub birth_date: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputResultRefs {
+    #[serde(rename = "com.atproto.temp.checkHandleAvailability#resultAvailable")]
+    AtprotoTempCheckHandleAvailabilityResultAvailable(Box<ResultAvailable>),
+    #[serde(rename = "com.atproto.temp.checkHandleAvailability#resultUnavailable")]
+    AtprotoTempCheckHandleAvailabilityResultUnavailable(Box<ResultUnavailable>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub handle: String,
-    pub result: serde_json::Value,
+    pub handle: proto_blue_syntax::Handle,
+    pub result: OutputResultRefs,
 }
 
 /// Errors a `call()` on this method can return.
@@ -48,20 +59,20 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.birth_date {
         qp.insert(
             "birthDate".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.email {
         qp.insert(
             "email".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.handle;
         qp.insert(
             "handle".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -124,9 +135,15 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        birth_date: ctx.params.get("birthDate").cloned(),
+        birth_date: ctx
+            .params
+            .get("birthDate")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
         email: ctx.params.get("email").cloned(),
-        handle: (ctx.params.get("handle").cloned())?,
+        handle: (ctx
+            .params
+            .get("handle")
+            .and_then(|v| proto_blue_syntax::Handle::new(v).ok()))?,
     })
 }
 
@@ -145,6 +162,6 @@ pub struct ResultUnavailable {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Suggestion {
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     pub method: String,
 }

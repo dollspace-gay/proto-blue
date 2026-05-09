@@ -3,6 +3,15 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainLabelsRefs {
+    #[serde(rename = "com.atproto.label.defs#selfLabels")]
+    AtprotoLabelDefsSelfLabels(Box<crate::com::atproto::label::defs::SelfLabels>),
+    #[serde(other)]
+    Other,
+}
+
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.graph.list";
 
@@ -14,13 +23,13 @@ pub struct Main {
     pub r#type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<proto_blue_lex_data::BlobRef>,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description_facets: Option<Vec<crate::app::bsky::richtext::facet::Main>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<serde_json::Value>,
+    pub labels: Option<MainLabelsRefs>,
     pub name: String,
     pub purpose: crate::app::bsky::graph::defs::ListPurpose,
 }

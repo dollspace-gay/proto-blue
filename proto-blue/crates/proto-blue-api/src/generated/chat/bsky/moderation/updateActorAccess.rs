@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub actor: String,
+    pub actor: proto_blue_syntax::Did,
     pub allow_access: bool,
     #[serde(rename = "ref")]
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -8,6 +8,15 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct DisableRule {}
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainEmbeddingRulesItemRefs {
+    #[serde(rename = "app.bsky.feed.postgate#disableRule")]
+    BskyFeedPostgateDisableRule(Box<DisableRule>),
+    #[serde(other)]
+    Other,
+}
+
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.feed.postgate";
 
@@ -17,12 +26,12 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub detached_embedding_uris: Option<Vec<String>>,
+    pub detached_embedding_uris: Option<Vec<proto_blue_syntax::AtUri>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embedding_rules: Option<Vec<serde_json::Value>>,
-    pub post: String,
+    pub embedding_rules: Option<Vec<MainEmbeddingRulesItemRefs>>,
+    pub post: proto_blue_syntax::AtUri,
 }
 
 fn default_type() -> String {

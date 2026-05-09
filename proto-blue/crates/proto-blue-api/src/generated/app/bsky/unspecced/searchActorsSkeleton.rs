@@ -16,7 +16,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub typeahead: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub viewer: Option<String>,
+    pub viewer: Option<proto_blue_syntax::Did>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,7 +54,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -67,7 +67,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.q;
         qp.insert(
             "q".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.typeahead {
@@ -79,7 +79,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.viewer {
         qp.insert(
             "viewer".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -145,6 +145,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
             .params
             .get("typeahead")
             .and_then(|v| v.parse::<bool>().ok()),
-        viewer: ctx.params.get("viewer").cloned(),
+        viewer: ctx
+            .params
+            .get("viewer")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
     })
 }

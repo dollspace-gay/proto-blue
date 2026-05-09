@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    pub key: String,
+    pub key: proto_blue_syntax::Nsid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub manager_role: Option<String>,
     pub scope: String,

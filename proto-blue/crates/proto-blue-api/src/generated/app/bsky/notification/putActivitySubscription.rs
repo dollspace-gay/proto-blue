@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     pub activity_subscription: crate::app::bsky::notification::defs::ActivitySubscription,
-    pub subject: String,
+    pub subject: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct Input {
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub activity_subscription: Option<crate::app::bsky::notification::defs::ActivitySubscription>,
-    pub subject: String,
+    pub subject: proto_blue_syntax::Did,
 }
 
 /// Errors a `call()` on this method can return.

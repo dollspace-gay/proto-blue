@@ -12,7 +12,7 @@ pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_by: Option<String>,
+    pub created_by: Option<proto_blue_syntax::Did>,
     pub pattern: crate::tools::ozone::safelink::defs::PatternType,
     pub reason: crate::tools::ozone::safelink::defs::ReasonType,
     pub url: String,

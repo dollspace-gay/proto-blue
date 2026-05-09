@@ -8,11 +8,11 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub aud: String,
+    pub aud: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exp: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub lxm: Option<String>,
+    pub lxm: Option<proto_blue_syntax::Nsid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -48,7 +48,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.aud;
         qp.insert(
             "aud".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.exp {
@@ -57,7 +57,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.lxm {
         qp.insert(
             "lxm".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -116,8 +116,14 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        aud: (ctx.params.get("aud").cloned())?,
+        aud: (ctx
+            .params
+            .get("aud")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
         exp: ctx.params.get("exp").and_then(|v| v.parse::<i64>().ok()),
-        lxm: ctx.params.get("lxm").cloned(),
+        lxm: ctx
+            .params
+            .get("lxm")
+            .and_then(|v| proto_blue_syntax::Nsid::new(v).ok()),
     })
 }

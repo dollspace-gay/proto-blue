@@ -3,6 +3,15 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainLabelsRefs {
+    #[serde(rename = "com.atproto.label.defs#selfLabels")]
+    AtprotoLabelDefsSelfLabels(Box<crate::com::atproto::label::defs::SelfLabels>),
+    #[serde(other)]
+    Other,
+}
+
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.labeler.service";
 
@@ -12,14 +21,14 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<serde_json::Value>,
+    pub labels: Option<MainLabelsRefs>,
     pub policies: crate::app::bsky::labeler::defs::LabelerPolicies,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason_types: Option<Vec<crate::com::atproto::moderation::defs::ReasonType>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject_collections: Option<Vec<String>>,
+    pub subject_collections: Option<Vec<proto_blue_syntax::Nsid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_types: Option<Vec<crate::com::atproto::moderation::defs::SubjectType>>,
 }

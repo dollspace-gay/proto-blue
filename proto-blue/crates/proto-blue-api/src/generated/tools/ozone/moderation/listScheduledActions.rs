@@ -11,14 +11,14 @@ pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub ends_before: Option<String>,
+    pub ends_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub starts_after: Option<String>,
+    pub starts_after: Option<proto_blue_syntax::Datetime>,
     pub statuses: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subjects: Option<Vec<String>>,
+    pub subjects: Option<Vec<proto_blue_syntax::Did>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

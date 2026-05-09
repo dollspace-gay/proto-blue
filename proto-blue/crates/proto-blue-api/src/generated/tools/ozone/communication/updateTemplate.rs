@@ -20,7 +20,7 @@ pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_by: Option<String>,
+    pub updated_by: Option<proto_blue_syntax::Did>,
 }
 
 pub type Output = crate::tools::ozone::communication::defs::TemplateView;

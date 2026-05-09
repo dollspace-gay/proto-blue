@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<String>,
-    pub collection: String,
-    pub repo: String,
-    pub rkey: String,
+    pub collection: proto_blue_syntax::Nsid,
+    pub repo: proto_blue_syntax::AtIdentifier,
+    pub rkey: proto_blue_syntax::RecordKey,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -20,7 +20,7 @@ pub struct Params {
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cid: Option<String>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     pub value: serde_json::Value,
 }
 
@@ -49,28 +49,28 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cid {
         qp.insert(
             "cid".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.collection;
         qp.insert(
             "collection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.repo;
         qp.insert(
             "repo".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.rkey;
         qp.insert(
             "rkey".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -130,8 +130,17 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         cid: ctx.params.get("cid").cloned(),
-        collection: (ctx.params.get("collection").cloned())?,
-        repo: (ctx.params.get("repo").cloned())?,
-        rkey: (ctx.params.get("rkey").cloned())?,
+        collection: (ctx
+            .params
+            .get("collection")
+            .and_then(|v| proto_blue_syntax::Nsid::new(v).ok()))?,
+        repo: (ctx
+            .params
+            .get("repo")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()))?,
+        rkey: (ctx
+            .params
+            .get("rkey")
+            .and_then(|v| proto_blue_syntax::RecordKey::new(v).ok()))?,
     })
 }

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Params {
     pub cid: String,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 /// Errors a `call()` on this method can return.
@@ -50,14 +50,14 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.cid;
         qp.insert(
             "cid".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.did;
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -111,6 +111,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         cid: (ctx.params.get("cid").cloned())?,
-        did: (ctx.params.get("did").cloned())?,
+        did: (ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
     })
 }

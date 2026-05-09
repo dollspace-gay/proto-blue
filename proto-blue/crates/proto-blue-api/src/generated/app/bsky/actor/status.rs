@@ -6,6 +6,16 @@ use serde::{Deserialize, Serialize};
 /// Advertises an account as currently offering live content.
 pub const LIVE: &str = "app.bsky.actor.status#live";
 
+/// An optional embed associated with the status.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainEmbedRefs {
+    #[serde(rename = "app.bsky.embed.external")]
+    BskyEmbedExternal(Box<crate::app::bsky::embed::external::Main>),
+    #[serde(other)]
+    Other,
+}
+
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.actor.status";
 
@@ -15,11 +25,11 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_minutes: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<MainEmbedRefs>,
     pub status: String,
 }
 

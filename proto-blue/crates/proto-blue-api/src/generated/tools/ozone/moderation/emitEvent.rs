@@ -6,15 +6,107 @@ use serde::{Deserialize, Serialize};
 /// Take a moderation action on an actor.
 /// XRPC Procedure: tools.ozone.moderation.emitEvent
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum InputEventRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#modEventTakedown")]
+    OzoneModerationDefsModEventTakedown(
+        Box<crate::tools::ozone::moderation::defs::ModEventTakedown>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventAcknowledge")]
+    OzoneModerationDefsModEventAcknowledge(
+        Box<crate::tools::ozone::moderation::defs::ModEventAcknowledge>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventEscalate")]
+    OzoneModerationDefsModEventEscalate(
+        Box<crate::tools::ozone::moderation::defs::ModEventEscalate>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventComment")]
+    OzoneModerationDefsModEventComment(Box<crate::tools::ozone::moderation::defs::ModEventComment>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventLabel")]
+    OzoneModerationDefsModEventLabel(Box<crate::tools::ozone::moderation::defs::ModEventLabel>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventReport")]
+    OzoneModerationDefsModEventReport(Box<crate::tools::ozone::moderation::defs::ModEventReport>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventMute")]
+    OzoneModerationDefsModEventMute(Box<crate::tools::ozone::moderation::defs::ModEventMute>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventUnmute")]
+    OzoneModerationDefsModEventUnmute(Box<crate::tools::ozone::moderation::defs::ModEventUnmute>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventMuteReporter")]
+    OzoneModerationDefsModEventMuteReporter(
+        Box<crate::tools::ozone::moderation::defs::ModEventMuteReporter>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventUnmuteReporter")]
+    OzoneModerationDefsModEventUnmuteReporter(
+        Box<crate::tools::ozone::moderation::defs::ModEventUnmuteReporter>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventReverseTakedown")]
+    OzoneModerationDefsModEventReverseTakedown(
+        Box<crate::tools::ozone::moderation::defs::ModEventReverseTakedown>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventResolveAppeal")]
+    OzoneModerationDefsModEventResolveAppeal(
+        Box<crate::tools::ozone::moderation::defs::ModEventResolveAppeal>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventEmail")]
+    OzoneModerationDefsModEventEmail(Box<crate::tools::ozone::moderation::defs::ModEventEmail>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventDivert")]
+    OzoneModerationDefsModEventDivert(Box<crate::tools::ozone::moderation::defs::ModEventDivert>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventTag")]
+    OzoneModerationDefsModEventTag(Box<crate::tools::ozone::moderation::defs::ModEventTag>),
+    #[serde(rename = "tools.ozone.moderation.defs#accountEvent")]
+    OzoneModerationDefsAccountEvent(Box<crate::tools::ozone::moderation::defs::AccountEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#identityEvent")]
+    OzoneModerationDefsIdentityEvent(Box<crate::tools::ozone::moderation::defs::IdentityEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#recordEvent")]
+    OzoneModerationDefsRecordEvent(Box<crate::tools::ozone::moderation::defs::RecordEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventPriorityScore")]
+    OzoneModerationDefsModEventPriorityScore(
+        Box<crate::tools::ozone::moderation::defs::ModEventPriorityScore>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#ageAssuranceEvent")]
+    OzoneModerationDefsAgeAssuranceEvent(
+        Box<crate::tools::ozone::moderation::defs::AgeAssuranceEvent>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#ageAssuranceOverrideEvent")]
+    OzoneModerationDefsAgeAssuranceOverrideEvent(
+        Box<crate::tools::ozone::moderation::defs::AgeAssuranceOverrideEvent>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#revokeAccountCredentialsEvent")]
+    OzoneModerationDefsRevokeAccountCredentialsEvent(
+        Box<crate::tools::ozone::moderation::defs::RevokeAccountCredentialsEvent>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#scheduleTakedownEvent")]
+    OzoneModerationDefsScheduleTakedownEvent(
+        Box<crate::tools::ozone::moderation::defs::ScheduleTakedownEvent>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#cancelScheduledTakedownEvent")]
+    OzoneModerationDefsCancelScheduledTakedownEvent(
+        Box<crate::tools::ozone::moderation::defs::CancelScheduledTakedownEvent>,
+    ),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum InputSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub created_by: String,
-    pub event: serde_json::Value,
+    pub created_by: proto_blue_syntax::Did,
+    pub event: InputEventRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mod_tool: Option<crate::tools::ozone::moderation::defs::ModTool>,
-    pub subject: serde_json::Value,
+    pub subject: InputSubjectRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_blob_cids: Option<Vec<String>>,
 }

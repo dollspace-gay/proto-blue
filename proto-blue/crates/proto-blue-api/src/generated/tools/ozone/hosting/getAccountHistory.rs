@@ -9,7 +9,7 @@ pub struct AccountCreated {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub handle: Option<String>,
+    pub handle: Option<proto_blue_syntax::Handle>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,17 +25,34 @@ pub struct EmailUpdated {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum EventDetailsRefs {
+    #[serde(rename = "tools.ozone.hosting.getAccountHistory#accountCreated")]
+    OzoneHostingGetAccountHistoryAccountCreated(Box<AccountCreated>),
+    #[serde(rename = "tools.ozone.hosting.getAccountHistory#emailUpdated")]
+    OzoneHostingGetAccountHistoryEmailUpdated(Box<EmailUpdated>),
+    #[serde(rename = "tools.ozone.hosting.getAccountHistory#emailConfirmed")]
+    OzoneHostingGetAccountHistoryEmailConfirmed(Box<EmailConfirmed>),
+    #[serde(rename = "tools.ozone.hosting.getAccountHistory#passwordUpdated")]
+    OzoneHostingGetAccountHistoryPasswordUpdated(Box<PasswordUpdated>),
+    #[serde(rename = "tools.ozone.hosting.getAccountHistory#handleUpdated")]
+    OzoneHostingGetAccountHistoryHandleUpdated(Box<HandleUpdated>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Event {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub created_by: String,
-    pub details: serde_json::Value,
+    pub details: EventDetailsRefs,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HandleUpdated {
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
 }
 
 /// Get account history, e.g. log of updated email addresses or other identity information.
@@ -45,7 +62,7 @@ pub struct HandleUpdated {
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub events: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -80,14 +97,14 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.did;
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.events {
@@ -95,7 +112,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "events".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -163,7 +180,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         cursor: ctx.params.get("cursor").cloned(),
-        did: (ctx.params.get("did").cloned())?,
+        did: (ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
         events: Some(
             ctx.params
                 .get("events")

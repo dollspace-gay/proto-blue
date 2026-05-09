@@ -6,6 +6,17 @@ use serde::{Deserialize, Serialize};
 /// Submit a moderation report regarding an atproto account or record. Implemented by moderation services (with PDS proxying), and requires auth.
 /// XRPC Procedure: com.atproto.moderation.createReport
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum InputSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -13,19 +24,30 @@ pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     pub reason_type: crate::com::atproto::moderation::defs::ReasonType,
-    pub subject: serde_json::Value,
+    pub subject: InputSubjectRefs,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
     pub reason_type: crate::com::atproto::moderation::defs::ReasonType,
-    pub reported_by: String,
-    pub subject: serde_json::Value,
+    pub reported_by: proto_blue_syntax::Did,
+    pub subject: OutputSubjectRefs,
 }
 
 /// Errors a `call()` on this method can return.

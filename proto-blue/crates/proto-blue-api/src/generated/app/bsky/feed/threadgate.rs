@@ -17,7 +17,22 @@ pub struct FollowingRule {}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListRule {
-    pub list: String,
+    pub list: proto_blue_syntax::AtUri,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainAllowItemRefs {
+    #[serde(rename = "app.bsky.feed.threadgate#mentionRule")]
+    BskyFeedThreadgateMentionRule(Box<MentionRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#followerRule")]
+    BskyFeedThreadgateFollowerRule(Box<FollowerRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#followingRule")]
+    BskyFeedThreadgateFollowingRule(Box<FollowingRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#listRule")]
+    BskyFeedThreadgateListRule(Box<ListRule>),
+    #[serde(other)]
+    Other,
 }
 
 /// `$type` discriminator for this record on the wire.
@@ -30,11 +45,11 @@ pub struct Main {
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub allow: Option<Vec<serde_json::Value>>,
-    pub created_at: String,
+    pub allow: Option<Vec<MainAllowItemRefs>>,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hidden_replies: Option<Vec<String>>,
-    pub post: String,
+    pub hidden_replies: Option<Vec<proto_blue_syntax::AtUri>>,
+    pub post: proto_blue_syntax::AtUri,
 }
 
 fn default_type() -> String {

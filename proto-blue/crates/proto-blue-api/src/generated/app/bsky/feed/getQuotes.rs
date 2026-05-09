@@ -14,7 +14,7 @@ pub struct Params {
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,7 +25,7 @@ pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     pub posts: Vec<crate::app::bsky::feed::defs::PostView>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// Errors a `call()` on this method can return.
@@ -48,13 +48,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cid {
         qp.insert(
             "cid".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -67,7 +67,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.uri;
         qp.insert(
             "uri".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -129,6 +129,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
         cid: ctx.params.get("cid").cloned(),
         cursor: ctx.params.get("cursor").cloned(),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        uri: (ctx.params.get("uri").cloned())?,
+        uri: (ctx
+            .params
+            .get("uri")
+            .and_then(|v| proto_blue_syntax::AtUri::new(v).ok()))?,
     })
 }

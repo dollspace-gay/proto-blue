@@ -10,14 +10,14 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub revoke_reason: Option<String>,
-    pub uris: Vec<String>,
+    pub uris: Vec<proto_blue_syntax::AtUri>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     pub failed_revocations: Vec<RevokeError>,
-    pub revoked_verifications: Vec<String>,
+    pub revoked_verifications: Vec<proto_blue_syntax::AtUri>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -101,5 +101,5 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct RevokeError {
     pub error: String,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }

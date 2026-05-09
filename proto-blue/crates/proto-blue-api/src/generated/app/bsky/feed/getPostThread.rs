@@ -12,13 +12,26 @@ pub struct Params {
     pub depth: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_height: Option<i64>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputThreadRefs {
+    #[serde(rename = "app.bsky.feed.defs#threadViewPost")]
+    BskyFeedDefsThreadViewPost(Box<crate::app::bsky::feed::defs::ThreadViewPost>),
+    #[serde(rename = "app.bsky.feed.defs#notFoundPost")]
+    BskyFeedDefsNotFoundPost(Box<crate::app::bsky::feed::defs::NotFoundPost>),
+    #[serde(rename = "app.bsky.feed.defs#blockedPost")]
+    BskyFeedDefsBlockedPost(Box<crate::app::bsky::feed::defs::BlockedPost>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub thread: serde_json::Value,
+    pub thread: OutputThreadRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub threadgate: Option<crate::app::bsky::feed::defs::ThreadgateView>,
 }
@@ -61,7 +74,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.uri;
         qp.insert(
             "uri".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -125,6 +138,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
             .params
             .get("parentHeight")
             .and_then(|v| v.parse::<i64>().ok()),
-        uri: (ctx.params.get("uri").cloned())?,
+        uri: (ctx
+            .params
+            .get("uri")
+            .and_then(|v| proto_blue_syntax::AtUri::new(v).ok()))?,
     })
 }

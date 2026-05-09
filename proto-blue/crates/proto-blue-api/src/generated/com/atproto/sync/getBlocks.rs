@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Params {
     pub cids: Vec<String>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 /// Errors a `call()` on this method can return.
@@ -52,7 +52,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "cids".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -61,7 +61,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.did;
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -120,6 +120,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
                 .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
                 .unwrap_or_default(),
         ))?,
-        did: (ctx.params.get("did").cloned())?,
+        did: (ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
     })
 }

@@ -39,6 +39,22 @@
 //
 //   @atproto/lexicon
 //     - lexicon_validate_record : { lexicons, record_type, record } → { valid, error?, message? }
+//
+//   @atproto/common (dag-cbor parity — added for #10)
+//     - cbor_encode_lexvalue  : LexValueJson → { hex } (raw dag-cbor bytes)
+//     - cid_for_lexvalue      : LexValueJson → { cid } (canonical multibase string)
+//
+//     LexValueJson is a tagged-enum wire format both sides build IPLD
+//     from. Avoids coupling the cbor-parity test to the lex-json
+//     codec's own correctness. Shape:
+//       { t: "null" }
+//       { t: "bool", v: true|false }
+//       { t: "int", v: <i64-as-number> }    // Range-checked to JS-safe ints upstream
+//       { t: "str", v: "..." }
+//       { t: "bytes", hex: "deadbeef" }
+//       { t: "cid", s: "bafyrei..." }       // multibase
+//       { t: "arr", v: [ <LexValueJson>... ] }
+//       { t: "map", v: [ [k, <LexValueJson>], ... ] }   // insertion-order entries
 
 import {
   normalizeHandle,
@@ -59,6 +75,8 @@ import {
   multibaseToBytes,
 } from '@atproto/crypto'
 import { Lexicons } from '@atproto/lexicon'
+import { cborEncode, cidForCbor } from '@atproto/common'
+import { CID } from 'multiformats/cid'
 import readline from 'node:readline'
 
 const rl = readline.createInterface({
@@ -78,14 +96,14 @@ for await (const line of rl) {
   }
 
   try {
-    const value = dispatch(req.op, req.input)
+    const value = await dispatch(req.op, req.input)
     process.stdout.write(JSON.stringify({ ok: true, value }) + '\n')
   } catch (e) {
     writeError(e?.constructor?.name ?? 'Error', e)
   }
 }
 
-function dispatch(op, input) {
+async function dispatch(op, input) {
   switch (op) {
     // ── @atproto/syntax ────────────────────────────────────────────
     case 'normalize_handle':
@@ -183,8 +201,83 @@ function dispatch(op, input) {
       }
     }
 
+    // ── @atproto/common — dag-cbor parity ──────────────────────────
+    case 'cbor_encode_lexvalue': {
+      const ipld = lexValueJsonToIpld(input)
+      const bytes = cborEncode(ipld)
+      return { hex: Buffer.from(bytes).toString('hex') }
+    }
+
+    case 'cid_for_lexvalue': {
+      const ipld = lexValueJsonToIpld(input)
+      const cid = await cidForCbor(ipld)
+      return { cid: cid.toString() }
+    }
+
     default:
       throw new Error(`Unknown op: ${op}`)
+  }
+}
+
+/// Build a native IPLD value from a LexValueJson record. Fails loudly
+/// on unknown shapes — silent coercion would hide test bugs.
+function lexValueJsonToIpld(node) {
+  if (node === null || typeof node !== 'object' || typeof node.t !== 'string') {
+    throw new Error(`LexValueJson: expected tagged object, got ${JSON.stringify(node)}`)
+  }
+  switch (node.t) {
+    case 'null':
+      return null
+    case 'bool':
+      if (typeof node.v !== 'boolean') {
+        throw new Error(`LexValueJson bool: v must be boolean, got ${typeof node.v}`)
+      }
+      return node.v
+    case 'int':
+      if (typeof node.v !== 'number' || !Number.isInteger(node.v)) {
+        throw new Error(`LexValueJson int: v must be integer, got ${node.v}`)
+      }
+      return node.v
+    case 'str':
+      if (typeof node.v !== 'string') {
+        throw new Error(`LexValueJson str: v must be string`)
+      }
+      return node.v
+    case 'bytes':
+      if (typeof node.hex !== 'string') {
+        throw new Error(`LexValueJson bytes: hex must be a string`)
+      }
+      return Buffer.from(node.hex, 'hex')
+    case 'cid':
+      if (typeof node.s !== 'string') {
+        throw new Error(`LexValueJson cid: s must be a multibase string`)
+      }
+      return CID.parse(node.s)
+    case 'arr':
+      if (!Array.isArray(node.v)) {
+        throw new Error(`LexValueJson arr: v must be an array`)
+      }
+      return node.v.map(lexValueJsonToIpld)
+    case 'map': {
+      // dag-cbor maps are JS objects; @atproto/common's cborEncode
+      // sorts keys per the dag-cbor spec.
+      if (!Array.isArray(node.v)) {
+        throw new Error(`LexValueJson map: v must be an array of [k, v] entries`)
+      }
+      const obj = {}
+      for (const entry of node.v) {
+        if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string') {
+          throw new Error(`LexValueJson map entry: must be [string, LexValueJson]`)
+        }
+        if (Object.prototype.hasOwnProperty.call(obj, entry[0])) {
+          throw new Error(`LexValueJson map: duplicate key ${entry[0]}`)
+        }
+        obj[entry[0]] = lexValueJsonToIpld(entry[1])
+      }
+      return obj
+    }
+    default:
+      throw new Error(`LexValueJson: unknown tag ${node.t}`)
   }
 }
 

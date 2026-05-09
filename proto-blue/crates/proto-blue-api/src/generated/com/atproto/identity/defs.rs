@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityInfo {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub did_doc: serde_json::Value,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
 }

@@ -12,8 +12,8 @@ pub struct Main {
     /// The `$type` discriminator. Defaults to [`TYPE`] on construction.
     #[serde(rename = "$type", default = "default_type")]
     pub r#type: String,
-    pub created_at: String,
-    pub subject: String,
+    pub created_at: proto_blue_syntax::Datetime,
+    pub subject: proto_blue_syntax::AtUri,
 }
 
 fn default_type() -> String {

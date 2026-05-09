@@ -9,20 +9,29 @@ pub struct FailedScheduling {
     pub error: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
-    pub subject: String,
+    pub subject: proto_blue_syntax::Did,
 }
 
 /// Schedule a moderation action to be executed at a future time
 /// XRPC Procedure: tools.ozone.moderation.scheduleAction
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum InputActionRefs {
+    #[serde(rename = "tools.ozone.moderation.scheduleAction#takedown")]
+    OzoneModerationScheduleActionTakedown(Box<Takedown>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub action: serde_json::Value,
-    pub created_by: String,
+    pub action: InputActionRefs,
+    pub created_by: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mod_tool: Option<crate::tools::ozone::moderation::defs::ModTool>,
     pub scheduling: SchedulingConfig,
-    pub subjects: Vec<String>,
+    pub subjects: Vec<proto_blue_syntax::Did>,
 }
 
 pub type Output = ScheduledActionResults;
@@ -107,7 +116,7 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct ScheduledActionResults {
     pub failed: Vec<FailedScheduling>,
-    pub succeeded: Vec<String>,
+    pub succeeded: Vec<proto_blue_syntax::Did>,
 }
 
 /// Configuration for when the action should be executed
@@ -115,11 +124,11 @@ pub struct ScheduledActionResults {
 #[serde(rename_all = "camelCase")]
 pub struct SchedulingConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_after: Option<String>,
+    pub execute_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_at: Option<String>,
+    pub execute_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_until: Option<String>,
+    pub execute_until: Option<proto_blue_syntax::Datetime>,
 }
 
 /// Schedule a takedown action
@@ -143,5 +152,5 @@ pub struct Takedown {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strike_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub strike_expires_at: Option<String>,
+    pub strike_expires_at: Option<proto_blue_syntax::Datetime>,
 }

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub identifier: String,
+    pub identifier: proto_blue_syntax::AtIdentifier,
 }
 
 pub type Output = crate::com::atproto::identity::defs::IdentityInfo;

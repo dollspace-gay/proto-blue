@@ -3,28 +3,68 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum VerificationViewIssuerProfileRefs {
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum VerificationViewIssuerRepoRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#repoViewDetail")]
+    OzoneModerationDefsRepoViewDetail(Box<crate::tools::ozone::moderation::defs::RepoViewDetail>),
+    #[serde(rename = "tools.ozone.moderation.defs#repoViewNotFound")]
+    OzoneModerationDefsRepoViewNotFound(
+        Box<crate::tools::ozone::moderation::defs::RepoViewNotFound>,
+    ),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum VerificationViewSubjectProfileRefs {
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum VerificationViewSubjectRepoRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#repoViewDetail")]
+    OzoneModerationDefsRepoViewDetail(Box<crate::tools::ozone::moderation::defs::RepoViewDetail>),
+    #[serde(rename = "tools.ozone.moderation.defs#repoViewNotFound")]
+    OzoneModerationDefsRepoViewNotFound(
+        Box<crate::tools::ozone::moderation::defs::RepoViewNotFound>,
+    ),
+    #[serde(other)]
+    Other,
+}
+
 /// Verification data for the associated subject.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VerificationView {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub display_name: String,
-    pub handle: String,
-    pub issuer: String,
+    pub handle: proto_blue_syntax::Handle,
+    pub issuer: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer_profile: Option<serde_json::Value>,
+    pub issuer_profile: Option<VerificationViewIssuerProfileRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuer_repo: Option<serde_json::Value>,
+    pub issuer_repo: Option<VerificationViewIssuerRepoRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub revoke_reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub revoked_at: Option<String>,
+    pub revoked_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub revoked_by: Option<String>,
-    pub subject: String,
+    pub revoked_by: Option<proto_blue_syntax::Did>,
+    pub subject: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject_profile: Option<serde_json::Value>,
+    pub subject_profile: Option<VerificationViewSubjectProfileRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject_repo: Option<serde_json::Value>,
-    pub uri: String,
+    pub subject_repo: Option<VerificationViewSubjectRepoRefs>,
+    pub uri: proto_blue_syntax::AtUri,
 }

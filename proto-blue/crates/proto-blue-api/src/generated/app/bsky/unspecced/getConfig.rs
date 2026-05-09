@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LiveNowConfig {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub domains: Vec<String>,
 }
 

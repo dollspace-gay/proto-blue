@@ -17,12 +17,12 @@ pub struct LabelerPolicies {
 pub struct LabelerView {
     pub cid: String,
     pub creator: crate::app::bsky::actor::defs::ProfileView,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub like_count: Option<i64>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<LabelerViewerState>,
 }
@@ -32,7 +32,7 @@ pub struct LabelerView {
 pub struct LabelerViewDetailed {
     pub cid: String,
     pub creator: crate::app::bsky::actor::defs::ProfileView,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -41,10 +41,10 @@ pub struct LabelerViewDetailed {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason_types: Option<Vec<crate::com::atproto::moderation::defs::ReasonType>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subject_collections: Option<Vec<String>>,
+    pub subject_collections: Option<Vec<proto_blue_syntax::Nsid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_types: Option<Vec<crate::com::atproto::moderation::defs::SubjectType>>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<LabelerViewerState>,
 }
@@ -53,5 +53,5 @@ pub struct LabelerViewDetailed {
 #[serde(rename_all = "camelCase")]
 pub struct LabelerViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub like: Option<String>,
+    pub like: Option<proto_blue_syntax::AtUri>,
 }

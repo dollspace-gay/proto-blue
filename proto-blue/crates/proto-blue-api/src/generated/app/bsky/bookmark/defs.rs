@@ -11,10 +11,23 @@ pub struct Bookmark {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum BookmarkViewItemRefs {
+    #[serde(rename = "app.bsky.feed.defs#blockedPost")]
+    BskyFeedDefsBlockedPost(Box<crate::app::bsky::feed::defs::BlockedPost>),
+    #[serde(rename = "app.bsky.feed.defs#notFoundPost")]
+    BskyFeedDefsNotFoundPost(Box<crate::app::bsky::feed::defs::NotFoundPost>),
+    #[serde(rename = "app.bsky.feed.defs#postView")]
+    BskyFeedDefsPostView(Box<crate::app::bsky::feed::defs::PostView>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BookmarkView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
-    pub item: serde_json::Value,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
+    pub item: BookmarkViewItemRefs,
     pub subject: crate::com::atproto::repo::strong_ref::Main,
 }

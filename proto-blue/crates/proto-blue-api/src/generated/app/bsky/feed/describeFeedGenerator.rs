@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Feed {
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,7 +23,7 @@ pub struct Links {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub feeds: Vec<Feed>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub links: Option<Links>,

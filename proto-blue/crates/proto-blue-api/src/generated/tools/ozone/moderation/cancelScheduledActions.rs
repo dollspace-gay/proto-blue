@@ -7,13 +7,13 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct CancellationResults {
     pub failed: Vec<FailedCancellation>,
-    pub succeeded: Vec<String>,
+    pub succeeded: Vec<proto_blue_syntax::Did>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FailedCancellation {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub error: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
@@ -26,7 +26,7 @@ pub struct FailedCancellation {
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    pub subjects: Vec<String>,
+    pub subjects: Vec<proto_blue_syntax::Did>,
 }
 
 pub type Output = CancellationResults;

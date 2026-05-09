@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub collection: String,
-    pub repo: String,
-    pub rkey: String,
+    pub collection: proto_blue_syntax::Nsid,
+    pub repo: proto_blue_syntax::AtIdentifier,
+    pub rkey: proto_blue_syntax::RecordKey,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub swap_commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

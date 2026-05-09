@@ -27,7 +27,7 @@ pub struct Output {
     pub available_user_domains: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub contact: Option<Contact>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_code_required: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

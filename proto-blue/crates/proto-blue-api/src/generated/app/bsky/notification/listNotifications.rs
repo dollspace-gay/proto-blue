@@ -17,7 +17,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasons: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub seen_at: Option<String>,
+    pub seen_at: Option<proto_blue_syntax::Datetime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub seen_at: Option<String>,
+    pub seen_at: Option<proto_blue_syntax::Datetime>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -52,7 +52,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -72,7 +72,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "reasons".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -80,7 +80,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.seen_at {
         qp.insert(
             "seenAt".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -151,7 +151,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
                 .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        seen_at: ctx.params.get("seenAt").cloned(),
+        seen_at: ctx
+            .params
+            .get("seenAt")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
     })
 }
 
@@ -160,13 +163,13 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
 pub struct Notification {
     pub author: crate::app::bsky::actor::defs::ProfileView,
     pub cid: String,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     pub is_read: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     pub reason: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason_subject: Option<String>,
+    pub reason_subject: Option<proto_blue_syntax::AtUri>,
     pub record: serde_json::Value,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }

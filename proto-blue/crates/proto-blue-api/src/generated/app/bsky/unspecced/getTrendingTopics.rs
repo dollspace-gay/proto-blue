@@ -11,7 +11,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub viewer: Option<String>,
+    pub viewer: Option<proto_blue_syntax::Did>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,7 +47,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.viewer {
         qp.insert(
             "viewer".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -107,6 +107,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
-        viewer: ctx.params.get("viewer").cloned(),
+        viewer: ctx
+            .params
+            .get("viewer")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
     })
 }

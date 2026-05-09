@@ -3,6 +3,16 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Self-label values, specific to the Bluesky application, on the overall account.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainLabelsRefs {
+    #[serde(rename = "com.atproto.label.defs#selfLabels")]
+    AtprotoLabelDefsSelfLabels(Box<crate::com::atproto::label::defs::SelfLabels>),
+    #[serde(other)]
+    Other,
+}
+
 /// `$type` discriminator for this record on the wire.
 pub const TYPE: &str = "app.bsky.actor.profile";
 
@@ -17,7 +27,7 @@ pub struct Main {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub banner: Option<proto_blue_lex_data::BlobRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -25,7 +35,7 @@ pub struct Main {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub joined_via_starter_pack: Option<crate::com::atproto::repo::strong_ref::Main>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<serde_json::Value>,
+    pub labels: Option<MainLabelsRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pinned_post: Option<crate::com::atproto::repo::strong_ref::Main>,
     #[serde(skip_serializing_if = "Option::is_none")]

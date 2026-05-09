@@ -13,7 +13,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub appealed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub collections: Option<Vec<String>>,
+    pub collections: Option<Vec<proto_blue_syntax::Nsid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -21,15 +21,15 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exclude_tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hosting_deleted_after: Option<String>,
+    pub hosting_deleted_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hosting_deleted_before: Option<String>,
+    pub hosting_deleted_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hosting_statuses: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hosting_updated_after: Option<String>,
+    pub hosting_updated_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hosting_updated_before: Option<String>,
+    pub hosting_updated_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ignore_subjects: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -37,7 +37,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub include_muted: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_reviewed_by: Option<String>,
+    pub last_reviewed_by: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -59,15 +59,15 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub queue_seed: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reported_after: Option<String>,
+    pub reported_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reported_before: Option<String>,
+    pub reported_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub review_state: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reviewed_after: Option<String>,
+    pub reviewed_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reviewed_before: Option<String>,
+    pub reviewed_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort_direction: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -110,7 +110,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.age_assurance_state {
         qp.insert(
             "ageAssuranceState".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.appealed {
@@ -124,7 +124,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "collections".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -132,13 +132,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.comment {
         qp.insert(
             "comment".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.exclude_tags {
@@ -146,7 +146,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "excludeTags".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -154,13 +154,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.hosting_deleted_after {
         qp.insert(
             "hostingDeletedAfter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.hosting_deleted_before {
         qp.insert(
             "hostingDeletedBefore".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.hosting_statuses {
@@ -168,7 +168,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "hostingStatuses".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -176,13 +176,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.hosting_updated_after {
         qp.insert(
             "hostingUpdatedAfter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.hosting_updated_before {
         qp.insert(
             "hostingUpdatedBefore".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.ignore_subjects {
@@ -190,7 +190,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "ignoreSubjects".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -210,7 +210,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.last_reviewed_by {
         qp.insert(
             "lastReviewedBy".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.limit {
@@ -270,61 +270,61 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.queue_seed {
         qp.insert(
             "queueSeed".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.reported_after {
         qp.insert(
             "reportedAfter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.reported_before {
         qp.insert(
             "reportedBefore".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.review_state {
         qp.insert(
             "reviewState".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.reviewed_after {
         qp.insert(
             "reviewedAfter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.reviewed_before {
         qp.insert(
             "reviewedBefore".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.sort_direction {
         qp.insert(
             "sortDirection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.sort_field {
         qp.insert(
             "sortField".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.subject {
         qp.insert(
             "subject".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.subject_type {
         qp.insert(
             "subjectType".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.tags {
@@ -332,7 +332,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "tags".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -404,12 +404,12 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
             .params
             .get("appealed")
             .and_then(|v| v.parse::<bool>().ok()),
-        collections: Some(
-            ctx.params
-                .get("collections")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        collections: ctx.params.get("collections").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Nsid::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
         comment: ctx.params.get("comment").cloned(),
         cursor: ctx.params.get("cursor").cloned(),
         exclude_tags: Some(
@@ -418,16 +418,28 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
                 .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        hosting_deleted_after: ctx.params.get("hostingDeletedAfter").cloned(),
-        hosting_deleted_before: ctx.params.get("hostingDeletedBefore").cloned(),
+        hosting_deleted_after: ctx
+            .params
+            .get("hostingDeletedAfter")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        hosting_deleted_before: ctx
+            .params
+            .get("hostingDeletedBefore")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
         hosting_statuses: Some(
             ctx.params
                 .get("hostingStatuses")
                 .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
                 .unwrap_or_default(),
         ),
-        hosting_updated_after: ctx.params.get("hostingUpdatedAfter").cloned(),
-        hosting_updated_before: ctx.params.get("hostingUpdatedBefore").cloned(),
+        hosting_updated_after: ctx
+            .params
+            .get("hostingUpdatedAfter")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        hosting_updated_before: ctx
+            .params
+            .get("hostingUpdatedBefore")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
         ignore_subjects: Some(
             ctx.params
                 .get("ignoreSubjects")
@@ -442,7 +454,10 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
             .params
             .get("includeMuted")
             .and_then(|v| v.parse::<bool>().ok()),
-        last_reviewed_by: ctx.params.get("lastReviewedBy").cloned(),
+        last_reviewed_by: ctx
+            .params
+            .get("lastReviewedBy")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
         min_account_suspend_count: ctx
             .params
@@ -477,11 +492,23 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
             .get("queueIndex")
             .and_then(|v| v.parse::<i64>().ok()),
         queue_seed: ctx.params.get("queueSeed").cloned(),
-        reported_after: ctx.params.get("reportedAfter").cloned(),
-        reported_before: ctx.params.get("reportedBefore").cloned(),
+        reported_after: ctx
+            .params
+            .get("reportedAfter")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        reported_before: ctx
+            .params
+            .get("reportedBefore")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
         review_state: ctx.params.get("reviewState").cloned(),
-        reviewed_after: ctx.params.get("reviewedAfter").cloned(),
-        reviewed_before: ctx.params.get("reviewedBefore").cloned(),
+        reviewed_after: ctx
+            .params
+            .get("reviewedAfter")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        reviewed_before: ctx
+            .params
+            .get("reviewedBefore")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
         sort_direction: ctx.params.get("sortDirection").cloned(),
         sort_field: ctx.params.get("sortField").cloned(),
         subject: ctx.params.get("subject").cloned(),

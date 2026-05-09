@@ -11,8 +11,8 @@ pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     pub content: String,
-    pub recipient_did: String,
-    pub sender_did: String,
+    pub recipient_did: proto_blue_syntax::Did,
+    pub sender_did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject: Option<String>,
 }

@@ -8,10 +8,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub collection: String,
+    pub collection: proto_blue_syntax::Nsid,
     pub record: serde_json::Value,
-    pub repo: String,
-    pub rkey: String,
+    pub repo: proto_blue_syntax::AtIdentifier,
+    pub rkey: proto_blue_syntax::RecordKey,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub swap_commit: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -26,7 +26,7 @@ pub struct Output {
     pub cid: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit: Option<crate::com::atproto::repo::defs::CommitMeta>,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub validation_status: Option<String>,
 }

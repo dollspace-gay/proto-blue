@@ -16,6 +16,27 @@ pub struct Config {
     pub regions: Vec<ConfigRegion>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ConfigRegionRulesItemRefs {
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleDefault")]
+    BskyAgeassuranceDefsConfigRegionRuleDefault(Box<ConfigRegionRuleDefault>),
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleIfDeclaredOverAge")]
+    BskyAgeassuranceDefsConfigRegionRuleIfDeclaredOverAge(Box<ConfigRegionRuleIfDeclaredOverAge>),
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleIfDeclaredUnderAge")]
+    BskyAgeassuranceDefsConfigRegionRuleIfDeclaredUnderAge(Box<ConfigRegionRuleIfDeclaredUnderAge>),
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleIfAssuredOverAge")]
+    BskyAgeassuranceDefsConfigRegionRuleIfAssuredOverAge(Box<ConfigRegionRuleIfAssuredOverAge>),
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleIfAssuredUnderAge")]
+    BskyAgeassuranceDefsConfigRegionRuleIfAssuredUnderAge(Box<ConfigRegionRuleIfAssuredUnderAge>),
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleIfAccountNewerThan")]
+    BskyAgeassuranceDefsConfigRegionRuleIfAccountNewerThan(Box<ConfigRegionRuleIfAccountNewerThan>),
+    #[serde(rename = "app.bsky.ageassurance.defs#configRegionRuleIfAccountOlderThan")]
+    BskyAgeassuranceDefsConfigRegionRuleIfAccountOlderThan(Box<ConfigRegionRuleIfAccountOlderThan>),
+    #[serde(other)]
+    Other,
+}
+
 /// The Age Assurance configuration for a specific region.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +45,7 @@ pub struct ConfigRegion {
     pub min_access_age: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub region_code: Option<String>,
-    pub rules: Vec<serde_json::Value>,
+    pub rules: Vec<ConfigRegionRulesItemRefs>,
 }
 
 /// Age Assurance rule that applies by default.
@@ -39,7 +60,7 @@ pub struct ConfigRegionRuleDefault {
 #[serde(rename_all = "camelCase")]
 pub struct ConfigRegionRuleIfAccountNewerThan {
     pub access: Access,
-    pub date: String,
+    pub date: proto_blue_syntax::Datetime,
 }
 
 /// Age Assurance rule that applies if the account is older than a certain date.
@@ -47,7 +68,7 @@ pub struct ConfigRegionRuleIfAccountNewerThan {
 #[serde(rename_all = "camelCase")]
 pub struct ConfigRegionRuleIfAccountOlderThan {
     pub access: Access,
-    pub date: String,
+    pub date: proto_blue_syntax::Datetime,
 }
 
 /// Age Assurance rule that applies if the user has been assured to be equal-to or over a certain age.
@@ -93,7 +114,7 @@ pub struct Event {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub complete_ua: Option<String>,
     pub country_code: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -111,7 +132,7 @@ pub struct Event {
 pub struct State {
     pub access: Access,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_initiated_at: Option<String>,
+    pub last_initiated_at: Option<proto_blue_syntax::Datetime>,
     pub status: Status,
 }
 
@@ -120,7 +141,7 @@ pub struct State {
 #[serde(rename_all = "camelCase")]
 pub struct StateMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub account_created_at: Option<String>,
+    pub account_created_at: Option<proto_blue_syntax::Datetime>,
 }
 
 /// The status of the Age Assurance process.

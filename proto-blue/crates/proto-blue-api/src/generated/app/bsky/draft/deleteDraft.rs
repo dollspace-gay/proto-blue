@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub id: String,
+    pub id: proto_blue_syntax::Tid,
 }
 
 /// Errors a `call()` on this method can return.

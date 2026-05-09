@@ -8,17 +8,28 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub actor: String,
+    pub actor: proto_blue_syntax::AtIdentifier,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub others: Option<Vec<String>>,
+    pub others: Option<Vec<proto_blue_syntax::AtIdentifier>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputRelationshipsItemRefs {
+    #[serde(rename = "app.bsky.graph.defs#relationship")]
+    BskyGraphDefsRelationship(Box<crate::app::bsky::graph::defs::Relationship>),
+    #[serde(rename = "app.bsky.graph.defs#notFoundActor")]
+    BskyGraphDefsNotFoundActor(Box<crate::app::bsky::graph::defs::NotFoundActor>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub actor: Option<String>,
-    pub relationships: Vec<serde_json::Value>,
+    pub actor: Option<proto_blue_syntax::Did>,
+    pub relationships: Vec<OutputRelationshipsItemRefs>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -48,7 +59,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.actor;
         qp.insert(
             "actor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.others {
@@ -56,7 +67,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "others".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -117,12 +128,15 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        actor: (ctx.params.get("actor").cloned())?,
-        others: Some(
-            ctx.params
-                .get("others")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        actor: (ctx
+            .params
+            .get("actor")
+            .and_then(|v| proto_blue_syntax::AtIdentifier::new(v).ok()))?,
+        others: ctx.params.get("others").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::AtIdentifier::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
     })
 }

@@ -8,12 +8,29 @@ This is a faithful 1:1 translation of the official [TypeScript SDK](https://gith
 
 ## Status
 
-**v0.1.0** — All 14 crates implemented and tested.
+**v0.3.0** — Audit-driven hardening pass. All 14 SDK crates implemented and tested.
 
-- 390 tests (382 unit/property/doc + 8 network integration tests)
+- Unit + property + doc tests across the workspace, plus `#[ignore]`'d
+  live-PDS integration tests gated on env vars
 - 368 generated type modules from 322 Lexicon schemas
 - Zero `clippy` warnings, zero `unsafe` blocks
 - Requires **Rust 1.85+** (edition 2024)
+
+v0.3.0 lands the full external-audit response (11 closed sub-issues):
+type-safe Agent surface using `proto-blue-syntax` newtypes,
+`Cid::digest` widened to `[u8; 32]` (no per-CID heap allocation),
+strict-mode CBOR rejecting all floats, and codegen now emits typed
+newtypes for `format`-bearing strings, sum types for inline unions,
+edition-2024 keyword escaping, and dash-segment / leaf-and-parent
+NSID handling. New `proto-blue-interop-tests` crate runs a 28-fixture
+differential dag-cbor + CID parity check against `@atproto/common`,
+and `proto-blue-repo` gained 7 property tests + a fuzz target on the
+proof pipeline. See [`CHANGELOG.md`](CHANGELOG.md) for the full list.
+
+> **Migration from 0.2.x:** Agent / Session / LabelerOpts public
+> surfaces now take typed newtypes instead of `String`/`&str`. Wrap
+> at the call site: `Did::new(s)?`, `Handle::new(s)?`,
+> `AtIdentifier::new(s)?`. Wire format is unchanged.
 
 
 | Crate | Description |
@@ -51,14 +68,18 @@ tokio = { version = "1", features = ["full"] }
 
 ```rust
 use proto_blue_api::Agent;
+use proto_blue_syntax::AtIdentifier;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let agent = Agent::new("https://bsky.social")?;
-    agent.login("alice.bsky.social", "app-password").await?;
+
+    // Identifiers go through validated newtypes (handle or DID accepted).
+    let id = AtIdentifier::new("alice.bsky.social")?;
+    agent.login(&id, "app-password").await?;
 
     let session = agent.session().await.unwrap();
-    println!("Logged in as {}", session.handle);
+    println!("Logged in as {}", session.handle); // session.handle is `Handle`
 
     // Create a post (timestamp auto-generated, or pass Some("2024-01-15T12:00:00.000Z"))
     agent.post("Hello from Rust!", None, None).await?;
@@ -222,15 +243,33 @@ The crates are organized into dependency layers to minimize coupling:
 The `proto-blue-codegen` binary reads 322 Lexicon JSON schemas from the [`lexicons/`](lexicons/) directory and generates Rust types into `proto-blue-api/src/generated/`. Generated types follow AT Protocol naming conventions:
 
 - **Objects** become `#[derive(Serialize, Deserialize)]` structs with `camelCase` serde renaming
-- **Unions** become tagged enums with `#[serde(tag = "$type")]`
+- **Unions** become tagged enums with `#[serde(tag = "$type")]`. Inline
+  unions emit local sum types instead of `serde_json::Value`.
 - **Known values** become `pub type X = String` with associated `pub const` values
 - **Queries/Procedures** generate `Params`, `Input`, and `Output` types
+- **`format`-bearing strings** (DID, Handle, NSID, AT-URI, TID,
+  RecordKey, Datetime, CID) emit the matching `proto-blue-syntax`
+  newtype on the field
+
+Codegen also handles edition-2024 keyword escaping (`gen`, `try`),
+sibling identifier collisions, dash-segment NSID path/ident sync,
+multi-line description `///` continuation, and the leaf-and-parent
+NSID case (where the same NSID appears as both a record and a
+namespace — emits `<name>/mod.rs` only).
 
 To regenerate:
 
 ```bash
 cargo run --bin proto-blue-codegen -- --lexicons lexicons --output crates/proto-blue-api/src/generated
 ```
+
+To validate codegen against third-party schemas, the
+`scripts/wildscrape/` side-workspace scrapes lexicon.garden's
+real-world corpus into `lexicons.wild/`; the
+`proto-blue-codegen::wild_corpus_compiles` test (`#[ignore]`'d, opt-in
+once the corpus is populated) rustc-compiles the generated output to
+catch second-order errors. See
+[`proto-blue/scripts/wildscrape/README.md`](proto-blue/scripts/wildscrape/README.md).
 
 ### Key Design Decisions
 
@@ -264,15 +303,18 @@ cargo fmt --check
 
 ### Test Coverage
 
-| Category | Count |
-|----------|-------|
-| Unit tests | ~330 |
-| Property tests (proptest) | 40 |
-| Doc-tests | 8 |
-| Integration tests (network) | 8 (ignored by default) |
-| **Total** | **~390** |
-
-Property-based tests cover syntax validation, cryptographic roundtrips, CBOR encoding, and MST operations. Interop test vectors from `interop-test-files/` validate compatibility with the TypeScript reference implementation.
+Property-based tests cover syntax validation, cryptographic roundtrips,
+CBOR encoding, MST operations, and (since v0.3.0) the `proto-blue-repo`
+proof pipeline (`covering_proof` soundness/completeness, block-removal
+sensitivity, forgery resistance) plus a `cargo-fuzz` target. Interop
+test vectors from `interop-test-files/` validate compatibility with
+the TypeScript reference implementation, and the
+`proto-blue-interop-tests` crate runs a 28-fixture differential
+dag-cbor + CID parity check against `@atproto/common` (CI gates on
+parity). Live-PDS integration tests live in
+`crates/proto-blue-api/tests/live_pds.rs`, are `#[ignore]`'d, and
+early-return on missing `PDS_URL` / `PDS_TEST_HANDLE` /
+`PDS_TEST_APP_PASSWORD` env vars so fresh clones stay network-free.
 
 ## Building
 
@@ -295,7 +337,7 @@ browser `WebSocket` via gloo-net on wasm).
 
 ```toml
 [dependencies]
-proto-blue = "0.2"
+proto-blue = "0.3"
 ```
 
 No additional configuration is needed: building for `wasm32-unknown-unknown`
@@ -305,7 +347,7 @@ equivalents. A reduced-feature build works the same way:
 ```toml
 [dependencies]
 # Pure subset only (no network) — smallest footprint.
-proto-blue = { version = "0.2", default-features = false }
+proto-blue = { version = "0.3", default-features = false }
 ```
 
 ### Feature matrix

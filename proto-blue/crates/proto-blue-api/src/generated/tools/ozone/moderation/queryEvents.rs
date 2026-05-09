@@ -17,15 +17,15 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub batch_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub collections: Option<Vec<String>>,
+    pub collections: Option<Vec<proto_blue_syntax::Nsid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_after: Option<String>,
+    pub created_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_before: Option<String>,
+    pub created_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_by: Option<String>,
+    pub created_by: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,7 +86,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "addedLabels".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -96,7 +96,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "addedTags".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -104,13 +104,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.age_assurance_state {
         qp.insert(
             "ageAssuranceState".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.batch_id {
         qp.insert(
             "batchId".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.collections {
@@ -118,7 +118,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "collections".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -126,31 +126,31 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.comment {
         qp.insert(
             "comment".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.created_after {
         qp.insert(
             "createdAfter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.created_before {
         qp.insert(
             "createdBefore".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.created_by {
         qp.insert(
             "createdBy".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.has_comment {
@@ -176,7 +176,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "modTool".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -186,7 +186,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "policies".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -196,7 +196,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "removedLabels".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -206,7 +206,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "removedTags".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -216,7 +216,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "reportTypes".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -224,19 +224,19 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.sort_direction {
         qp.insert(
             "sortDirection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.subject {
         qp.insert(
             "subject".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.subject_type {
         qp.insert(
             "subjectType".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.types {
@@ -244,7 +244,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "types".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -325,16 +325,25 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
         ),
         age_assurance_state: ctx.params.get("ageAssuranceState").cloned(),
         batch_id: ctx.params.get("batchId").cloned(),
-        collections: Some(
-            ctx.params
-                .get("collections")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        collections: ctx.params.get("collections").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Nsid::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
         comment: ctx.params.get("comment").cloned(),
-        created_after: ctx.params.get("createdAfter").cloned(),
-        created_before: ctx.params.get("createdBefore").cloned(),
-        created_by: ctx.params.get("createdBy").cloned(),
+        created_after: ctx
+            .params
+            .get("createdAfter")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        created_before: ctx
+            .params
+            .get("createdBefore")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        created_by: ctx
+            .params
+            .get("createdBy")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()),
         cursor: ctx.params.get("cursor").cloned(),
         has_comment: ctx
             .params

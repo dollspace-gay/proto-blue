@@ -17,7 +17,7 @@ pub struct AccountCodes {
 pub struct Input {
     pub code_count: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub for_accounts: Option<Vec<String>>,
+    pub for_accounts: Option<Vec<proto_blue_syntax::Did>>,
     pub use_count: i64,
 }
 

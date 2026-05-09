@@ -9,21 +9,21 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_after: Option<String>,
+    pub created_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_before: Option<String>,
+    pub created_before: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_revoked: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub issuers: Option<Vec<String>>,
+    pub issuers: Option<Vec<proto_blue_syntax::Did>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sort_direction: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subjects: Option<Vec<String>>,
+    pub subjects: Option<Vec<proto_blue_syntax::Did>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,19 +54,19 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.created_after {
         qp.insert(
             "createdAfter".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.created_before {
         qp.insert(
             "createdBefore".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.is_revoked {
@@ -80,7 +80,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "issuers".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -94,7 +94,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.sort_direction {
         qp.insert(
             "sortDirection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.subjects {
@@ -102,7 +102,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "subjects".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -167,26 +167,32 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        created_after: ctx.params.get("createdAfter").cloned(),
-        created_before: ctx.params.get("createdBefore").cloned(),
+        created_after: ctx
+            .params
+            .get("createdAfter")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
+        created_before: ctx
+            .params
+            .get("createdBefore")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
         cursor: ctx.params.get("cursor").cloned(),
         is_revoked: ctx
             .params
             .get("isRevoked")
             .and_then(|v| v.parse::<bool>().ok()),
-        issuers: Some(
-            ctx.params
-                .get("issuers")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        issuers: ctx.params.get("issuers").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Did::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
         sort_direction: ctx.params.get("sortDirection").cloned(),
-        subjects: Some(
-            ctx.params
-                .get("subjects")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        subjects: ctx.params.get("subjects").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Did::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
     })
 }

@@ -11,7 +11,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub seen_at: Option<String>,
+    pub seen_at: Option<proto_blue_syntax::Datetime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.seen_at {
         qp.insert(
             "seenAt".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -109,6 +109,9 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
             .params
             .get("priority")
             .and_then(|v| v.parse::<bool>().ok()),
-        seen_at: ctx.params.get("seenAt").cloned(),
+        seen_at: ctx
+            .params
+            .get("seenAt")
+            .and_then(|v| proto_blue_syntax::Datetime::new(v).ok()),
     })
 }

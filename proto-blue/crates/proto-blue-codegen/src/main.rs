@@ -154,4 +154,212 @@ mod tests {
             }
         }
     }
+
+    /// Run the generator against the wild-lexicon corpus when it's been
+    /// populated (`scripts/wildscrape/` is the discovery tool — see
+    /// `<workspace-root>/scripts/wildscrape/README.md`). Skips silently if
+    /// the corpus directory is absent so the per-PR test suite stays fast;
+    /// nightly / on-demand runs populate `lexicons.wild/` and pick up any
+    /// regressions in third-party-schema handling.
+    ///
+    /// Asserts only the codegen-doesn't-panic invariant (Generator::generate
+    /// never panics on a valid LexiconDoc) plus structural sanity on the
+    /// emitted files. We don't compile the output here — that requires
+    /// invoking rustc against the synthetic crate, which is the natural
+    /// scope of a follow-up CI job rather than `cargo test`.
+    #[test]
+    fn generate_types_from_wild_corpus() {
+        let wild_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lexicons.wild");
+        if !wild_dir.exists() {
+            eprintln!(
+                "Skipping wild-corpus test: {} not found.\n\
+                 Populate it via:\n\
+                 \n  cd scripts/wildscrape && cargo run --release -- --output ../../lexicons.wild\n",
+                wild_dir.display(),
+            );
+            return;
+        }
+
+        let docs = load_lexicons(&wild_dir);
+        assert!(
+            !docs.is_empty(),
+            "lexicons.wild/ exists but contains no parseable LexiconDocs",
+        );
+        eprintln!("Wild corpus: loaded {} lexicon document(s)", docs.len());
+
+        let generator = Generator::new(&docs);
+        let files = generator.generate();
+        assert!(
+            !files.is_empty(),
+            "Generator produced no files for {}-doc wild corpus",
+            docs.len(),
+        );
+        eprintln!(
+            "Wild corpus: generated {} file(s) without panicking",
+            files.len()
+        );
+
+        // Structural sanity: every leaf .rs file the generator emits has
+        // the canonical lexicon header. A missing header means the file
+        // came out of the generator with no document context — a bug
+        // that's caught here even before the file is asked to compile.
+        let mut headerless: Vec<&String> = Vec::new();
+        for (path, content) in &files {
+            if path.ends_with(".rs")
+                && !path.ends_with("mod.rs")
+                && !content.contains("//! Lexicon:")
+            {
+                headerless.push(path);
+            }
+        }
+        assert!(
+            headerless.is_empty(),
+            "{} generated file(s) lack the `//! Lexicon:` header (sample: {:?})",
+            headerless.len(),
+            &headerless[..headerless.len().min(5)],
+        );
+    }
+
+    /// rustc-compile the wild-corpus codegen output to catch second-order
+    /// errors that the structural sanity check above misses (unresolved
+    /// types, broken trait bounds, missing imports, malformed serde
+    /// attributes, etc.).
+    ///
+    /// Synthesises a self-contained side-workspace crate under
+    /// `target/wild-corpus-compile/` whose Cargo.toml mirrors
+    /// `proto-blue-api`'s dependency shape, drops the generated tree into
+    /// `src/generated/`, points `src/lib.rs` at it, and runs `cargo build`.
+    /// Any rustc diagnostic fails the test.
+    ///
+    /// Marked `#[ignore]` because a wild corpus of a couple thousand
+    /// lexicons compiles slowly. Run explicitly:
+    ///   cargo test -p proto-blue-codegen wild_corpus_compiles -- --ignored --nocapture
+    /// Skipped silently when `lexicons.wild/` is absent so it stays
+    /// no-op for anyone who hasn't populated the corpus.
+    #[test]
+    #[ignore = "slow; requires a populated lexicons.wild/ corpus"]
+    fn wild_corpus_compiles() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest_dir.join("../..").canonicalize().unwrap();
+        let wild_dir = workspace_root.join("lexicons.wild");
+        if !wild_dir.exists() {
+            eprintln!(
+                "Skipping wild_corpus_compiles: {} not found.",
+                wild_dir.display()
+            );
+            return;
+        }
+
+        // Locate the side-workspace location and reset its `src/` so a
+        // shrinking corpus can't leave stale generated files lying around.
+        let test_crate_dir = workspace_root.join("target").join("wild-corpus-compile");
+        let src_dir = test_crate_dir.join("src");
+        if src_dir.exists() {
+            fs::remove_dir_all(&src_dir).expect("clear stale src/");
+        }
+        fs::create_dir_all(&src_dir).expect("create src/");
+
+        // Generate.
+        let docs = load_lexicons(&wild_dir);
+        assert!(!docs.is_empty(), "lexicons.wild/ has no parseable docs");
+        let generator = Generator::new(&docs);
+        let files = generator.generate();
+        eprintln!(
+            "wild_corpus_compiles: {} doc(s) → {} file(s); writing to {}",
+            docs.len(),
+            files.len(),
+            test_crate_dir.display(),
+        );
+        for (rel, content) in &files {
+            let dest = src_dir.join("generated").join(rel);
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent).expect("mkdir for generated file");
+            }
+            fs::write(&dest, content).expect("write generated file");
+        }
+
+        // Discover top-level NSID segments to re-export at crate root —
+        // these are the modules the codegen-emitted top-level mod.rs
+        // declares. We mirror them at `crate::<segment>` so cross-NSID
+        // refs (`crate::app::bsky::...`) resolve.
+        let top_mod_path = src_dir.join("generated").join("mod.rs");
+        let top_mod = fs::read_to_string(&top_mod_path).expect("read generated/mod.rs");
+        let segments: Vec<String> = top_mod
+            .lines()
+            .filter_map(|l| {
+                let t = l.trim();
+                t.strip_prefix("pub mod ")
+                    .and_then(|s| s.strip_suffix(';'))
+                    .map(str::to_string)
+            })
+            .collect();
+        assert!(
+            !segments.is_empty(),
+            "generated/mod.rs declares no top-level segments"
+        );
+
+        // Synthesise lib.rs.
+        let mut lib_rs = String::from(
+            "//! Synthesised wild-corpus compile target. Auto-generated; do not edit.\n\
+             #![allow(unused_imports)]\n\
+             #![allow(dead_code)]\n\
+             pub mod generated;\n",
+        );
+        for seg in &segments {
+            lib_rs.push_str(&format!("pub use generated::{seg};\n"));
+        }
+        fs::write(src_dir.join("lib.rs"), lib_rs).expect("write lib.rs");
+
+        // Synthesise Cargo.toml. Path deps point at the workspace crates
+        // by absolute path; `[workspace] members = ["."]` excludes us
+        // from the parent workspace so the parent's build state isn't
+        // disturbed.
+        let crates = workspace_root.join("crates");
+        let cargo_toml = format!(
+            r#"[package]
+name = "proto-blue-wild-corpus-compile"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+members = ["."]
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+proto-blue-common = {{ path = "{common}" }}
+proto-blue-syntax = {{ path = "{syntax}" }}
+proto-blue-lex-data = {{ path = "{lex_data}" }}
+proto-blue-lexicon = {{ path = "{lexicon}" }}
+proto-blue-xrpc = {{ path = "{xrpc}", default-features = false, features = ["fetch-reqwest"] }}
+serde = {{ version = "1", features = ["derive"] }}
+serde_json = "1"
+chrono = {{ version = "0.4", features = ["serde"] }}
+thiserror = "1"
+"#,
+            common = crates.join("proto-blue-common").display(),
+            syntax = crates.join("proto-blue-syntax").display(),
+            lex_data = crates.join("proto-blue-lex-data").display(),
+            lexicon = crates.join("proto-blue-lexicon").display(),
+            xrpc = crates.join("proto-blue-xrpc").display(),
+        );
+        fs::write(test_crate_dir.join("Cargo.toml"), cargo_toml).expect("write Cargo.toml");
+
+        // Build. Capture stderr so a rustc diagnostic surfaces in the
+        // test failure rather than getting lost.
+        let output = std::process::Command::new("cargo")
+            .arg("build")
+            .arg("--quiet")
+            .current_dir(&test_crate_dir)
+            .output()
+            .expect("invoke cargo build");
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            panic!("Wild corpus failed to compile.\n\nSTDOUT:\n{stdout}\n\nSTDERR:\n{stderr}",);
+        }
+        eprintln!("wild_corpus_compiles: OK");
+    }
 }

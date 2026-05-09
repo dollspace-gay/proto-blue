@@ -8,13 +8,28 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub uris: Vec<String>,
+    pub uris: Vec<proto_blue_syntax::AtUri>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum OutputRecordsItemRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#recordViewDetail")]
+    OzoneModerationDefsRecordViewDetail(
+        Box<crate::tools::ozone::moderation::defs::RecordViewDetail>,
+    ),
+    #[serde(rename = "tools.ozone.moderation.defs#recordViewNotFound")]
+    OzoneModerationDefsRecordViewNotFound(
+        Box<crate::tools::ozone::moderation::defs::RecordViewNotFound>,
+    ),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Output {
-    pub records: Vec<serde_json::Value>,
+    pub records: Vec<OutputRecordsItemRefs>,
 }
 
 /// Errors a `call()` on this method can return.
@@ -40,7 +55,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "uris".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -101,11 +116,11 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        uris: (Some(
-            ctx.params
-                .get("uris")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ))?,
+        uris: (ctx.params.get("uris").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::AtUri::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }))?,
     })
 }

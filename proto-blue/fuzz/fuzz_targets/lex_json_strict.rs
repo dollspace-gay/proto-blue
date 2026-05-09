@@ -16,8 +16,8 @@ fuzz_target!(|data: &[u8]| {
     if let Ok(value) = lex_parse_json_bytes(data) {
         // Round-trip value → string → value must preserve semantics.
         let s = lex_stringify(&value);
-        let reparsed = lex_parse_json_bytes(s.as_bytes())
-            .expect("reparse of self-produced JSON must succeed");
+        let reparsed =
+            lex_parse_json_bytes(s.as_bytes()).expect("reparse of self-produced JSON must succeed");
         assert_eq!(
             value, reparsed,
             "JSON round-trip altered value: first={value:?} reparsed={reparsed:?}"

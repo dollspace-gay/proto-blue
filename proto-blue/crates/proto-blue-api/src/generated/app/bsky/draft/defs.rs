@@ -3,6 +3,30 @@
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum DraftPostgateEmbeddingRulesItemRefs {
+    #[serde(rename = "app.bsky.feed.postgate#disableRule")]
+    BskyFeedPostgateDisableRule(Box<crate::app::bsky::feed::postgate::DisableRule>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum DraftThreadgateAllowItemRefs {
+    #[serde(rename = "app.bsky.feed.threadgate#mentionRule")]
+    BskyFeedThreadgateMentionRule(Box<crate::app::bsky::feed::threadgate::MentionRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#followerRule")]
+    BskyFeedThreadgateFollowerRule(Box<crate::app::bsky::feed::threadgate::FollowerRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#followingRule")]
+    BskyFeedThreadgateFollowingRule(Box<crate::app::bsky::feed::threadgate::FollowingRule>),
+    #[serde(rename = "app.bsky.feed.threadgate#listRule")]
+    BskyFeedThreadgateListRule(Box<crate::app::bsky::feed::threadgate::ListRule>),
+    #[serde(other)]
+    Other,
+}
+
 /// A draft containing an array of draft posts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,10 +38,10 @@ pub struct Draft {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub langs: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub postgate_embedding_rules: Option<Vec<serde_json::Value>>,
+    pub postgate_embedding_rules: Option<Vec<DraftPostgateEmbeddingRulesItemRefs>>,
     pub posts: Vec<DraftPost>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub threadgate_allow: Option<Vec<serde_json::Value>>,
+    pub threadgate_allow: Option<Vec<DraftThreadgateAllowItemRefs>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +87,16 @@ pub struct DraftEmbedVideo {
     pub local_ref: DraftEmbedLocalRef,
 }
 
+/// Self-label values for this post. Effectively content warnings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum DraftPostLabelsRefs {
+    #[serde(rename = "com.atproto.label.defs#selfLabels")]
+    AtprotoLabelDefsSelfLabels(Box<crate::com::atproto::label::defs::SelfLabels>),
+    #[serde(other)]
+    Other,
+}
+
 /// One of the posts that compose a draft.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -76,7 +110,7 @@ pub struct DraftPost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed_videos: Option<Vec<DraftEmbedVideo>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<serde_json::Value>,
+    pub labels: Option<DraftPostLabelsRefs>,
     pub text: String,
 }
 
@@ -84,10 +118,10 @@ pub struct DraftPost {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftView {
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     pub draft: Draft,
-    pub id: String,
-    pub updated_at: String,
+    pub id: proto_blue_syntax::Tid,
+    pub updated_at: proto_blue_syntax::Datetime,
 }
 
 /// A draft with an identifier, used to store drafts in private storage (stash).
@@ -95,5 +129,5 @@ pub struct DraftView {
 #[serde(rename_all = "camelCase")]
 pub struct DraftWithId {
     pub draft: Draft,
-    pub id: String,
+    pub id: proto_blue_syntax::Tid,
 }

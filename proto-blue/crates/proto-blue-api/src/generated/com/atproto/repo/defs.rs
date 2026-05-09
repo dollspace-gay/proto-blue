@@ -7,5 +7,5 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct CommitMeta {
     pub cid: String,
-    pub rev: String,
+    pub rev: proto_blue_syntax::Tid,
 }

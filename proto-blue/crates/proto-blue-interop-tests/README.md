@@ -61,6 +61,50 @@ subprocess per test run keeps startup cost amortized.
 |---|---|---|
 | `lexicon_validate_record` | `proto_blue_lexicon::validate_record` | `Lexicons.assertValidRecord` |
 
+### `@atproto/common`
+
+| op | Rust side | TS side |
+|---|---|---|
+| `cbor_encode_lexvalue` | `proto_blue_lex_cbor::encode` | `cborEncode` |
+| `cid_for_lexvalue` | `proto_blue_lex_cbor::cid_for_lex` | `cidForCbor` |
+
+Both ops drive the same 28 adversarial fixtures from
+`differential_dag_cbor_encode` / `differential_cid_for_lexvalue`
+and assert byte-exact hex parity / CID parity. Coverage includes
+CBOR major-type-0/1 length-encoding boundaries (23, 24, 255, 256,
+65535, u32::MAX, ±(2^53−1)), empty / multi-byte UTF-8 strings,
+empty / short / long bytes (crossing the 24- and 256-byte CBOR
+length thresholds), CID values, empty array / map, map keys
+exercising length-then-lex sort + same-length lex tiebreak +
+multi-byte UTF-8, a nested map (map-containing-array+map), and a
+3-deep nested array.
+
+Audit items 3–5 (MST root-CID parity, CAR layout parity, signed
+commit construction parity) are tracked separately as #26, #27,
+#28 — each requires substantial fixture-design work.
+
+#### Wire-format design
+
+The cross-impl wire format for the `@atproto/common` ops is a
+tagged-enum JSON shape, **not** lex-json. Both sides build native
+IPLD from it (`lexValueJsonToIpld()` on the TS side). The choice is
+deliberate: routing fixtures through lex-json would couple dag-cbor
+parity to lex-json's own correctness, and we want the codec parity
+test to fail only when the codec drifts.
+
+#### JS-safe-integer limit
+
+Fixture corpus integers are capped at the JS-safe range
+(`±(2^53−1)`). `i64::MAX` was tried during fixture tuning and lost
+precision crossing the JSON wire format (it exceeds
+`Number.MAX_SAFE_INTEGER` and round-trips through `f64`). This is
+not a codec bug — it's a JSON wire-format limit. If we ever need to
+exercise full-range `i64` we'll need a non-JSON transport for the
+fixture itself.
+
+Note: dispatch on the TS side is async (`cidForCbor` returns a
+Promise), so the runner awaits per-op handlers.
+
 Expand by adding fixtures + a new `dispatch` case in
 `ts-runner/index.mjs` and a matching test in `tests/differential.rs`.
 

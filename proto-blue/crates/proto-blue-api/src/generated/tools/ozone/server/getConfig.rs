@@ -17,7 +17,7 @@ pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pds: Option<ServiceConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub verifier_did: Option<String>,
+    pub verifier_did: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<ViewerConfig>,
 }

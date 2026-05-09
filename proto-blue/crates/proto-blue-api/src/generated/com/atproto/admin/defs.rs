@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct AccountView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deactivated_at: Option<String>,
-    pub did: String,
+    pub deactivated_at: Option<proto_blue_syntax::Datetime>,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email_confirmed_at: Option<String>,
-    pub handle: String,
-    pub indexed_at: String,
+    pub email_confirmed_at: Option<proto_blue_syntax::Datetime>,
+    pub handle: proto_blue_syntax::Handle,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -33,15 +33,15 @@ pub struct AccountView {
 #[serde(rename_all = "camelCase")]
 pub struct RepoBlobRef {
     pub cid: String,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub record_uri: Option<String>,
+    pub record_uri: Option<proto_blue_syntax::AtUri>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoRef {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

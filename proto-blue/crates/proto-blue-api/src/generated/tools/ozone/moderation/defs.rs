@@ -12,23 +12,23 @@ pub struct AccountEvent {
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    pub timestamp: String,
+    pub timestamp: proto_blue_syntax::Datetime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AccountHosting {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deactivated_at: Option<String>,
+    pub deactivated_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deleted_at: Option<String>,
+    pub deleted_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reactivated_at: Option<String>,
+    pub reactivated_at: Option<proto_blue_syntax::Datetime>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<String>,
+    pub updated_at: Option<proto_blue_syntax::Datetime>,
 }
 
 /// Statistics about a particular account subject
@@ -54,9 +54,9 @@ pub struct AccountStrike {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_strike_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub first_strike_at: Option<String>,
+    pub first_strike_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_strike_at: Option<String>,
+    pub last_strike_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub total_strike_count: Option<i64>,
 }
@@ -74,7 +74,7 @@ pub struct AgeAssuranceEvent {
     pub complete_ua: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country_code: Option<String>,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub init_ip: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -95,12 +95,23 @@ pub struct AgeAssuranceOverrideEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum BlobViewDetailsRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#imageDetails")]
+    OzoneModerationDefsImageDetails(Box<ImageDetails>),
+    #[serde(rename = "tools.ozone.moderation.defs#videoDetails")]
+    OzoneModerationDefsVideoDetails(Box<VideoDetails>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlobView {
     pub cid: String,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<serde_json::Value>,
+    pub details: Option<BlobViewDetailsRefs>,
     pub mime_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moderation: Option<Moderation>,
@@ -122,10 +133,10 @@ pub struct IdentityEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub handle: Option<String>,
+    pub handle: Option<proto_blue_syntax::Handle>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pds_host: Option<String>,
-    pub timestamp: String,
+    pub timestamp: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tombstone: Option<bool>,
 }
@@ -181,7 +192,7 @@ pub struct ModEventEmail {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strike_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub strike_expires_at: Option<String>,
+    pub strike_expires_at: Option<proto_blue_syntax::Datetime>,
     pub subject_line: String,
 }
 
@@ -292,7 +303,7 @@ pub struct ModEventTakedown {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strike_count: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub strike_expires_at: Option<String>,
+    pub strike_expires_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_services: Option<Vec<String>>,
 }
@@ -314,32 +325,170 @@ pub struct ModEventUnmuteReporter {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ModEventViewEventRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#modEventTakedown")]
+    OzoneModerationDefsModEventTakedown(Box<ModEventTakedown>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventReverseTakedown")]
+    OzoneModerationDefsModEventReverseTakedown(Box<ModEventReverseTakedown>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventComment")]
+    OzoneModerationDefsModEventComment(Box<ModEventComment>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventReport")]
+    OzoneModerationDefsModEventReport(Box<ModEventReport>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventLabel")]
+    OzoneModerationDefsModEventLabel(Box<ModEventLabel>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventAcknowledge")]
+    OzoneModerationDefsModEventAcknowledge(Box<ModEventAcknowledge>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventEscalate")]
+    OzoneModerationDefsModEventEscalate(Box<ModEventEscalate>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventMute")]
+    OzoneModerationDefsModEventMute(Box<ModEventMute>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventUnmute")]
+    OzoneModerationDefsModEventUnmute(Box<ModEventUnmute>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventMuteReporter")]
+    OzoneModerationDefsModEventMuteReporter(Box<ModEventMuteReporter>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventUnmuteReporter")]
+    OzoneModerationDefsModEventUnmuteReporter(Box<ModEventUnmuteReporter>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventEmail")]
+    OzoneModerationDefsModEventEmail(Box<ModEventEmail>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventResolveAppeal")]
+    OzoneModerationDefsModEventResolveAppeal(Box<ModEventResolveAppeal>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventDivert")]
+    OzoneModerationDefsModEventDivert(Box<ModEventDivert>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventTag")]
+    OzoneModerationDefsModEventTag(Box<ModEventTag>),
+    #[serde(rename = "tools.ozone.moderation.defs#accountEvent")]
+    OzoneModerationDefsAccountEvent(Box<AccountEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#identityEvent")]
+    OzoneModerationDefsIdentityEvent(Box<IdentityEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#recordEvent")]
+    OzoneModerationDefsRecordEvent(Box<RecordEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventPriorityScore")]
+    OzoneModerationDefsModEventPriorityScore(Box<ModEventPriorityScore>),
+    #[serde(rename = "tools.ozone.moderation.defs#ageAssuranceEvent")]
+    OzoneModerationDefsAgeAssuranceEvent(Box<AgeAssuranceEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#ageAssuranceOverrideEvent")]
+    OzoneModerationDefsAgeAssuranceOverrideEvent(Box<AgeAssuranceOverrideEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#revokeAccountCredentialsEvent")]
+    OzoneModerationDefsRevokeAccountCredentialsEvent(Box<RevokeAccountCredentialsEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#scheduleTakedownEvent")]
+    OzoneModerationDefsScheduleTakedownEvent(Box<ScheduleTakedownEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#cancelScheduledTakedownEvent")]
+    OzoneModerationDefsCancelScheduledTakedownEvent(Box<CancelScheduledTakedownEvent>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ModEventViewSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(rename = "chat.bsky.convo.defs#messageRef")]
+    BskyConvoDefsMessageRef(Box<crate::chat::bsky::convo::defs::MessageRef>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModEventView {
-    pub created_at: String,
-    pub created_by: String,
+    pub created_at: proto_blue_syntax::Datetime,
+    pub created_by: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub creator_handle: Option<String>,
-    pub event: serde_json::Value,
+    pub event: ModEventViewEventRefs,
     pub id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mod_tool: Option<ModTool>,
-    pub subject: serde_json::Value,
+    pub subject: ModEventViewSubjectRefs,
     pub subject_blob_cids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_handle: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ModEventViewDetailEventRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#modEventTakedown")]
+    OzoneModerationDefsModEventTakedown(Box<ModEventTakedown>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventReverseTakedown")]
+    OzoneModerationDefsModEventReverseTakedown(Box<ModEventReverseTakedown>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventComment")]
+    OzoneModerationDefsModEventComment(Box<ModEventComment>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventReport")]
+    OzoneModerationDefsModEventReport(Box<ModEventReport>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventLabel")]
+    OzoneModerationDefsModEventLabel(Box<ModEventLabel>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventAcknowledge")]
+    OzoneModerationDefsModEventAcknowledge(Box<ModEventAcknowledge>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventEscalate")]
+    OzoneModerationDefsModEventEscalate(Box<ModEventEscalate>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventMute")]
+    OzoneModerationDefsModEventMute(Box<ModEventMute>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventUnmute")]
+    OzoneModerationDefsModEventUnmute(Box<ModEventUnmute>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventMuteReporter")]
+    OzoneModerationDefsModEventMuteReporter(Box<ModEventMuteReporter>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventUnmuteReporter")]
+    OzoneModerationDefsModEventUnmuteReporter(Box<ModEventUnmuteReporter>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventEmail")]
+    OzoneModerationDefsModEventEmail(Box<ModEventEmail>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventResolveAppeal")]
+    OzoneModerationDefsModEventResolveAppeal(Box<ModEventResolveAppeal>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventDivert")]
+    OzoneModerationDefsModEventDivert(Box<ModEventDivert>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventTag")]
+    OzoneModerationDefsModEventTag(Box<ModEventTag>),
+    #[serde(rename = "tools.ozone.moderation.defs#accountEvent")]
+    OzoneModerationDefsAccountEvent(Box<AccountEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#identityEvent")]
+    OzoneModerationDefsIdentityEvent(Box<IdentityEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#recordEvent")]
+    OzoneModerationDefsRecordEvent(Box<RecordEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#modEventPriorityScore")]
+    OzoneModerationDefsModEventPriorityScore(Box<ModEventPriorityScore>),
+    #[serde(rename = "tools.ozone.moderation.defs#ageAssuranceEvent")]
+    OzoneModerationDefsAgeAssuranceEvent(Box<AgeAssuranceEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#ageAssuranceOverrideEvent")]
+    OzoneModerationDefsAgeAssuranceOverrideEvent(Box<AgeAssuranceOverrideEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#revokeAccountCredentialsEvent")]
+    OzoneModerationDefsRevokeAccountCredentialsEvent(Box<RevokeAccountCredentialsEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#scheduleTakedownEvent")]
+    OzoneModerationDefsScheduleTakedownEvent(Box<ScheduleTakedownEvent>),
+    #[serde(rename = "tools.ozone.moderation.defs#cancelScheduledTakedownEvent")]
+    OzoneModerationDefsCancelScheduledTakedownEvent(Box<CancelScheduledTakedownEvent>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ModEventViewDetailSubjectRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#repoView")]
+    OzoneModerationDefsRepoView(Box<RepoView>),
+    #[serde(rename = "tools.ozone.moderation.defs#repoViewNotFound")]
+    OzoneModerationDefsRepoViewNotFound(Box<RepoViewNotFound>),
+    #[serde(rename = "tools.ozone.moderation.defs#recordView")]
+    OzoneModerationDefsRecordView(Box<RecordView>),
+    #[serde(rename = "tools.ozone.moderation.defs#recordViewNotFound")]
+    OzoneModerationDefsRecordViewNotFound(Box<RecordViewNotFound>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ModEventViewDetail {
-    pub created_at: String,
-    pub created_by: String,
-    pub event: serde_json::Value,
+    pub created_at: proto_blue_syntax::Datetime,
+    pub created_by: proto_blue_syntax::Did,
+    pub event: ModEventViewDetailEventRefs,
     pub id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mod_tool: Option<ModTool>,
-    pub subject: serde_json::Value,
+    pub subject: ModEventViewDetailSubjectRefs,
     pub subject_blobs: Vec<BlobView>,
 }
 
@@ -375,19 +524,19 @@ pub struct RecordEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     pub op: String,
-    pub timestamp: String,
+    pub timestamp: proto_blue_syntax::Datetime,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordHosting {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub created_at: Option<String>,
+    pub created_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deleted_at: Option<String>,
+    pub deleted_at: Option<proto_blue_syntax::Datetime>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<String>,
+    pub updated_at: Option<proto_blue_syntax::Datetime>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -395,10 +544,10 @@ pub struct RecordHosting {
 pub struct RecordView {
     pub blob_cids: Vec<String>,
     pub cid: String,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     pub moderation: Moderation,
     pub repo: RepoView,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     pub value: serde_json::Value,
 }
 
@@ -407,19 +556,19 @@ pub struct RecordView {
 pub struct RecordViewDetail {
     pub blobs: Vec<BlobView>,
     pub cid: String,
-    pub indexed_at: String,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<crate::com::atproto::label::defs::Label>>,
     pub moderation: ModerationDetail,
     pub repo: RepoView,
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
     pub value: serde_json::Value,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordViewNotFound {
-    pub uri: String,
+    pub uri: proto_blue_syntax::AtUri,
 }
 
 /// Statistics about a set of record subject items
@@ -448,12 +597,12 @@ pub struct RecordsStats {
 #[serde(rename_all = "camelCase")]
 pub struct RepoView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deactivated_at: Option<String>,
-    pub did: String,
+    pub deactivated_at: Option<proto_blue_syntax::Datetime>,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
-    pub handle: String,
-    pub indexed_at: String,
+    pub handle: proto_blue_syntax::Handle,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -470,14 +619,14 @@ pub struct RepoView {
 #[serde(rename_all = "camelCase")]
 pub struct RepoViewDetail {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub deactivated_at: Option<String>,
-    pub did: String,
+    pub deactivated_at: Option<proto_blue_syntax::Datetime>,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email_confirmed_at: Option<String>,
-    pub handle: String,
-    pub indexed_at: String,
+    pub email_confirmed_at: Option<proto_blue_syntax::Datetime>,
+    pub handle: proto_blue_syntax::Handle,
+    pub indexed_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub invite_note: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -497,14 +646,14 @@ pub struct RepoViewDetail {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RepoViewNotFound {
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReporterStats {
     pub account_report_count: i64,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     pub labeled_account_count: i64,
     pub labeled_record_count: i64,
     pub record_report_count: i64,
@@ -540,11 +689,11 @@ pub struct ScheduleTakedownEvent {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_after: Option<String>,
+    pub execute_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_at: Option<String>,
+    pub execute_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_until: Option<String>,
+    pub execute_until: Option<proto_blue_syntax::Datetime>,
 }
 
 /// View of a scheduled moderation action
@@ -552,29 +701,29 @@ pub struct ScheduleTakedownEvent {
 #[serde(rename_all = "camelCase")]
 pub struct ScheduledActionView {
     pub action: String,
-    pub created_at: String,
-    pub created_by: String,
-    pub did: String,
+    pub created_at: proto_blue_syntax::Datetime,
+    pub created_by: proto_blue_syntax::Did,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event_data: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_after: Option<String>,
+    pub execute_after: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_at: Option<String>,
+    pub execute_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub execute_until: Option<String>,
+    pub execute_until: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_event_id: Option<i64>,
     pub id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_executed_at: Option<String>,
+    pub last_executed_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_failure_reason: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub randomize_execution: Option<bool>,
     pub status: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub updated_at: Option<String>,
+    pub updated_at: Option<proto_blue_syntax::Datetime>,
 }
 
 pub type SubjectReviewState = String;
@@ -583,6 +732,30 @@ pub const SUBJECT_REVIEW_STATE_REVIEW_ESCALATED: &str =
     "tools.ozone.moderation.defs#reviewEscalated";
 pub const SUBJECT_REVIEW_STATE_REVIEW_CLOSED: &str = "tools.ozone.moderation.defs#reviewClosed";
 pub const SUBJECT_REVIEW_STATE_REVIEW_NONE: &str = "tools.ozone.moderation.defs#reviewNone";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum SubjectStatusViewHostingRefs {
+    #[serde(rename = "tools.ozone.moderation.defs#accountHosting")]
+    OzoneModerationDefsAccountHosting(Box<AccountHosting>),
+    #[serde(rename = "tools.ozone.moderation.defs#recordHosting")]
+    OzoneModerationDefsRecordHosting(Box<RecordHosting>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum SubjectStatusViewSubjectRefs {
+    #[serde(rename = "com.atproto.admin.defs#repoRef")]
+    AtprotoAdminDefsRepoRef(Box<crate::com::atproto::admin::defs::RepoRef>),
+    #[serde(rename = "com.atproto.repo.strongRef")]
+    AtprotoRepoStrongRef(Box<crate::com::atproto::repo::strong_ref::Main>),
+    #[serde(rename = "chat.bsky.convo.defs#messageRef")]
+    BskyConvoDefsMessageRef(Box<crate::chat::bsky::convo::defs::MessageRef>),
+    #[serde(other)]
+    Other,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -599,39 +772,46 @@ pub struct SubjectStatusView {
     pub appealed: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
-    pub created_at: String,
+    pub created_at: proto_blue_syntax::Datetime,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub hosting: Option<serde_json::Value>,
+    pub hosting: Option<SubjectStatusViewHostingRefs>,
     pub id: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_appealed_at: Option<String>,
+    pub last_appealed_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_reported_at: Option<String>,
+    pub last_reported_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_reviewed_at: Option<String>,
+    pub last_reviewed_at: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_reviewed_by: Option<String>,
+    pub last_reviewed_by: Option<proto_blue_syntax::Did>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mute_reporting_until: Option<String>,
+    pub mute_reporting_until: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub mute_until: Option<String>,
+    pub mute_until: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority_score: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub records_stats: Option<RecordsStats>,
     pub review_state: SubjectReviewState,
-    pub subject: serde_json::Value,
+    pub subject: SubjectStatusViewSubjectRefs,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_blob_cids: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub subject_repo_handle: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub suspend_until: Option<String>,
+    pub suspend_until: Option<proto_blue_syntax::Datetime>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub takendown: Option<bool>,
-    pub updated_at: String,
+    pub updated_at: proto_blue_syntax::Datetime,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum SubjectViewProfileRefs {
+    #[serde(other)]
+    Other,
 }
 
 /// Detailed view of a subject. For record subjects, the author's repo and profile will be returned.
@@ -639,7 +819,7 @@ pub struct SubjectStatusView {
 #[serde(rename_all = "camelCase")]
 pub struct SubjectView {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub profile: Option<serde_json::Value>,
+    pub profile: Option<SubjectViewProfileRefs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub record: Option<RecordViewDetail>,
     #[serde(skip_serializing_if = "Option::is_none")]

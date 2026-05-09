@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct Output {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active: Option<bool>,
-    pub did: String,
+    pub did: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub did_doc: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -19,7 +19,7 @@ pub struct Output {
     pub email_auth_factor: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email_confirmed: Option<bool>,
-    pub handle: String,
+    pub handle: proto_blue_syntax::Handle,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
 }

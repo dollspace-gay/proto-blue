@@ -4,15 +4,41 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum MainMediaRefs {
+    #[serde(rename = "app.bsky.embed.images")]
+    BskyEmbedImages(Box<crate::app::bsky::embed::images::Main>),
+    #[serde(rename = "app.bsky.embed.video")]
+    BskyEmbedVideo(Box<crate::app::bsky::embed::video::Main>),
+    #[serde(rename = "app.bsky.embed.external")]
+    BskyEmbedExternal(Box<crate::app::bsky::embed::external::Main>),
+    #[serde(other)]
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Main {
-    pub media: serde_json::Value,
+    pub media: MainMediaRefs,
     pub record: crate::app::bsky::embed::record::Main,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "$type")]
+pub enum ViewMediaRefs {
+    #[serde(rename = "app.bsky.embed.images#view")]
+    BskyEmbedImagesView(Box<crate::app::bsky::embed::images::View>),
+    #[serde(rename = "app.bsky.embed.video#view")]
+    BskyEmbedVideoView(Box<crate::app::bsky::embed::video::View>),
+    #[serde(rename = "app.bsky.embed.external#view")]
+    BskyEmbedExternalView(Box<crate::app::bsky::embed::external::View>),
+    #[serde(other)]
+    Other,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct View {
-    pub media: serde_json::Value,
+    pub media: ViewMediaRefs,
     pub record: crate::app::bsky::embed::record::View,
 }

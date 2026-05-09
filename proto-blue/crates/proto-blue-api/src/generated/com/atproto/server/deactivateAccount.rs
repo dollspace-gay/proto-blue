@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Input {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub delete_after: Option<String>,
+    pub delete_after: Option<proto_blue_syntax::Datetime>,
 }
 
 /// Errors a `call()` on this method can return.

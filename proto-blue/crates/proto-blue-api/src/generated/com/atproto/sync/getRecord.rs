@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Params {
-    pub collection: String,
-    pub did: String,
-    pub rkey: String,
+    pub collection: proto_blue_syntax::Nsid,
+    pub did: proto_blue_syntax::Did,
+    pub rkey: proto_blue_syntax::RecordKey,
 }
 
 /// Errors a `call()` on this method can return.
@@ -51,21 +51,21 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
         let v = &p.collection;
         qp.insert(
             "collection".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.did;
         qp.insert(
             "did".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     {
         let v = &p.rkey;
         qp.insert(
             "rkey".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -118,8 +118,17 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // validated upstream by the lexicon validator when enabled;
     // missing values surface as runtime errors from the handler.
     Some(Params {
-        collection: (ctx.params.get("collection").cloned())?,
-        did: (ctx.params.get("did").cloned())?,
-        rkey: (ctx.params.get("rkey").cloned())?,
+        collection: (ctx
+            .params
+            .get("collection")
+            .and_then(|v| proto_blue_syntax::Nsid::new(v).ok()))?,
+        did: (ctx
+            .params
+            .get("did")
+            .and_then(|v| proto_blue_syntax::Did::new(v).ok()))?,
+        rkey: (ctx
+            .params
+            .get("rkey")
+            .and_then(|v| proto_blue_syntax::RecordKey::new(v).ok()))?,
     })
 }

@@ -6,7 +6,7 @@ High-level AT Protocol client -- Agent, RichText, moderation, and generated type
 
 ```toml
 [dependencies]
-proto-blue-api = "0.1"
+proto-blue-api = "0.3"
 ```
 
 ## Exports
@@ -16,17 +16,21 @@ proto-blue-api = "0.1"
 - `ModerationDecision`, `ModerationOpts`, `check_muted_words`, `known_labels` -- content moderation
 - `generated::` -- types generated from AT Protocol Lexicon schemas
 
+Identifier types (`Did`, `Handle`, `AtUri`, `AtIdentifier`, ...) live in `proto_blue_syntax`; CIDs live in `proto_blue_lex_data`. The Agent surface and generated XRPC parameters take these by reference instead of `&str`.
+
 ## Usage
 
 ### Agent
 
 ```rust
 use proto_blue_api::Agent;
+use proto_blue_syntax::AtIdentifier;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let agent = Agent::new("https://bsky.social")?;
-    agent.login("alice.bsky.social", "app-password").await?;
+    let ident = AtIdentifier::new("alice.bsky.social")?;
+    agent.login(&ident, "app-password").await?;
     agent.post("Hello from Rust!", None, None).await?;
     Ok(())
 }
@@ -49,6 +53,31 @@ for seg in &rt.segments() {
     }
 }
 ```
+
+## Migrating from 0.2.x
+
+v0.3.0 replaces `String`/`&str` identifier arguments and fields with validated newtypes from `proto_blue_syntax`. Wire format is unchanged; callers construct typed values explicitly.
+
+```rust
+use proto_blue_syntax::{Did, Handle, AtUri, AtIdentifier};
+use proto_blue_lex_data::Cid;
+```
+
+Common swaps:
+
+- `agent.login("alice.bsky.social", pw)` -> `agent.login(&AtIdentifier::new("alice.bsky.social")?, pw)`
+- `agent.resolve_handle("alice.bsky.social")` -> `agent.resolve_handle(&Handle::new("alice.bsky.social")?)` (now returns `Did`)
+- `agent.follow(&did_str, ...)` -> `agent.follow(&Did::new(did_str)?, ...)`
+- `agent.like(&uri_str, &cid_str, ...)` -> `agent.like(&AtUri::new(uri_str)?, &Cid::new(cid_str)?, ...)`
+- `agent.delete_post(&uri_str)` (and `delete_like` / `delete_repost` / `delete_follow`) -> pass `&AtUri`
+- `agent.get_post_thread(&uri_str, ...)` -> `&AtUri`; `agent.get_profile(&actor_str, ...)` -> `&AtIdentifier`
+- `agent.create_account(&handle_str, pw, email, ...)` -> `&Handle`
+- `Session.did: String` -> `Did`; `Session.handle: String` -> `Handle`; `LabelerOpts.did: String` -> `Did`. `access_jwt`, `refresh_jwt`, and `email` remain `String`.
+- `Agent::did() -> Option<Did>` (was `Option<String>`).
+
+`resume_session` and `resolve_handle` now validate server-returned DIDs through `Did::new`; a malformed DID surfaces as `AgentError::Other(...)` instead of being stored verbatim.
+
+Generated XRPC method parameters whose lexicons declare a `format`-typed string (did, handle, at-uri, cid, nsid, ...) now expose the corresponding newtype on the request struct.
 
 ## License
 

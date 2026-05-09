@@ -11,7 +11,7 @@ pub struct Params {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cursor: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub keys: Option<Vec<String>>,
+    pub keys: Option<Vec<proto_blue_syntax::Nsid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub limit: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -48,7 +48,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.cursor {
         qp.insert(
             "cursor".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.keys {
@@ -56,7 +56,7 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
             "keys".to_string(),
             proto_blue_xrpc::QueryValue::Array(
                 v.iter()
-                    .map(|x| proto_blue_xrpc::QueryValue::String(x.clone()))
+                    .map(|x| proto_blue_xrpc::QueryValue::String(x.to_string()))
                     .collect(),
             ),
         );
@@ -70,13 +70,13 @@ fn to_query_params(p: &Params) -> proto_blue_xrpc::QueryParams {
     if let Some(v) = &p.prefix {
         qp.insert(
             "prefix".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     if let Some(v) = &p.scope {
         qp.insert(
             "scope".to_string(),
-            proto_blue_xrpc::QueryValue::String(v.clone()),
+            proto_blue_xrpc::QueryValue::String(v.to_string()),
         );
     }
     qp
@@ -136,12 +136,12 @@ fn params_from_ctx(ctx: &proto_blue_xrpc::HandlerContext) -> Option<Params> {
     // missing values surface as runtime errors from the handler.
     Some(Params {
         cursor: ctx.params.get("cursor").cloned(),
-        keys: Some(
-            ctx.params
-                .get("keys")
-                .map(|v| v.split(',').map(String::from).collect::<Vec<_>>())
-                .unwrap_or_default(),
-        ),
+        keys: ctx.params.get("keys").and_then(|v| {
+            v.split(',')
+                .map(proto_blue_syntax::Nsid::new)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()
+        }),
         limit: ctx.params.get("limit").and_then(|v| v.parse::<i64>().ok()),
         prefix: ctx.params.get("prefix").cloned(),
         scope: ctx.params.get("scope").cloned(),

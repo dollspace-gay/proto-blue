@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    pub account: String,
+    pub account: proto_blue_syntax::Did,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
