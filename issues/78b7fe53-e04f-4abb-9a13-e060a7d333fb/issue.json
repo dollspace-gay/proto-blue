@@ -2,12 +2,13 @@
   "uuid": "78b7fe53-e04f-4abb-9a13-e060a7d333fb",
   "display_id": 28,
   "title": "interop: differential test for signed commit construction (audit item 5)",
-  "status": "open",
+  "status": "closed",
   "priority": "medium",
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T23:24:16.546216033Z",
-  "updated_at": "2026-05-08T23:24:17.793844592Z",
+  "updated_at": "2026-05-09T01:20:28.833076307Z",
+  "closed_at": "2026-05-09T01:20:28.833076307Z",
   "labels": [
     "tests"
   ]
