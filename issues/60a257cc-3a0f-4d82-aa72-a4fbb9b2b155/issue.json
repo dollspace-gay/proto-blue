@@ -2,12 +2,13 @@
   "uuid": "60a257cc-3a0f-4d82-aa72-a4fbb9b2b155",
   "display_id": 27,
   "title": "interop: differential test for CAR layout byte-equivalence (audit item 4)",
-  "status": "open",
+  "status": "closed",
   "priority": "medium",
   "parent_uuid": "1e3fea94-ff19-4194-8537-00ecfb2b0337",
   "created_by": "5kO0",
   "created_at": "2026-05-08T23:24:13.927966705Z",
-  "updated_at": "2026-05-08T23:24:15.168135397Z",
+  "updated_at": "2026-05-09T01:17:01.118007834Z",
+  "closed_at": "2026-05-09T01:17:01.118007834Z",
   "labels": [
     "tests"
   ]
