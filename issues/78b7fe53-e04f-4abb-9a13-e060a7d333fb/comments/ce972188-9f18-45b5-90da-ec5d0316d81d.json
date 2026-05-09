@@ -1,0 +1,10 @@
+{
+  "uuid": "ce972188-9f18-45b5-90da-ec5d0316d81d",
+  "issue_uuid": "78b7fe53-e04f-4abb-9a13-e060a7d333fb",
+  "author": "5kO0",
+  "content": "Signed commit construction parity locked in.\n\nThree layered checks added:\n\n1. differential_unsigned_commit_signing_bytes — DAG-CBOR signing bytes byte-for-byte equal across impls. The trust model rests on this — if signing bytes differ, signatures from one impl don't verify on the other. Two fixtures (genesis with prev=null, with_prev with non-null prev CID).\n\n2. differential_signed_commit_cid_with_fixed_sig — given the same UnsignedCommit fields and a Rust-generated P-256 signature, both impls compute the same SignedCommit CID. (Pinned sig because ECDSA is non-deterministic.)\n\n3. differential_signed_commit_cross_impl_verification — Rust signs with both K-256 and P-256, TS verifies via verifyCommitSig with the corresponding did:key. End-to-end interop validation including the negative path (tampered rev string → TS must reject).\n\nTS-side ops added (ts-runner/index.mjs):\n- commit_signing_bytes — cborEncode of unsigned commit\n- commit_signed_cid — cidForRecord of {unsigned, sig}\n- commit_verify_sig — verifyCommitSig({unsigned, sig}, did_key)\n- unsignedCommitFromInput helper validates {did, data, rev, prev} input strictly\n\nVerification: TS_RUNNER_READY=1 cargo test -p proto-blue-interop-tests --tests passes 25 tests; cargo clippy --all-targets -D warnings clean.\n\nThis closes the #26/#27/#28 differential epic from the audit follow-up — full MST root-CID, CAR layout, and signed commit construction parity now exercised in CI.",
+  "created_at": "2026-05-09T01:20:24.870549546Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAeAFRBK6XZuKQIB2aIjOUAYn2xvdusDTWdh1DoQLjmVno9g/bdx1f5YISYMGJS+EBuPHiNS8kYCHbJjxqxBVZBQ=="
+}
