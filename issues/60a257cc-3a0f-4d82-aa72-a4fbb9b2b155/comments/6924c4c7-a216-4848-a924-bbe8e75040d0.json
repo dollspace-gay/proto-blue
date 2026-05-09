@@ -1,0 +1,10 @@
+{
+  "uuid": "6924c4c7-a216-4848-a924-bbe8e75040d0",
+  "issue_uuid": "60a257cc-3a0f-4d82-aa72-a4fbb9b2b155",
+  "author": "5kO0",
+  "content": "CAR layout byte-equivalence locked in.\n\nImplementation:\n- ts-runner/index.mjs: new car_write_blocks op accepting { root: cid_str|null, blocks: [[cid_str, hex_payload], ...] } and yielding raw CAR hex via @atproto/repo's writeCarStream. Bypasses BlockMap so the test controls block order exactly.\n- tests/differential.rs:\n  - differential_car_layout_byte_equivalence — runs the full mst_corpus through Rust blocks_to_car and TS car_write_blocks (with Rust-side block iteration order pinned for both), asserts byte-for-byte hex equality across 6 fixtures (single, two_keys, dense_small, tid_shape, fifty_keys, mixed_collections)\n  - differential_car_layout_byte_equivalence_no_root — None root variant, exercises the empty-roots-array CBOR header path the multi-fixture test never hits\n- car_blocks_wire helper builds the JSON envelope from a (cid, &BlockMap) pair.\n\nWhat this validates byte-equivalent: header CBOR (version=1, roots=[Cid|empty]), header-length varint, per-block (cidlen+bytelen) varint, CID byte encoding, payload concatenation. Block ordering itself is intentionally controlled by the test (BlockMap iteration order is an implementation detail and explicitly out of audit scope).\n\nVerification: TS_RUNNER_READY=1 cargo test -p proto-blue-interop-tests --tests passes 22 tests including both new CAR layout tests; cargo clippy --all-targets -D warnings clean.",
+  "created_at": "2026-05-09T01:16:56.628919778Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA8WIrPSAdut7CZTKGfyB+xneg/eoiQyQu6VEbZvO4y89xoXNzGZ8SG++owDzGQ1M11fFfMiUmNHklG3nk6PUHDA=="
+}
