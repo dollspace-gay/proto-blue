@@ -1,0 +1,10 @@
+{
+  "uuid": "6eb43263-5657-4bfa-bcd3-bfdbf853ebf3",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Observation (Phase 3a baseline): `diff -r <fresh-regen> crates/proto-blue-api/src/generated` produces 13839 lines of pre-existing drift. The committed generated/ tree is fmt-normalized (per commit fd91a50 'clippy + fmt cleanup'), while the codegen emits unformatted text. The correct regen-drift invariant is: after `rustfmt --edition 2024` on the regen output, diff against committed must be 0 lines. Verified at baseline: 0. I will use this fmt-then-diff form as the regen-drift gate.",
+  "created_at": "2026-05-11T15:13:57.223065168Z",
+  "kind": "observation",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABADnxCtbR+16ZksfRl6JPkod2Ce3afSpTRVmraCsji30jdP94bO7XrRZx6wZTF8VBW4EWggeko4+vsO9IPnAgSBg=="
+}
