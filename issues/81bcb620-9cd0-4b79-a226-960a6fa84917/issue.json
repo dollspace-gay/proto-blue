@@ -1,0 +1,10 @@
+{
+  "uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "display_id": 31,
+  "title": "lint: cargo clippy (strict) + cargo fmt sweep",
+  "status": "open",
+  "priority": "medium",
+  "created_by": "5kO0",
+  "created_at": "2026-05-11T13:07:20.167724008Z",
+  "updated_at": "2026-05-11T13:07:20.167724008Z"
+}
