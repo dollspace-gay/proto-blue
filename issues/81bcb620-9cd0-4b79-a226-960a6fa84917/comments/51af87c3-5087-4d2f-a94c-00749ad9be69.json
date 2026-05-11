@@ -1,0 +1,10 @@
+{
+  "uuid": "51af87c3-5087-4d2f-a94c-00749ad9be69",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Plan (Phase 3b dispatch — 3 narrow pieces): (1) Run cargo fmt --all once to clean Phase-2 line-wrap drifts in reqwest_impl.rs:66, retry.rs:96, rate_limit.rs:229 (no other edits in those files). (2) Add #[allow(clippy::cast_possible_truncation)] + invariant comment on the let-now binding in times.rs:20-23 (millis-since-epoch fits u64 for ~584M years). (3) Add #[allow(clippy::significant_drop_tightening)] + comment on the refresh_jwt inner block in agent.rs:382 (existing pattern is project-idiomatic; ? early-return drop-tighten reshape adds LoC without behavior change). Strict scope: 5 files max. NO refactors, NO public API changes, NO Cargo.toml edits, NO cid.rs:153 (that's Phase 3d). Expect pedantic 104 -> ~102, fmt-check clean.",
+  "created_at": "2026-05-11T15:55:59.625627204Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA5m0Jek7qtiMTe7APQhJk9Tl4vLJh1HDy/3fxytxD3JQfPP+He4a2g6PvmTl3aMPDAvcxBPM9vAv2VyPVUXXfBg=="
+}
