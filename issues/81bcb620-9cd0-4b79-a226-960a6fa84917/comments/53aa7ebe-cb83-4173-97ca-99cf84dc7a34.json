@@ -1,0 +1,10 @@
+{
+  "uuid": "53aa7ebe-cb83-4173-97ca-99cf84dc7a34",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Plan (final Phase 2 dispatch): Address 9 sites: 7 dispatch targets + 2 emergent. Verified pass_by_value sites 27/28/29 already addressed by prior subagent. Confirmed sites needing work: agent.rs:244+381, tid_gen.rs:31+38, cache.rs:100, store.rs:84+93, storage.rs:98+124+153. For each: narrow lock scope where safe, allow+comment where atomicity/breaking-API requires it.",
+  "created_at": "2026-05-11T14:23:55.237500731Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA99M9xQAO9Q4gCG2B9xXRfVMWTD2MuDHl3ZfxntHhNXBGVAjwef98MQ3cyuk5Q8xVCfn2znAzj3iW3GVOsI05Dg=="
+}
