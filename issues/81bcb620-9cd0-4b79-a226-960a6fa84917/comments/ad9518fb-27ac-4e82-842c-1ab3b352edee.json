@@ -1,0 +1,10 @@
+{
+  "uuid": "ad9518fb-27ac-4e82-842c-1ab3b352edee",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Plan (Phase 2): apply the architect's pre-classified per-site fix table for the ~30 correctness-bucket pedantic warnings (cast_*, significant_drop_tightening, needless_pass_by_value, collection_is_never_read). Class A = narrow #[allow] + invariant comment; Class B = TryFrom + existing error variant; Class C = escalate (cid.rs:153 only). One real bug at repo.rs:192 (new_leaf_cids) to be removed. No public-API changes, no new enum variants, no crate-root allows, no cargo clippy --fix. Will verify with: pedantic count snapshot, ci clippy gate, full test tally, differential test, fmt --check, variant/public-api guard greps.",
+  "created_at": "2026-05-11T14:05:59.433621315Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABABlrzYWcg8nFO+7Gd8+BHHMEik3FgY1PLsEbYIPF1+Qpfz0sc0aAiWVvgR4t3dM+U9R9xnpDrAa8SjOsFTK52Ag=="
+}
