@@ -1,0 +1,10 @@
+{
+  "uuid": "784ac020-35e4-48b8-b1d8-a0d3136b574a",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Lint-sweep arc complete. v0.3.1 committed (e36a5fa). 1313 → 0 pedantic. Issue #31 left open for human closure with --no-changelog. Next human steps: git push origin main, tag v0.3.1, GitHub release.",
+  "created_at": "2026-05-11T18:29:28.079109270Z",
+  "kind": "handoff",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAlHMtrlN+xC7KHDsinbBpz8syFbVctTicPFiQdpb3SHWSEC+jhvAJ+UKNC11KxhHeMhwbNnNNbByTebk3MTEvCA=="
+}
