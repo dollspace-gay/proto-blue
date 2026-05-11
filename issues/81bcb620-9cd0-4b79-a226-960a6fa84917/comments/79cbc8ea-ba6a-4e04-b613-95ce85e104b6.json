@@ -1,0 +1,10 @@
+{
+  "uuid": "79cbc8ea-ba6a-4e04-b613-95ce85e104b6",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Results:\n- cargo fmt: 5 fixes applied to crates/proto-blue-interop-tests/tests/differential.rs (line-length wraps from recent edits). All other crates already formatted.\n- cargo clippy --workspace --all-targets --all-features -- -D warnings: CLEAN. Zero warnings, all 16 crates + examples + interop-tests + tests checked.\n- cargo clippy -W clippy::pedantic -W clippy::nursery: 1313 advisory warnings (0 errors). Heavily dominated by codegen output — proto-blue-api lib alone produced 702 of 1313 (generated lexicon types in src/generated/). Hand-written crates are mostly in the 6–45 warning range: lex-data(8), lex-cbor(6), lex-json(14), syntax(22), crypto(17), common(21), identity(11), ws(18), lexicon(13), xrpc(41), repo(94), oauth(45), codegen(83 — bin). Top lints: cast_possible_truncation(35), missing_errors_doc(13), doc_markdown(13), manual_let_else(9), match_same_arms(8), uninlined_format_args(7), option_if_let_else(6), needless_pass_by_value(6).\n- cargo clippy -W clippy::cargo: 37 warnings, ALL are multiple_crate_versions from transitive deps. Notable duplicates: thiserror 1+2, tokio-tungstenite 0.26+0.29, tungstenite 0.26+0.29, rand 0.8+0.9, hashbrown 0.15+0.17, getrandom 0.2/0.3/0.4, windows-sys 0.52+0.61, core-foundation 0.9+0.10, wit-bindgen 0.51+0.57. Not fixable without patching transitive deps.",
+  "created_at": "2026-05-11T13:09:53.032427173Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAXCSyN1IGEc3hWp35pWjA3ZWfwYuW9vdrOGcDZNQBYY6z9ylBpZy0AshtrjzOAvQCCWl32iaSME0CtRS7tdyLCQ=="
+}
