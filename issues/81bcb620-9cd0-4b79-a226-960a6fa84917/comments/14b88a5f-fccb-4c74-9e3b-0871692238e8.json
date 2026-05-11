@@ -1,0 +1,10 @@
+{
+  "uuid": "14b88a5f-fccb-4c74-9e3b-0871692238e8",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Phase 1 of three-phase pedantic Tier-4 hand audit: applied test allows + auto-fix retry.\n\nSnapshots (./scripts/clippy-pedantic.sh | grep -c ^warning):\n  (a) baseline: 425\n  (b) after test allows (14 lib.rs/main.rs cfg_attr + 27 tests/*.rs allow): 286\n  (c) after cargo clippy --fix (with -A wildcard_imports): 241\n  Deltas: -139, -45. Total: -184.\n\nCI gates after Phase 1:\n  - cargo clippy --workspace --all-targets --all-features -- -D warnings: clean\n  - cargo test --workspace: 1111 passed / 0 failed / 11 ignored\n  - cargo fmt --all -- --check: clean\n\n--fix touched examples/src/bin only (39 fix sites across 6 files): doc_markdown, uninlined_format_args, redundant_clone, needless_continue/if-not-else. Moderation directory untouched (wildcard-imports break did not recur). No public API changes; no unwrap/expect/dbg/todo in src; no crate-root #![allow] without cfg_attr.\n\nPhases 2 (correctness audit) and 3 (stylistic per-site cleanup) remain. Issue stays open.",
+  "created_at": "2026-05-11T13:55:16.020761759Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAidP3J4ye0AMN2BUzK1xYEjHkCibOazWUcQj8cC3h9fwPv6PBgYvNVfYix+byJNYGcInmi+NGG+I7wvU8IsJtCQ=="
+}
