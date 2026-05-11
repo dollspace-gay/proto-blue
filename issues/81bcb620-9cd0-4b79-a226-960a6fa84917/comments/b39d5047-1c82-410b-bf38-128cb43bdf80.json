@@ -1,0 +1,10 @@
+{
+  "uuid": "b39d5047-1c82-410b-bf38-128cb43bdf80",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Phase 3d landed: SemVer 0.4.0 bump + Cid::version widening u8 -> u64. 5 edits to crates/proto-blue-lex-data/src/cid.rs, workspace version 0.3.0 -> 0.4.0 (plus the 12 workspace.dependencies version refs in the same Cargo.toml that pinned 0.3.0 -- necessary correlated change to make workspace compile), CHANGELOG.md gained a 0.4.0 - 2026-05-11 entry. Pedantic 14 -> 12 (the two cid.rs cast_possible_truncation sites resolved). Strict clippy clean. Tests 1111/0/11. Differential canary 25/0. fmt clean.",
+  "created_at": "2026-05-11T17:25:54.108658201Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAde4RgVaY7XhBnL3rcM4/azTQLrFbaRcxhp0K6/YbWJ3UQKnUkxCq5Erg3Ij8ha4wRw4c8e41j+rdtxigdEUbDw=="
+}
