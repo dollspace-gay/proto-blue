@@ -1,0 +1,10 @@
+{
+  "uuid": "0b326f42-0477-4a41-9a4a-5fc8c341a2ae",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Approach: commit the full lint-sweep arc (1313 → 0 pedantic warnings) under v0.3.1 patch-level framing. Includes: codegen output regen with allow attrs, workspace [lints] policy, clippy.toml doc-valid-idents, test-code cfg_attr allows, scripts/clippy-pedantic.sh helper, per-site fixes across ~30 source files (correctness audit + production stylistic), Cid::version u8 → u64 widening with CHANGELOG entry, ~26 per-item #[allow] attrs with rationale comments. cargo clippy -D warnings clean, fmt clean, 1111 tests pass, differential 25/0.",
+  "created_at": "2026-05-11T18:27:41.408700119Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA3Ytlzap/lXUVql8wObJM78KLPzk7Fd7ouJ+Q4o6Pjm/C0hBcwEI05cBgZmbKzao70+q/pB1w8dWA/vuGq7piCw=="
+}
