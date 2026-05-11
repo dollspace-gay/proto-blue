@@ -4,6 +4,12 @@
 //! and produces UI decisions for each context.
 
 use super::labels;
+// Pulls in the full moderation type prelude (ModerationCause, ModerationUi,
+// LabelData, LabelTarget, LabelPreference, BehaviorValue, UiContext, …) used
+// pervasively below. Enumerating these breaks downstream `proto-blue-api`
+// modules and tests that re-export through this module (the Phase 1 break
+// landmine).
+#[allow(clippy::wildcard_imports)]
 use super::types::*;
 
 /// A moderation decision for a subject (profile, post, etc.).
@@ -97,10 +103,9 @@ impl ModerationDecision {
 
     /// Add a label cause with preference resolution.
     pub fn add_label(&mut self, label: LabelData, target: LabelTarget, opts: &ModerationOpts) {
-        // Look up label definition
-        let label_def = match labels::find_label_def(&label.val, &opts.label_defs) {
-            Some(def) => def,
-            None => return, // Unknown label, ignore
+        // Look up label definition; ignore unknown labels.
+        let Some(label_def) = labels::find_label_def(&label.val, &opts.label_defs) else {
+            return;
         };
 
         // Resolve preference
@@ -193,16 +198,19 @@ impl ModerationDecision {
                     downgraded,
                     ..
                 } => {
-                    // Label-specific filtering for hide preference
+                    // Label-specific filtering for hide preference.
+                    // Account is filtered in both ProfileList and ContentList
+                    // contexts; Content is filtered only in ContentList. The
+                    // nested or-pattern keeps this a single arm (avoiding
+                    // `clippy::match_same_arms` from duplicated bodies) while
+                    // also satisfying `clippy::unnested_or_patterns`.
                     if *setting == LabelPreference::Hide && !self.is_me {
                         match (context, target) {
-                            (UiContext::ProfileList, LabelTarget::Account) => {
-                                ui.filters.push(cause.clone());
-                            }
                             (
-                                UiContext::ContentList,
-                                LabelTarget::Account | LabelTarget::Content,
-                            ) => {
+                                UiContext::ProfileList | UiContext::ContentList,
+                                LabelTarget::Account,
+                            )
+                            | (UiContext::ContentList, LabelTarget::Content) => {
                                 ui.filters.push(cause.clone());
                             }
                             _ => {}

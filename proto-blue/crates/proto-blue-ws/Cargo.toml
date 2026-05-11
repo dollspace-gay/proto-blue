@@ -62,3 +62,6 @@ proptest = { workspace = true }
 # The keep-alive state-machine test needs a runtime with `rt`
 # enabled to drive the async loop from inside a proptest body.
 tokio = { workspace = true, features = ["macros", "rt", "time", "sync"] }
+
+[lints]
+workspace = true

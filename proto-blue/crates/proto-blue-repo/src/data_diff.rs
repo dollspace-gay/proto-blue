@@ -77,10 +77,7 @@ impl DataDiff {
     /// Diff `curr` against `prev`. Pass `prev = None` for a "null diff"
     /// (the new tree as an add-only view). This matches TS `mstDiff`.
     pub fn of(curr: &MstNode, prev: Option<&MstNode>) -> Result<Self, RepoError> {
-        match prev {
-            None => null_diff(curr),
-            Some(prev) => full_diff(curr, prev),
-        }
+        prev.map_or_else(|| null_diff(curr), |prev| full_diff(curr, prev))
     }
 
     /// Return the add list (in sorted-by-key order).

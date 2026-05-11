@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol XRPC HTTP client and (optional) server.
 //!
 //! - [`XrpcClient`] makes outbound XRPC query (GET) and procedure (POST)

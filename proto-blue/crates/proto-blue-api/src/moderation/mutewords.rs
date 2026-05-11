@@ -231,7 +231,12 @@ impl UnicodeCategory for char {
         if self.is_ascii_punctuation() {
             return UnicodeGeneralCategoryGroup::Punctuation;
         }
-        // Unicode general category Pc, Pd, Pe, Pf, Pi, Po, Ps
+        // Unicode general category Pc, Pd, Pe, Pf, Pi, Po, Ps.
+        // Arms kept separate (rather than `|`-collapsed) so each range
+        // carries its own annotation; this also leaves room for
+        // future-divergence if the category enum is refined (Pc vs Pd vs
+        // Po, etc.) without re-flattening a collapsed pattern.
+        #[allow(clippy::match_same_arms)]
         match *self {
             '\u{00A1}'..='\u{00BF}' => UnicodeGeneralCategoryGroup::Punctuation, // Latin-1 punct
             '\u{2010}'..='\u{2027}' => UnicodeGeneralCategoryGroup::Punctuation, // General punct

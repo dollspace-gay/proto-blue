@@ -23,3 +23,6 @@ hex = "0.4"
 # real interop divergence with colored side-by-side output than a
 # blob `{...}` dump from the default assert_eq!.
 pretty_assertions = "1.4"
+
+[lints]
+workspace = true

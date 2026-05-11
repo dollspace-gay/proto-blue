@@ -6,6 +6,7 @@
 //! `proto-blue-crypto/Cargo.toml`).
 
 use rand::{Rng, RngCore, SeedableRng};
+use std::fmt::Write as _;
 
 /// Generate `n` cryptographically secure random bytes.
 #[must_use]
@@ -27,7 +28,12 @@ pub fn random_bytes(n: usize) -> Vec<u8> {
 pub fn random_str(n: usize, encoding: StrEncoding) -> String {
     let bytes = random_bytes(n);
     match encoding {
-        StrEncoding::Hex => bytes.iter().map(|b| format!("{b:02x}")).collect(),
+        StrEncoding::Hex => bytes
+            .iter()
+            .fold(String::with_capacity(n * 2), |mut acc, b| {
+                write!(acc, "{b:02x}").expect("write to String is infallible");
+                acc
+            }),
         StrEncoding::Base32 => base32_encode(&bytes),
         StrEncoding::Base58btc => bs58::encode(&bytes).into_string(),
         StrEncoding::Base64 => {

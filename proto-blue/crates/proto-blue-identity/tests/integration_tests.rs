@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Integration tests against live AT Protocol infrastructure.
 //!
 //! These tests require network access and hit real services.

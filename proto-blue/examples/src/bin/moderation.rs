@@ -5,10 +5,14 @@
 //!
 //! Run with: cargo run -p proto-blue-examples --bin moderation
 
+// example imports moderation prelude
+#[allow(clippy::wildcard_imports)]
 use proto_blue_api::moderation::{
     decision::ModerationDecision, labels::known_labels, mutewords::check_muted_words, types::*,
 };
 
+// example demonstrates many moderation scenarios sequentially
+#[allow(clippy::too_many_lines)]
 fn main() {
     println!("=== AT Protocol Content Moderation ===\n");
 
@@ -145,10 +149,10 @@ fn main() {
             "  \"{}\" [tags: {:?}] -> {}",
             text,
             tags,
-            if !matches.is_empty() {
-                "MUTED"
-            } else {
+            if matches.is_empty() {
                 "visible"
+            } else {
+                "MUTED"
             }
         );
     }

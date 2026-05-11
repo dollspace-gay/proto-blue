@@ -1,6 +1,7 @@
 //! SHA-256 hashing.
 
 use sha2::{Digest, Sha256};
+use std::fmt::Write as _;
 
 /// Compute the SHA-256 hash of the input bytes.
 #[must_use]
@@ -20,7 +21,7 @@ pub fn sha256_hex(input: &[u8]) -> String {
     let bytes = sha256(input);
     let mut s = String::with_capacity(64);
     for b in bytes {
-        s.push_str(&format!("{b:02x}"));
+        write!(s, "{b:02x}").expect("write to String is infallible");
     }
     s
 }

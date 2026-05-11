@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-11
+
+Single breaking change to the `proto-blue-lex-data` public API: `Cid::version`
+and `CidError::UnsupportedVersion`'s field types are widened from `u8` to
+`u64` to match the IPLD CIDv1 varint wire encoding. The previous `u8`
+truncated varint inputs above 255 before the error variant could surface
+them. Wire output is byte-equivalent — the encoded varint serializes to
+the same bytes for version values in the realistic range — and the
+differential tests against the `@atproto/*` TypeScript reference are
+unchanged.
+
+### Changed
+- `proto-blue-lex-data`: `Cid::version: u8` → `Cid::version: u64`. Pattern
+  matches and arithmetic that don't explicitly type-annotate continue to
+  compile. Code that explicitly assigns `let v: u8 = cid.version;` must
+  update.
+- `proto-blue-lex-data`: `CidError::UnsupportedVersion(u8)` →
+  `CidError::UnsupportedVersion(u64)`. Same caller-impact shape as above.
+
 ## [0.3.0] - 2026-05-08
 
 This release lands the full audit-driven hardening pass from the external

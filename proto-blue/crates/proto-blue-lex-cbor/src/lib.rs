@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol DAG-CBOR encoding/decoding with CID tag 42 support.
 //!
 //! This crate implements strict DAG-CBOR encoding and decoding for the

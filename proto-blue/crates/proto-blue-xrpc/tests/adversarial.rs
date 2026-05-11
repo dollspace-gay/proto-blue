@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Adversarial tests for proto-blue-xrpc.
 //!
 //! Each test spins up a throwaway `tokio::net::TcpListener` on 127.0.0.1, has

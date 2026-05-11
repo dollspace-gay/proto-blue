@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Property-based tests for repository data structures.
 
 use proptest::prelude::*;

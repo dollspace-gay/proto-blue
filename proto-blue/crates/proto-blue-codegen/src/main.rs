@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol code generator: reads Lexicon JSON schemas and outputs Rust source.
 //!
 //! Usage: `proto-blue-codegen --lexicons <dir> --output <dir>`
@@ -83,7 +85,7 @@ fn collect_json_files(dir: &Path, out: &mut Vec<PathBuf>) {
 fn write_output(output_dir: &Path, files: &BTreeMap<String, String>) {
     // Create output directory
     fs::create_dir_all(output_dir).unwrap_or_else(|e| {
-        panic!("Failed to create output dir: {}", e);
+        panic!("Failed to create output dir: {e}");
     });
 
     for (rel_path, content) in files {

@@ -94,6 +94,13 @@ impl MemoryBlockstore {
 
     /// Construct a store pre-populated with a [`BlockMap`] and an
     /// optional root commit CID — typical usage after reading a CAR.
+    //
+    // `blocks: BlockMap` is taken by value because `pub fn from_blocks`
+    // is part of the 0.3.0 public API and downstream call sites pass
+    // owned maps (typical post-CAR-decode usage). Switching to
+    // `&BlockMap` would be a breaking signature change. The map is
+    // iterated once and discarded, so the cost is one bounded move.
+    #[allow(clippy::needless_pass_by_value)]
     #[must_use]
     pub fn from_blocks(blocks: BlockMap, root: Option<Cid>) -> Self {
         let mut map = HashMap::new();
@@ -126,6 +133,7 @@ impl MemoryBlockstore {
         for (cid, bytes) in &inner.blocks {
             out.set(cid.clone(), bytes.clone());
         }
+        drop(inner);
         out
     }
 }
@@ -149,6 +157,14 @@ impl RepoStorage for MemoryBlockstore {
         Ok(())
     }
 
+    // Atomicity requirement: `apply_commit` MUST publish the new blocks
+    // and the new root as a single observable transition. Narrowing the
+    // guard (e.g. dropping it before `Ok(())`) is fine, but the inserts
+    // and the root update must remain inside one critical section — a
+    // concurrent `snapshot()`/`get_root()` between them would observe a
+    // commit whose root references blocks not yet present (or vice
+    // versa). The atomicity wins over the lint.
+    #[allow(clippy::significant_drop_tightening)]
     fn apply_commit(&self, new_root: Cid, blocks: &BlockMap) -> Result<(), RepoError> {
         let mut inner = self.inner.lock().unwrap();
         for (cid, bytes) in blocks.iter() {

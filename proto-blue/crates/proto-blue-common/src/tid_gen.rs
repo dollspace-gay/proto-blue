@@ -27,6 +27,13 @@ static TID_STATE: Mutex<Option<TidGenState>> = Mutex::new(None);
 /// Uses millisecond timestamps multiplied by 1000 plus a counter for
 /// sub-millisecond ordering. A random clock ID (0-31) is assigned on
 /// first use and reused for all subsequent TIDs from this process.
+// Atomicity requirement: the lock guards the monotonicity invariant
+// (last_timestamp + timestamp_count must transition as a single
+// observable step relative to any concurrent generator). Read-modify-
+// write of `state` happens between line 31 and line 50; narrowing the
+// guard would let two threads observe the same `last_timestamp` and
+// emit colliding TIDs. The atomicity wins over the lint.
+#[allow(clippy::significant_drop_tightening)]
 pub fn next_tid(prev: Option<&Tid>) -> Tid {
     let mut guard = TID_STATE.lock().unwrap();
     let state = guard.get_or_insert_with(|| TidGenState {
@@ -35,6 +42,10 @@ pub fn next_tid(prev: Option<&Tid>) -> Tid {
         clock_id: rand::random::<u32>() % 32,
     });
 
+    // Milliseconds since the UNIX epoch fit in u64 for ~584 million
+    // years, so the cast from u128 cannot truncate during the lifetime
+    // of any running program.
+    #[allow(clippy::cast_possible_truncation)]
     let now_ms = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

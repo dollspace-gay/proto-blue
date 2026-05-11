@@ -148,6 +148,7 @@ impl TokenSet {
     /// Back-compat signature: `aud` is left `None`. Callers that want
     /// to bind the token to a resource-server URL (for DPoP `htu`)
     /// should use [`Self::from_response_with_aud`].
+    #[must_use]
     pub fn from_response(issuer: &str, response: &OAuthTokenResponse) -> Self {
         Self::from_response_with_aud(issuer, None, response)
     }
@@ -164,7 +165,11 @@ impl TokenSet {
         response: &OAuthTokenResponse,
     ) -> Self {
         let expires_at = response.expires_in.map(|secs| {
-            let dt = chrono::Utc::now() + chrono::Duration::seconds(secs as i64);
+            // OAuth `expires_in` is `u64`; saturate at `i64::MAX` so an
+            // absurd server response can't wrap into a negative
+            // `chrono::Duration`. (i64::MAX seconds ≈ 292 billion years.)
+            let secs_i64 = i64::try_from(secs).unwrap_or(i64::MAX);
+            let dt = chrono::Utc::now() + chrono::Duration::seconds(secs_i64);
             dt.to_rfc3339()
         });
 
@@ -188,6 +193,8 @@ impl TokenSet {
     }
 
     /// Check if the token is expired or about to expire (within buffer seconds).
+    // Multi-line bodies on Some + Ok arms; map_or chains obscure the time math.
+    #[allow(clippy::option_if_let_else)]
     #[must_use]
     pub fn is_expired(&self, buffer_secs: i64) -> bool {
         match &self.expires_at {

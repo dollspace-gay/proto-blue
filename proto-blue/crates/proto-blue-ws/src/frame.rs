@@ -183,8 +183,7 @@ fn read_op(header: &LexValue) -> Result<i64, FrameError> {
         .ok_or_else(|| FrameError::InvalidHeader("header is not a CBOR map".to_string()))?;
     match map.get("op") {
         Some(LexValue::Integer(n)) => Ok(*n),
-        Some(_) => Err(FrameError::MissingOp),
-        None => Err(FrameError::MissingOp),
+        Some(_) | None => Err(FrameError::MissingOp),
     }
 }
 

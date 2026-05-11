@@ -159,6 +159,9 @@ fn convert_number(n: &serde_json::Number, opts: LexParseOptions) -> Result<LexVa
             }
             // Casting an out-of-range float to i64 is well-defined
             // in Rust: it saturates to MIN/MAX rather than panicking.
+            // The saturation is intentional, documented above, and
+            // matches pre-0.2.2 lenient-mode behaviour.
+            #[allow(clippy::cast_possible_truncation)]
             return Ok(LexValue::Integer(f as i64));
         }
         // Whole-valued float. In strict mode, reject values outside
@@ -167,15 +170,27 @@ fn convert_number(n: &serde_json::Number, opts: LexParseOptions) -> Result<LexVa
         // for e.g. `4.4e99` rather than an error, and this preserves
         // that behaviour.
         if opts.strict {
-            if f < i64::MIN as f64 || f > i64::MAX as f64 {
+            // i64::MIN and i64::MAX are exact in f64 within one ULP
+            // (they're representable as `-2^63` and `2^63` rounded);
+            // this comparison brackets the same integer range that
+            // the cast saturates to, so the precision loss is the
+            // intended semantics, not a bug.
+            #[allow(clippy::cast_precision_loss)]
+            let (i64_min_as_f, i64_max_as_f) = (i64::MIN as f64, i64::MAX as f64);
+            if f < i64_min_as_f || f > i64_max_as_f {
                 return Err(JsonError::UnsafeInteger(n.to_string()));
             }
+            // Already range-checked against i64::MIN..=i64::MAX above,
+            // so this cast cannot truncate to an unrelated value.
+            #[allow(clippy::cast_possible_truncation)]
             let as_i = f as i64;
             if !(-JS_SAFE_INTEGER_MAX..=JS_SAFE_INTEGER_MAX).contains(&as_i) {
                 return Err(JsonError::UnsafeInteger(n.to_string()));
             }
             return Ok(LexValue::Integer(as_i));
         }
+        // Lenient mode: saturate. See the same comment above.
+        #[allow(clippy::cast_possible_truncation)]
         return Ok(LexValue::Integer(f as i64));
     }
     // u64 outside i64 range — serde_json accepts these. Strict mode
@@ -221,9 +236,7 @@ fn convert_object(
 /// Interpret a single-key `{"$link": x}` object.
 fn convert_link(link_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
     // $link MUST be a string.
-    let s = if let JsonValue::String(s) = link_val {
-        s
-    } else {
+    let JsonValue::String(s) = link_val else {
         if opts.strict {
             return Err(JsonError::InvalidLink(format!(
                 "expected string, got {}",
@@ -263,9 +276,7 @@ fn convert_link(link_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue,
 
 /// Interpret a single-key `{"$bytes": x}` object.
 fn convert_bytes(bytes_val: &JsonValue, opts: LexParseOptions) -> Result<LexValue, JsonError> {
-    let s = if let JsonValue::String(s) = bytes_val {
-        s
-    } else {
+    let JsonValue::String(s) = bytes_val else {
         if opts.strict {
             return Err(JsonError::InvalidBytes(format!(
                 "expected string, got {}",

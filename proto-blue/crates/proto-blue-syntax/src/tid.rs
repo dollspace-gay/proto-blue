@@ -67,7 +67,7 @@ impl Tid {
         // Upper 53 bits: timestamp, lower 10 bits: clock_id
         let tid_int = (timestamp_micros << 10) | (u64::from(clock_id) & 0x3FF);
         // Ensure top bit is 0
-        let tid_int = tid_int & 0x7FFFFFFFFFFFFFFF;
+        let tid_int = tid_int & 0x7FFF_FFFF_FFFF_FFFF;
         let encoded = s32_encode(tid_int);
         Self(encoded)
     }

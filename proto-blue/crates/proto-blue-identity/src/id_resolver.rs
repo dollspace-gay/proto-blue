@@ -31,6 +31,9 @@ impl IdResolver {
         not(target_arch = "wasm32")
     ))]
     #[must_use]
+    // `IdentityResolverOpts` is consumed (fields are moved into the returned
+    // resolver); pub fn signature is part of the 0.3.0 API.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(opts: IdentityResolverOpts, cache: Option<Arc<dyn DidCache>>) -> Self {
         // Parse backup nameserver strings into IP addresses; silently
         // drop entries that don't parse (they were a caller typo, not a
@@ -63,6 +66,9 @@ impl IdResolver {
     /// This is the constructor for wasm builds (no DNS), for tests that
     /// want to mock HTTP, and for callers that want to share a single
     /// transport across multiple resolvers.
+    // `IdentityResolverOpts` is consumed (fields are moved into the returned
+    // resolver); pub fn signature is part of the 0.3.0 API.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn with_fetch_handler(
         opts: IdentityResolverOpts,
         cache: Option<Arc<dyn DidCache>>,

@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! End-to-end smoke test for generated `register()` helpers.
 //!
 //! Spins up an `XrpcServer` with a typed handler registered via one

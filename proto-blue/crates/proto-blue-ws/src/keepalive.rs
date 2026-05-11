@@ -166,6 +166,7 @@ impl WebSocketKeepAlive {
     /// database, etc.) before producing the URL. The initial connect
     /// also uses `url_fn` if it's set — callers don't need to pass an
     /// initial URL separately.
+    #[must_use]
     pub fn with_url_fn(mut self, f: UrlFn) -> Self {
         self.url_fn = Some(f);
         self
@@ -176,12 +177,14 @@ impl WebSocketKeepAlive {
     /// The callback receives the reconnect count (1 for the first
     /// reconnect after initial setup, 2 for the next, etc.) or `None`
     /// for the initial-setup success.
+    #[must_use]
     pub fn on_reconnect(mut self, f: ReconnectCallback) -> Self {
         self.on_reconnect = Some(f);
         self
     }
 
     /// Register a callback fired on reconnect failure, before backoff.
+    #[must_use]
     pub fn on_reconnect_error(mut self, f: ReconnectErrorCallback) -> Self {
         self.on_reconnect_error = Some(f);
         self
@@ -281,7 +284,7 @@ impl WebSocketKeepAlive {
                     WsFrame::Binary(data) => return Ok(Some(data)),
                     WsFrame::Text(text) => return Ok(Some(text.into_bytes())),
                     // Heartbeats are informational — skip and keep reading.
-                    WsFrame::Ping(_) | WsFrame::Pong(_) => continue,
+                    WsFrame::Ping(_) | WsFrame::Pong(_) => {}
                     WsFrame::Close { .. } => {
                         debug!("WebSocket closed by server");
                         self.disconnect().await;
@@ -312,7 +315,6 @@ impl WebSocketKeepAlive {
                     warn!("recv timeout ({:?}), reconnecting...", read_deadline);
                     self.disconnect().await;
                     self.reconnects += 1;
-                    continue;
                 }
             }
         }
@@ -365,8 +367,16 @@ impl WebSocketKeepAlive {
         let capped = base_ms.min(max_ms);
 
         // Jitter in [-500, +500) ms. We use a non-cryptographic RNG; this is
-        // a scheduling decision, not a security-sensitive one.
+        // a scheduling decision, not a security-sensitive one. The
+        // `rand::random::<f64>() * 1000.0` value is bounded to `[0, 1000)`
+        // so the cast to i64 cannot truncate. The `capped as i64` cast is
+        // safe because `max_reconnect_seconds * 1000` is far below
+        // `i64::MAX` for any sane backoff cap. The `.max(0) as u64`
+        // re-converts a clamped non-negative i64 back to u64 — sign loss
+        // is precisely what the clamp prevents.
+        #[allow(clippy::cast_possible_truncation)]
         let jitter_ms: i64 = (rand::random::<f64>() * 1000.0) as i64 - 500;
+        #[allow(clippy::cast_possible_wrap, clippy::cast_sign_loss)]
         let with_jitter = (capped as i64 + jitter_ms).max(0) as u64;
         let final_ms = with_jitter.min(max_ms);
         Duration::from_millis(final_ms)
@@ -710,7 +720,7 @@ mod tests {
             }
         }
 
-        /// Connector that yields a SilentTransport exactly once, then
+        /// Connector that yields a `SilentTransport` exactly once, then
         /// errors (so the retry-cap branch fires).
         struct SilentThenError {
             served: AtomicUsize,

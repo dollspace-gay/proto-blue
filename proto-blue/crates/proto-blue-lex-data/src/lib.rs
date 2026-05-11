@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol core data types: CID, `LexValue`, `BlobRef`.
 //!
 //! This crate provides the foundational IPLD/Lexicon data model types used throughout

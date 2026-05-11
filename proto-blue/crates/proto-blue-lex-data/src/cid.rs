@@ -41,7 +41,7 @@ const SHA256_DIGEST_LEN: usize = 32;
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Cid {
     /// CID version (always 1 for AT Protocol).
-    pub version: u8,
+    pub version: u64,
     /// Multicodec code for the data codec (0x71 = DAG-CBOR, 0x55 = raw).
     pub codec: u64,
     /// Multihash algorithm code (0x12 = SHA-256).
@@ -56,7 +56,7 @@ pub enum CidError {
     #[error("Invalid CID: {0}")]
     Invalid(String),
     #[error("Unsupported CID version: {0}")]
-    UnsupportedVersion(u8),
+    UnsupportedVersion(u64),
     #[error("Unsupported codec: 0x{0:x}")]
     UnsupportedCodec(u64),
     #[error("Unsupported hash algorithm: 0x{0:x}")]
@@ -107,7 +107,7 @@ impl Cid {
     /// The 32-byte digest length is now an invariant of the type so it
     /// no longer needs to be checked at runtime.
     #[must_use]
-    pub fn is_dasl_compliant(&self) -> bool {
+    pub const fn is_dasl_compliant(&self) -> bool {
         self.version == 1
             && (self.codec == RAW_CODEC || self.codec == CBOR_CODEC)
             && self.hash_code == SHA2_256
@@ -129,7 +129,7 @@ impl Cid {
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();
         // Version
-        encode_varint(u64::from(self.version), &mut buf);
+        encode_varint(self.version, &mut buf);
         // Codec
         encode_varint(self.codec, &mut buf);
         // Multihash: hash code + digest length + digest
@@ -150,11 +150,15 @@ impl Cid {
 
         let version = read_varint(bytes, &mut pos)?;
         if version != 1 {
-            return Err(CidError::UnsupportedVersion(version as u8));
+            return Err(CidError::UnsupportedVersion(version));
         }
 
         let codec = read_varint(bytes, &mut pos)?;
         let hash_code = read_varint(bytes, &mut pos)?;
+        // digest_len is validated against SHA256_DIGEST_LEN (= 32) immediately below;
+        // any wire u64 that doesn't fit usize would also fail that check (32 is well
+        // inside the usize range on every supported target). Truncation is harmless.
+        #[allow(clippy::cast_possible_truncation)]
         let digest_len = read_varint(bytes, &mut pos)? as usize;
 
         // The digest is always 32 bytes for AT Protocol (SHA-256). A
@@ -189,7 +193,7 @@ impl Cid {
         digest.copy_from_slice(&bytes[pos..digest_end]);
 
         Ok(Self {
-            version: version as u8,
+            version,
             codec,
             hash_code,
             digest,

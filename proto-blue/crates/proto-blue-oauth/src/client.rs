@@ -668,11 +668,11 @@ impl OAuthClient {
                 let resp = self
                     .post_form(token_endpoint, &body, Some(&dpop_proof))
                     .await?;
-                return parse_token_response(resp);
+                return parse_token_response(&resp);
             }
         }
 
-        parse_token_response(resp)
+        parse_token_response(&resp)
     }
 
     /// Refresh an access token using a refresh token.
@@ -685,7 +685,7 @@ impl OAuthClient {
         let refresh_token = token_set
             .refresh_token
             .as_deref()
-            .ok_or(OAuthError::RefreshFailed("No refresh token".into()))?;
+            .ok_or_else(|| OAuthError::RefreshFailed("No refresh token".into()))?;
 
         let token_endpoint = &server_metadata.token_endpoint;
         let nonce = Url::parse(token_endpoint)
@@ -727,7 +727,7 @@ impl OAuthClient {
                 let resp = self
                     .post_form(token_endpoint, &body, Some(&dpop_proof))
                     .await?;
-                let token_response = parse_token_response(resp)?;
+                let token_response = parse_token_response(&resp)?;
                 let mut new_ts = TokenSet::from_response_with_aud(
                     &server_metadata.issuer,
                     token_set.aud.as_deref(),
@@ -736,20 +736,20 @@ impl OAuthClient {
                 // Preserve the refresh token on rotation-less
                 // responses (RFC 6749 §6 allows omitting it).
                 if new_ts.refresh_token.is_none() {
-                    new_ts.refresh_token = token_set.refresh_token.clone();
+                    new_ts.refresh_token.clone_from(&token_set.refresh_token);
                 }
                 return Ok(new_ts);
             }
         }
 
-        let token_response = parse_token_response(resp)?;
+        let token_response = parse_token_response(&resp)?;
         let mut new_ts = TokenSet::from_response_with_aud(
             &server_metadata.issuer,
             token_set.aud.as_deref(),
             &token_response,
         );
         if new_ts.refresh_token.is_none() {
-            new_ts.refresh_token = token_set.refresh_token.clone();
+            new_ts.refresh_token.clone_from(&token_set.refresh_token);
         }
         Ok(new_ts)
     }
@@ -957,7 +957,7 @@ fn is_use_dpop_nonce_error(resp: &HttpResponse) -> bool {
 }
 
 /// Parse a token response, handling OAuth error responses.
-fn parse_token_response(resp: HttpResponse) -> Result<OAuthTokenResponse, OAuthError> {
+fn parse_token_response(resp: &HttpResponse) -> Result<OAuthTokenResponse, OAuthError> {
     if !resp.is_success() {
         let status = resp.status;
         let body = String::from_utf8_lossy(&resp.body).to_string();

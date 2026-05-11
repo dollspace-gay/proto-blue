@@ -42,7 +42,7 @@ impl NodeEntry {
     pub const fn as_leaf(&self) -> Option<&Leaf> {
         match self {
             Self::Leaf(l) => Some(l),
-            _ => None,
+            Self::Tree(_) => None,
         }
     }
 }
@@ -206,16 +206,19 @@ impl MstNode {
         let key_zeros = leading_zeros_on_hash(key);
         let layer = self.get_layer();
 
-        if key_zeros == layer {
-            self.insert_at_this_layer(key, value)
-        } else if key_zeros > layer {
-            self.create_parent_layers(key, value, key_zeros)
-        } else {
-            self.insert_into_child(key, value)
+        match key_zeros.cmp(&layer) {
+            std::cmp::Ordering::Equal => self.insert_at_this_layer(key, value),
+            std::cmp::Ordering::Greater => self.create_parent_layers(key, value, key_zeros),
+            std::cmp::Ordering::Less => self.insert_into_child(key, value),
         }
     }
 
     /// Insert a leaf at this node's layer.
+    // Mirrors `create_parent_layers` / `insert_into_child`, which ARE
+    // fallible (they recurse and propagate `RepoError` from add). Keep
+    // the return shape symmetric with its siblings so the dispatching
+    // match in `add` doesn't need to wrap one arm in `Ok(...)`.
+    #[allow(clippy::unnecessary_wraps)]
     fn insert_at_this_layer(&self, key: &str, value: Cid) -> Result<Self, RepoError> {
         // Find the position to insert. Walk entries and find the right spot.
         let new_leaf = NodeEntry::Leaf(Leaf {
@@ -328,10 +331,7 @@ impl MstNode {
                     let next_leaf_key = self.entries[i + 1..]
                         .iter()
                         .find_map(|e| e.as_leaf().map(|l| l.key.as_str()));
-                    let belongs_here = match next_leaf_key {
-                        Some(next) => key < next,
-                        None => true,
-                    };
+                    let belongs_here = next_leaf_key.is_none_or(|next| key < next);
                     if belongs_here {
                         let updated = subtree.add(key, value.clone())?;
                         new_entries.push(NodeEntry::Tree(updated));
@@ -372,6 +372,10 @@ impl MstNode {
     }
 
     /// Create parent layers when `key_zeros` > current layer.
+    // Sibling of `insert_at_this_layer` / `insert_into_child` in the
+    // `add` dispatch match; keep return shape symmetric so the match
+    // arms type-check without wrapping one branch in `Ok(...)`.
+    #[allow(clippy::unnecessary_wraps)]
     fn create_parent_layers(
         &self,
         key: &str,
@@ -438,6 +442,9 @@ impl MstNode {
     // -----------------------------------------------------------------------
 
     /// Update an existing key's value. Returns error if key doesn't exist.
+    // `Cid` is consumed into the new MST tree node (moved into the `Leaf` we
+    // construct below); pub fn signature is part of the 0.3.0 API.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn update(&self, key: &str, value: Cid) -> Result<Self, RepoError> {
         ensure_valid_mst_key(key)?;
         let mut new_entries = Vec::new();
@@ -481,10 +488,10 @@ impl MstNode {
     pub fn delete(&self, key: &str) -> Result<Self, RepoError> {
         ensure_valid_mst_key(key)?;
         let result = self.delete_recurse(key)?;
-        match result {
-            Some(node) => Ok(node.trim_top()),
-            None => Err(RepoError::KeyNotFound(key.to_string())),
-        }
+        result.map_or_else(
+            || Err(RepoError::KeyNotFound(key.to_string())),
+            |node| Ok(node.trim_top()),
+        )
     }
 
     /// Recursively delete a key. Returns `Some(new_node)` if found, None if not found.
@@ -531,10 +538,7 @@ impl MstNode {
                             let merged = left.append_merge(&right);
                             new_entries.push(NodeEntry::Tree(merged));
                         }
-                        (Some(tree), None) => {
-                            new_entries.push(NodeEntry::Tree(tree));
-                        }
-                        (None, Some(tree)) => {
+                        (Some(tree), None) | (None, Some(tree)) => {
                             new_entries.push(NodeEntry::Tree(tree));
                         }
                         (None, None) => {}
@@ -552,7 +556,7 @@ impl MstNode {
                     }
                     i += 1;
                 }
-                _ => {
+                NodeEntry::Leaf(_) => {
                     new_entries.push(self.entries[i].clone());
                     i += 1;
                 }
@@ -600,14 +604,12 @@ impl MstNode {
                         .iter()
                         .find_map(|e| e.as_leaf().map(|l| l.key.clone()));
 
-                    let all_before = match &next_leaf_key {
-                        Some(next) => next.as_str() <= key,
-                        None => false,
-                    };
-                    let all_after = match &prev_leaf_key {
-                        Some(prev) => prev.as_str() >= key,
-                        None => left_entries.is_empty(),
-                    };
+                    let all_before = next_leaf_key
+                        .as_ref()
+                        .is_some_and(|next| next.as_str() <= key);
+                    let all_after = prev_leaf_key
+                        .as_ref()
+                        .map_or_else(|| left_entries.is_empty(), |prev| prev.as_str() >= key);
 
                     if all_before {
                         left_entries.push(entry.clone());
@@ -797,10 +799,10 @@ impl MstNode {
             match entry {
                 NodeEntry::Tree(_) => {
                     if entries.is_empty() && left.is_none() {
-                        left = child_cids[i].clone();
+                        left.clone_from(&child_cids[i]);
                     } else if let Some(last_entry) = entries.last_mut() {
                         let e: &mut TreeEntry = last_entry;
-                        e.tree = child_cids[i].clone();
+                        e.tree.clone_from(&child_cids[i]);
                     }
                 }
                 NodeEntry::Leaf(leaf) => {

@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! End-to-end integration tests for `proto-blue-oauth`.
 //!
 //! Covers three issues in one binary so the shared helpers in

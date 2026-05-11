@@ -287,10 +287,9 @@ impl AtUri {
             return Ok(cloned);
         }
         // Otherwise treat as `coll[/rkey][#frag]`.
-        let (path_part, frag_part) = match reference.find('#') {
-            Some(i) => (&reference[..i], Some(&reference[i + 1..])),
-            None => (reference, None),
-        };
+        let (path_part, frag_part) = reference.find('#').map_or((reference, None), |i| {
+            (&reference[..i], Some(&reference[i + 1..]))
+        });
         let parts: Vec<&str> = path_part.split('/').filter(|p| !p.is_empty()).collect();
         let mut cloned = self.clone();
         match parts.len() {

@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Integration tests against live AT Protocol XRPC endpoints.
 //!
 //! Run with: cargo test -p proto-blue-xrpc --test `integration_tests` -- --ignored

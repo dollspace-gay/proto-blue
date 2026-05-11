@@ -201,7 +201,7 @@ fn lookup_in_proof(proof: &BlockMap, node_cid: &Cid, key: &str) -> Result<Option
             std::cmp::Ordering::Greater => {
                 // Keep scanning; the key might be in this entry's right
                 // subtree or further along.
-                left_tree = data.entries[i].tree.clone();
+                left_tree.clone_from(&data.entries[i].tree);
             }
         }
     }
@@ -211,10 +211,11 @@ fn lookup_in_proof(proof: &BlockMap, node_cid: &Cid, key: &str) -> Result<Option
 }
 
 fn descend(proof: &BlockMap, subtree: Option<Cid>, key: &str) -> Result<Option<Cid>, RepoError> {
-    match subtree {
-        None => Ok(None), // no subtree to descend into ⇒ key is absent
-        Some(child_cid) => lookup_in_proof(proof, &child_cid, key),
-    }
+    // None: no subtree to descend into ⇒ key is absent.
+    subtree.map_or_else(
+        || Ok(None),
+        |child_cid| lookup_in_proof(proof, &child_cid, key),
+    )
 }
 
 // ─── internal walkers ───────────────────────────────────────────────
@@ -425,7 +426,7 @@ mod tests {
         // verify — both are acceptable outcomes for tampered input.
         let res = verify_key_in_proof(&proof, &root, "coll/a", Some(&cid_for(b"a")));
         if let Ok(v) = res {
-            assert!(!v, "tampered proof must not verify")
+            assert!(!v, "tampered proof must not verify");
         } else { /* load rejected it, also fine */
         }
     }

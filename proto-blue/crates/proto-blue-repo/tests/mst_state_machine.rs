@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! State-machine property test for [`MstNode`] mutations.
 //!
 //! Generates random sequences of `add` / `update` / `delete` calls

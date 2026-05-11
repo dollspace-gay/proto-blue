@@ -19,3 +19,6 @@ proto-blue-api = { path = "../crates/proto-blue-api" }
 proto-blue-oauth = { path = "../crates/proto-blue-oauth" }
 serde_json = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

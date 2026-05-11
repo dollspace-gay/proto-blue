@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Integration test for `proto_blue_oauth::resolve_input` — the
 //! handle/DID/PDS-URL → (pds, AS metadata) orchestration.
 //!

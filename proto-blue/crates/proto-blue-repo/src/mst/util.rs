@@ -13,6 +13,10 @@ use crate::error::RepoError;
 /// This determines which layer a key belongs to in the MST.
 /// Approximately 1/4 of keys will have at least 1 leading zero,
 /// giving the tree a ~4-way fanout.
+// The explicit `(byte >> N) & 0x03` form mirrors the atproto MST spec's
+// per-2-bit-pair language; clippy's `trailing_zeros()` rewrite is
+// numerically equivalent but obscures the bit-pair walk.
+#[allow(clippy::verbose_bit_mask)]
 #[must_use]
 pub fn leading_zeros_on_hash(key: &str) -> usize {
     let hash = Sha256::digest(key.as_bytes());
@@ -116,6 +120,13 @@ pub fn serialize_node_data(data: &NodeData) -> LexValue {
     let mut entries_arr = Vec::new();
     for entry in &data.entries {
         let mut e_map = BTreeMap::new();
+        // `prefix_len: usize` is bounded by the MST key-size invariant
+        // (atproto record keys are short ASCII paths, well under 2^31
+        // characters). Wrapping to `i64` is therefore unreachable for
+        // any valid `NodeData` — the i64 form is required by the
+        // CBOR `Integer` shape that the TS reference implementation
+        // also writes here.
+        #[allow(clippy::cast_possible_wrap)]
         e_map.insert("p".to_string(), LexValue::Integer(entry.prefix_len as i64));
         e_map.insert("k".to_string(), LexValue::Bytes(entry.key_suffix.clone()));
         e_map.insert("v".to_string(), LexValue::Cid(entry.value.clone()));
@@ -167,11 +178,12 @@ pub fn deserialize_node_data(value: &LexValue) -> Result<NodeData, RepoError> {
             .as_map()
             .ok_or_else(|| RepoError::InvalidMst("Entry is not a map".into()))?;
 
-        let prefix_len = e_map
+        let prefix_len_i64 = e_map
             .get("p")
             .and_then(proto_blue_lex_data::LexValue::as_integer)
-            .ok_or_else(|| RepoError::InvalidMst("Missing prefix length".into()))?
-            as usize;
+            .ok_or_else(|| RepoError::InvalidMst("Missing prefix length".into()))?;
+        let prefix_len = usize::try_from(prefix_len_i64)
+            .map_err(|_| RepoError::InvalidMst("Negative or too-large prefix length".into()))?;
 
         let key_suffix = e_map
             .get("k")
@@ -210,7 +222,7 @@ pub fn entries_to_keys(data: &NodeData) -> Vec<String> {
         let prefix = &last_key[..entry.prefix_len.min(last_key.len())];
         let suffix = String::from_utf8_lossy(&entry.key_suffix);
         let key = format!("{prefix}{suffix}");
-        last_key = key.clone();
+        last_key.clone_from(&key);
         keys.push(key);
     }
     keys

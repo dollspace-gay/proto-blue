@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol Lexicon schema system: types, registry, and validation.
 //!
 //! Provides the `Lexicons` registry for loading and querying lexicon

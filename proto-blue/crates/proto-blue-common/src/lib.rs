@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol shared utilities: TID generation, DID documents, retry, IPLD helpers.
 //!
 //! Merges the TS `common-web` and `common` packages into a single Rust crate.

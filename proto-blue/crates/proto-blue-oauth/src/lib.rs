@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol OAuth 2.0 client: `DPoP`, PKCE, PAR, session management.
 //!
 //! Implements the OAuth 2.0 authorization code flow for AT Protocol with:

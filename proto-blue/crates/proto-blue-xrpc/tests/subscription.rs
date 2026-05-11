@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! End-to-end subscription tests.
 //!
 //! Spins up an `XrpcServer` with a `stream_method` handler, connects

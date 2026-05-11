@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Live-PDS integration tests.
 //!
 //! These tests dial a real PDS and exercise the full

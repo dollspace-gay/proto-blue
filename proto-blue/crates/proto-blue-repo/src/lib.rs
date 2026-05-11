@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol repository: MST, CAR files, commits, block storage.
 //!
 //! Implements the Merkle Search Tree (MST) used for AT Protocol repositories,

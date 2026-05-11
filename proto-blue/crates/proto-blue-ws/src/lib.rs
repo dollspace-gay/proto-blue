@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol WebSocket client with auto-reconnection.
 //!
 //! Provides a WebSocket client that automatically reconnects on connection

@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Interop parity tests for proto-blue-crypto.
 //!
 //! Drives the official atproto crypto fixtures from

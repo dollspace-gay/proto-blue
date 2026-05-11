@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol high-level API: agent, rich text, moderation, generated types.
 //!
 //! # Examples

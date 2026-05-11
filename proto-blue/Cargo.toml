@@ -24,7 +24,7 @@ exclude = ["fuzz"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/dollspace-gay/proto-blue"
@@ -32,23 +32,23 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 # Internal crates
-proto-blue-syntax = { version = "0.3.0", path = "crates/proto-blue-syntax" }
-proto-blue-crypto = { version = "0.3.0", path = "crates/proto-blue-crypto" }
-proto-blue-lex-data = { version = "0.3.0", path = "crates/proto-blue-lex-data" }
-proto-blue-lex-cbor = { version = "0.3.0", path = "crates/proto-blue-lex-cbor" }
-proto-blue-lex-json = { version = "0.3.0", path = "crates/proto-blue-lex-json" }
-proto-blue-common = { version = "0.3.0", path = "crates/proto-blue-common" }
-proto-blue-lexicon = { version = "0.3.0", path = "crates/proto-blue-lexicon" }
-proto-blue-repo = { version = "0.3.0", path = "crates/proto-blue-repo", default-features = false }
-proto-blue-xrpc = { version = "0.3.0", path = "crates/proto-blue-xrpc", default-features = false }
+proto-blue-syntax = { version = "0.3.1", path = "crates/proto-blue-syntax" }
+proto-blue-crypto = { version = "0.3.1", path = "crates/proto-blue-crypto" }
+proto-blue-lex-data = { version = "0.3.1", path = "crates/proto-blue-lex-data" }
+proto-blue-lex-cbor = { version = "0.3.1", path = "crates/proto-blue-lex-cbor" }
+proto-blue-lex-json = { version = "0.3.1", path = "crates/proto-blue-lex-json" }
+proto-blue-common = { version = "0.3.1", path = "crates/proto-blue-common" }
+proto-blue-lexicon = { version = "0.3.1", path = "crates/proto-blue-lexicon" }
+proto-blue-repo = { version = "0.3.1", path = "crates/proto-blue-repo", default-features = false }
+proto-blue-xrpc = { version = "0.3.1", path = "crates/proto-blue-xrpc", default-features = false }
 # Network-layer subcrates: workspace deps default to features-off so the
 # target-conditional tables in `crates/proto-blue/Cargo.toml` can pick the
 # right backend per target. Standalone users of each subcrate still get
 # sensible defaults via `cargo add` (each crate's own `default` feature).
-proto-blue-ws = { version = "0.3.0", path = "crates/proto-blue-ws", default-features = false }
-proto-blue-identity = { version = "0.3.0", path = "crates/proto-blue-identity", default-features = false }
-proto-blue-api = { version = "0.3.0", path = "crates/proto-blue-api", default-features = false }
-proto-blue-oauth = { version = "0.3.0", path = "crates/proto-blue-oauth", default-features = false }
+proto-blue-ws = { version = "0.3.1", path = "crates/proto-blue-ws", default-features = false }
+proto-blue-identity = { version = "0.3.1", path = "crates/proto-blue-identity", default-features = false }
+proto-blue-api = { version = "0.3.1", path = "crates/proto-blue-api", default-features = false }
+proto-blue-oauth = { version = "0.3.1", path = "crates/proto-blue-oauth", default-features = false }
 
 # External dependencies
 serde = { version = "1", features = ["derive"] }
@@ -83,3 +83,42 @@ syn = "2"
 clap = { version = "4", features = ["derive"] }
 jsonwebtoken = "10"
 proptest = "1"
+
+# Workspace-wide lint policy. Default `cargo clippy` stays at clippy's
+# default level (CI runs `cargo clippy -- -D warnings` and must remain
+# green). The allows below are categorical decisions that hold even when
+# someone opts into pedantic/nursery via `cargo clippy -- -W clippy::pedantic`:
+#
+#   - missing_errors_doc / missing_panics_doc: this codebase uses
+#     thiserror-derived enums whose variants self-document failure modes;
+#     adding `# Errors` sections that say "see XrpcError" is pure churn.
+#   - module_name_repetitions: intentional Foo::FooError hierarchical
+#     naming is the project convention.
+#   - too_long_first_doc_paragraph: pure style, no semantic signal.
+#
+# False-positive terms for `clippy::doc_markdown` (AT-URI, DAG-CBOR,
+# did:plc, etc.) live in the sibling clippy.toml under `doc-valid-idents`.
+# Each member crate opts in via `[lints] workspace = true`.
+[workspace.lints.clippy]
+# Group toggles at priority -1 so individual overrides below win without
+# needing explicit priority bumps. `pedantic` and `nursery` stay "allow"
+# by default — CI runs `cargo clippy -- -D warnings` and must remain
+# green, so the pedantic baseline isn't ready to promote yet. Flipping
+# to "warn" is the eventual goal once Tier-4 hand-audit fixes land.
+pedantic = { level = "allow", priority = -1 }
+nursery = { level = "allow", priority = -1 }
+
+# Categorical decisions that hold even when someone opts into pedantic
+# via `cargo clippy -- -W clippy::pedantic`. NOTE: CLI -W flags currently
+# override these because they tie at priority 0; to make a true pedantic
+# sweep honour these allows, pass them explicitly:
+#
+#   cargo clippy --workspace -- -W clippy::pedantic -W clippy::nursery \
+#     -A clippy::missing_errors_doc -A clippy::missing_panics_doc \
+#     -A clippy::module_name_repetitions -A clippy::too_long_first_doc_paragraph
+#
+# Or use the helper at scripts/clippy-pedantic.sh.
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"
+too_long_first_doc_paragraph = "allow"

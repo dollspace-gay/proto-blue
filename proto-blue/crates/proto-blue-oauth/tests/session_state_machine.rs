@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! State-machine property test for [`OAuthSession`] lifecycle
 //! invariants.
 //!
@@ -28,7 +30,7 @@ use proto_blue_oauth::{DpopKey, DpopNonceCache, OAuthSession, TokenSet};
 #[derive(Debug, Clone)]
 enum Transition {
     /// Replace the entire token set. Supplies new (sub, aud,
-    /// access_token, refresh_token, expires_at).
+    /// `access_token`, `refresh_token`, `expires_at`).
     Update {
         sub: String,
         aud: Option<String>,

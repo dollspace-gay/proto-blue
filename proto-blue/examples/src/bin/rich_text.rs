@@ -3,7 +3,7 @@
 //! Demonstrates creating rich text with automatic facet detection
 //! for mentions, links, and hashtags.
 //!
-//! Run with: cargo run -p proto-blue-examples --bin rich_text
+//! Run with: cargo run -p proto-blue-examples --bin `rich_text`
 
 use proto_blue_api::rich_text::{FacetFeature, RichText};
 
@@ -21,9 +21,9 @@ fn main() {
     for facet in rt.facets() {
         let slice = &rt.text()[facet.index.byte_start..facet.index.byte_end];
         let kind = match &facet.features[0] {
-            FacetFeature::Mention { did } => format!("Mention -> {}", did),
-            FacetFeature::Link { uri } => format!("Link -> {}", uri),
-            FacetFeature::Tag { tag } => format!("Tag -> #{}", tag),
+            FacetFeature::Mention { did } => format!("Mention -> {did}"),
+            FacetFeature::Link { uri } => format!("Link -> {uri}"),
+            FacetFeature::Tag { tag } => format!("Tag -> #{tag}"),
         };
         println!(
             "  [{}-{}] \"{}\" => {}",

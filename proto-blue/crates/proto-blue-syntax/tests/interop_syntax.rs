@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Interop parity tests: drive the official atproto interop fixture corpus
 //! against proto-blue-syntax parsers.
 //!

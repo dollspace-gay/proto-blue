@@ -78,3 +78,6 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-
 gloo-net = { version = "0.6", features = ["http"] }
 js-sys = "0.3"
 getrandom = { version = "0.2", features = ["js"] }
+
+[lints]
+workspace = true

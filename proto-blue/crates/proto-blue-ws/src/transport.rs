@@ -228,7 +228,6 @@ mod tungstenite_impl {
                             return Ok(None);
                         }
                         // Skipped frame (raw `Message::Frame`) — keep reading.
-                        continue;
                     }
                     Some(Err(e)) => return Err(WsError::WebSocket(e)),
                     None => return Ok(None),

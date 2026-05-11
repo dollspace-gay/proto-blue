@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! State-machine property test for [`WebSocketKeepAlive`]'s
 //! reconnect accounting.
 //!

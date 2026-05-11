@@ -17,6 +17,9 @@ pub const DAY: u64 = 24 * HOUR;
 /// Check if a timestamp (in milliseconds) is less than `range_ms` ago.
 #[must_use]
 pub fn less_than_ago_ms(time_ms: u64, range_ms: u64) -> bool {
+    // Millis since UNIX epoch fits in u64 for ~584,556,019 years; truncation
+    // from u128 is not reachable.
+    #[allow(clippy::cast_possible_truncation)]
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()

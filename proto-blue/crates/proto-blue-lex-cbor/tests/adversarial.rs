@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Adversarial tests for DAG-CBOR canonical-form enforcement.
 //!
 //! DAG-CBOR is a restriction of CBOR; the hostile test surface is whether

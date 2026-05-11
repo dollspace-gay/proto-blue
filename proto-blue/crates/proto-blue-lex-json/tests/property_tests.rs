@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 use proptest::prelude::*;
 
 use proto_blue_lex_data::LexValue;

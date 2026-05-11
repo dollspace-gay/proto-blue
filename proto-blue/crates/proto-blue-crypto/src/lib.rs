@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol cryptographic operations.
 //!
 //! Provides P-256 and secp256k1 key generation, signing, and verification,

@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol identifier types with validation.
 //!
 //! Provides validated newtypes for all AT Protocol identifiers:

@@ -43,3 +43,6 @@ firehose-client = ["dep:proto-blue-ws"]
 
 [dev-dependencies]
 proptest = { workspace = true }
+
+[lints]
+workspace = true

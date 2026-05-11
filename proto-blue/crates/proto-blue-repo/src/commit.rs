@@ -77,10 +77,9 @@ impl UnsignedCommit {
         // different canonical bytes and break signature verification.
         m.insert(
             "prev".to_string(),
-            match &self.prev {
-                Some(cid) => LexValue::Cid(cid.clone()),
-                None => LexValue::Null,
-            },
+            self.prev
+                .as_ref()
+                .map_or(LexValue::Null, |cid| LexValue::Cid(cid.clone())),
         );
         LexValue::Map(m)
     }
@@ -134,10 +133,9 @@ impl SignedCommit {
         m.insert("rev".to_string(), LexValue::String(self.rev.clone()));
         m.insert(
             "prev".to_string(),
-            match &self.prev {
-                Some(cid) => LexValue::Cid(cid.clone()),
-                None => LexValue::Null,
-            },
+            self.prev
+                .as_ref()
+                .map_or(LexValue::Null, |cid| LexValue::Cid(cid.clone())),
         );
         m.insert("sig".to_string(), LexValue::Bytes(self.sig.clone()));
         LexValue::Map(m)

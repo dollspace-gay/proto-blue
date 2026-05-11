@@ -66,7 +66,10 @@ impl FetchHandler for ReqwestFetcher {
             builder = builder.body(body);
         }
 
-        let response = builder.send().await.map_err(reqwest_to_fetch_error)?;
+        let response = builder
+            .send()
+            .await
+            .map_err(|e| reqwest_to_fetch_error(&e))?;
         let status = response.status().as_u16();
 
         let mut headers = HttpHeaders::new();
@@ -90,7 +93,7 @@ impl FetchHandler for ReqwestFetcher {
     }
 }
 
-fn reqwest_to_fetch_error(e: reqwest::Error) -> FetchError {
+fn reqwest_to_fetch_error(e: &reqwest::Error) -> FetchError {
     // Order matters: `is_request` is broad and would swallow the more
     // specific classifications below, so check timeout / builder / body
     // first. Connection-refused / DNS-failure / TLS errors ultimately

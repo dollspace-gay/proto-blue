@@ -3,7 +3,7 @@
 //! Demonstrates building an MST, adding/removing records, serializing
 //! to blocks, and CAR file encoding/decoding.
 //!
-//! Run with: cargo run -p proto-blue-examples --bin repo_mst
+//! Run with: cargo run -p proto-blue-examples --bin `repo_mst`
 
 use proto_blue_lex_data::LexValue;
 use proto_blue_repo::mst::MstNode;
@@ -30,7 +30,7 @@ fn main() {
     for (key, desc) in &records {
         let cid = make_cid(desc);
         tree = tree.add(key, cid).unwrap();
-        println!("  Added: {}", key);
+        println!("  Added: {key}");
     }
 
     // --- List all leaves ---
@@ -46,13 +46,13 @@ fn main() {
     let key = "app.bsky.feed.post/3jt5tsfyxya2a";
     match tree.get(key) {
         Some(cid) => println!("  Found '{}': {}", key, cid.to_string_base32()),
-        None => println!("  Not found: {}", key),
+        None => println!("  Not found: {key}"),
     }
 
     // --- Update ---
     println!("\n--- Update record ---");
     let new_cid = make_cid("Updated post content");
-    tree = tree.update(key, new_cid.clone()).unwrap();
+    tree = tree.update(key, new_cid).unwrap();
     let found = tree.get(key).unwrap();
     println!("  Updated '{}': {}", key, found.to_string_base32());
 
@@ -60,7 +60,7 @@ fn main() {
     println!("\n--- Delete record ---");
     let del_key = "app.bsky.feed.like/3jt5tsfyxya2c";
     tree = tree.delete(del_key).unwrap();
-    println!("  Deleted: {}", del_key);
+    println!("  Deleted: {del_key}");
     println!("  Remaining records: {}", tree.leaves().len());
     assert!(tree.get(del_key).is_none());
 
@@ -91,7 +91,7 @@ fn main() {
     let mut tree_fwd = MstNode::empty();
     let mut tree_rev = MstNode::empty();
     let keys: Vec<String> = (0..20)
-        .map(|i| format!("com.example.record/{:04}", i))
+        .map(|i| format!("com.example.record/{i:04}"))
         .collect();
 
     for key in &keys {

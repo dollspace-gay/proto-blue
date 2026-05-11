@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 use proto_blue::lex_data::LexValue;
 use std::collections::BTreeMap;
 

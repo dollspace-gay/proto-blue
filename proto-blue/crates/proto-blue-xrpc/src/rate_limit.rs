@@ -154,10 +154,16 @@ impl TokenBucketLimiter {
     pub fn new(limit: u64, window_seconds: u64) -> Self {
         assert!(limit > 0, "rate limit must be > 0");
         assert!(window_seconds > 0, "window must be > 0");
+        // Rate-limit `limit` and `window_seconds` are both `u64`. f64
+        // precision is adequate for the resulting refill rate — the
+        // bucket loses at most one fractional token per refill, and
+        // the consume loop rounds remaining tokens with `.floor()`.
+        #[allow(clippy::cast_precision_loss)]
+        let refill_per_second = limit as f64 / window_seconds as f64;
         Self {
             buckets: Mutex::new(HashMap::new()),
             capacity: limit,
-            refill_per_second: limit as f64 / window_seconds as f64,
+            refill_per_second,
             window_seconds,
         }
     }
@@ -175,6 +181,13 @@ impl TokenBucketLimiter {
     }
 
     /// Core refill+consume logic for `points` tokens.
+    //
+    // The `Mutex` guard is held for the full refill+consume body so
+    // that the read-modify-write of a `Bucket` is atomic across
+    // concurrent callers. Releasing the guard earlier would race
+    // (two consumers could both read the same balance and both
+    // succeed, oversubscribing the bucket).
+    #[allow(clippy::significant_drop_tightening)]
     fn consume(&self, key: &str, points: u32) -> RateLimitDecision {
         let now = Instant::now();
         let mut buckets = self.buckets.lock().unwrap();
@@ -184,15 +197,21 @@ impl TokenBucketLimiter {
             self.sweep(&mut buckets, now);
         }
 
+        // u64 → f64 precision loss is acceptable here: bucket capacity
+        // is the same u64 we hand back in the policy header, and any
+        // fractional token below 1.0 is rounded away by `.floor()` in
+        // the `remaining` calculation below.
+        #[allow(clippy::cast_precision_loss)]
+        let capacity_f64 = self.capacity as f64;
         let bucket = buckets.entry(key.to_string()).or_insert(Bucket {
-            tokens: self.capacity as f64,
+            tokens: capacity_f64,
             last_refill: now,
         });
 
         // Refill.
         let elapsed = now.duration_since(bucket.last_refill).as_secs_f64();
         let add = elapsed * self.refill_per_second;
-        bucket.tokens = (bucket.tokens + add).min(self.capacity as f64);
+        bucket.tokens = (bucket.tokens + add).min(capacity_f64);
         bucket.last_refill = now;
 
         let wanted = f64::from(points);
@@ -201,13 +220,22 @@ impl TokenBucketLimiter {
             bucket.tokens -= wanted;
         }
 
+        // `tokens` is non-negative by construction (the `if allowed`
+        // branch above is the only mutation that can lower it) and
+        // bounded above by `self.capacity: u64`, so casting the
+        // floored value back to u64 cannot lose information.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
         let remaining = bucket.tokens.floor().max(0.0) as u64;
         // Reset = time to fully-refilled bucket. We report the next
         // "full" reset rather than per-token to keep the header
         // stable under rapid sampling.
-        let seconds_to_reset =
-            (self.capacity as f64 - bucket.tokens) / self.refill_per_second.max(1e-9);
-        let reset = Utc::now() + chrono::Duration::seconds(seconds_to_reset.ceil() as i64);
+        let seconds_to_reset = (capacity_f64 - bucket.tokens) / self.refill_per_second.max(1e-9);
+        // `seconds_to_reset` is a non-negative duration bounded by
+        // `capacity / refill_per_second` (under one full window),
+        // far below `i64::MAX` seconds.
+        #[allow(clippy::cast_possible_truncation)]
+        let reset_secs = seconds_to_reset.ceil() as i64;
+        let reset = Utc::now() + chrono::Duration::seconds(reset_secs);
 
         RateLimitDecision {
             allowed,

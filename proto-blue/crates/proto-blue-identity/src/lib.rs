@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol identity resolution: DID and handle resolution.
 //!
 //! Provides DID resolution (did:plc via PLC directory, did:web via HTTPS)

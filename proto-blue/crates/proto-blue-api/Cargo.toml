@@ -44,3 +44,6 @@ fetch-web = ["proto-blue-xrpc/fetch-web"]
 # Enable the generated server-side `register()` helpers. Pulls in the
 # native axum-based `XrpcServer` via `proto-blue-xrpc/server`.
 server = ["proto-blue-xrpc/server"]
+
+[lints]
+workspace = true

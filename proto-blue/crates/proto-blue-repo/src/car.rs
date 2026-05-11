@@ -48,10 +48,7 @@ pub fn blocks_to_car(root: Option<&Cid>, blocks: &BlockMap) -> Result<Vec<u8>, R
     let mut output = Vec::new();
 
     // Encode header
-    let roots = match root {
-        Some(cid) => vec![LexValue::Cid(cid.clone())],
-        None => vec![],
-    };
+    let roots = root.map_or_else(Vec::new, |cid| vec![LexValue::Cid(cid.clone())]);
     let mut header_map = BTreeMap::new();
     header_map.insert("version".to_string(), LexValue::Integer(1));
     header_map.insert("roots".to_string(), LexValue::Array(roots));
@@ -95,7 +92,8 @@ pub fn read_car_opts(data: &[u8], opts: ReadCarOpts) -> Result<(Vec<Cid>, BlockM
     // would panic in debug builds and wrap silently in release. The
     // bound must also not exceed `data.len()` (the "header extends
     // beyond data" case).
-    let header_len = read_varint(data, &mut pos)? as usize;
+    let header_len = usize::try_from(read_varint(data, &mut pos)?)
+        .map_err(|_| RepoError::Car("Header length exceeds usize".into()))?;
     let header_end = pos
         .checked_add(header_len)
         .ok_or_else(|| RepoError::Car("Header length overflows usize".into()))?;
@@ -126,7 +124,8 @@ pub fn read_car_opts(data: &[u8], opts: ReadCarOpts) -> Result<(Vec<Cid>, BlockM
     // Read blocks
     let mut blocks = BlockMap::new();
     while pos < data.len() {
-        let block_len = read_varint(data, &mut pos)? as usize;
+        let block_len = usize::try_from(read_varint(data, &mut pos)?)
+            .map_err(|_| RepoError::Car("Block length exceeds usize".into()))?;
         let block_end = pos
             .checked_add(block_len)
             .ok_or_else(|| RepoError::Car("Block length overflows usize".into()))?;
@@ -217,7 +216,8 @@ fn parse_cid_from_bytes(data: &[u8]) -> Result<(Cid, usize), RepoError> {
 
     // Multihash: hash function varint + digest size varint + digest bytes
     let _hash_fn = read_varint_from_slice(data, &mut pos)?;
-    let digest_size = read_varint_from_slice(data, &mut pos)? as usize;
+    let digest_size = usize::try_from(read_varint_from_slice(data, &mut pos)?)
+        .map_err(|_| RepoError::Car("CID digest size exceeds usize".into()))?;
     let digest_end = pos
         .checked_add(digest_size)
         .ok_or_else(|| RepoError::Car("CID digest length overflows usize".into()))?;

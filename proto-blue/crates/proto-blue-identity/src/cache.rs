@@ -56,10 +56,16 @@ impl MemoryCache {
     }
 
     fn now_ms() -> u64 {
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64
+        // Milliseconds since the UNIX epoch fit in u64 for ~584 million
+        // years, so the cast cannot truncate during the lifetime of any
+        // running program.
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64
+        }
     }
 }
 
@@ -88,15 +94,22 @@ impl DidCache for MemoryCache {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<CacheResult>> + Send + '_>> {
         let did = did.to_string();
         Box::pin(async move {
-            let cache = self.cache.lock().unwrap();
-            let val = cache.get(&did)?;
+            // Snapshot the cache entry inside a narrow scope so the
+            // mutex guard is released before we build `CacheResult`.
+            let (doc, updated_at) = {
+                let cache = self.cache.lock().unwrap();
+                let val = cache.get(&did)?;
+                let pair = (val.doc.clone(), val.updated_at);
+                drop(cache);
+                pair
+            };
             let now = Self::now_ms();
-            let expired = now > val.updated_at + self.max_ttl_ms;
-            let stale = now > val.updated_at + self.stale_ttl_ms;
+            let expired = now > updated_at + self.max_ttl_ms;
+            let stale = now > updated_at + self.stale_ttl_ms;
             Some(CacheResult {
                 did,
-                doc: val.doc.clone(),
-                updated_at: val.updated_at,
+                doc,
+                updated_at,
                 stale,
                 expired,
             })

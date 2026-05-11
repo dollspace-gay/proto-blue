@@ -16,6 +16,8 @@
 
 use super::decision::ModerationDecision;
 use super::mutewords::{MutedWordMatch, check_muted_words};
+// internal moderation prelude; types tightly coupled to siblings
+#[allow(clippy::wildcard_imports)]
 use super::types::*;
 
 use serde_json::Value as JsonValue;

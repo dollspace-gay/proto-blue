@@ -86,6 +86,7 @@ impl SimpleStore for MemoryStore {
             .lock()
             .map_err(|_| OAuthError::Other("MemoryStore mutex poisoned".into()))?;
         guard.insert(key.to_string(), value);
+        drop(guard);
         Ok(())
     }
 
@@ -95,6 +96,7 @@ impl SimpleStore for MemoryStore {
             .lock()
             .map_err(|_| OAuthError::Other("MemoryStore mutex poisoned".into()))?;
         guard.remove(key);
+        drop(guard);
         Ok(())
     }
 }

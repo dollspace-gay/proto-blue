@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Differential MST tests against the official TS SDK test suite.
 //!
 //! Ported from `packages/repo/tests/mst.test.ts` in bluesky-social/atproto.

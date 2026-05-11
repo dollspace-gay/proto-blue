@@ -3,7 +3,7 @@
 //! Demonstrates resolving DIDs and handles using the identity crate.
 //! Requires network access to reach bsky.social and PLC directory.
 //!
-//! Run with: cargo run -p proto-blue-examples --bin resolve_identity
+//! Run with: cargo run -p proto-blue-examples --bin `resolve_identity`
 
 use proto_blue_identity::{DidResolver, HandleResolver, IdResolver};
 
@@ -17,7 +17,7 @@ async fn main() {
     let did_resolver = DidResolver::new(None, 5000, None);
 
     let did = "did:plc:z72i7hdynmk6r22z27h6tvur"; // @bsky.app
-    println!("  Resolving: {}", did);
+    println!("  Resolving: {did}");
     match did_resolver.resolve(did, false).await {
         Ok(Some(doc)) => {
             println!("  DID: {}", doc.id);
@@ -29,7 +29,7 @@ async fn main() {
 
             // Extract PDS endpoint
             let pds = proto_blue_common::did_doc::get_pds_endpoint(&doc);
-            println!("  PDS endpoint: {:?}", pds);
+            println!("  PDS endpoint: {pds:?}");
 
             // Extract signing key
             let signing_key = proto_blue_common::did_doc::get_signing_key(&doc);
@@ -38,7 +38,7 @@ async fn main() {
             }
         }
         Ok(None) => println!("  DID not found"),
-        Err(e) => println!("  Error: {}", e),
+        Err(e) => println!("  Error: {e}"),
     }
 
     // --- Resolve a handle ---
@@ -46,11 +46,11 @@ async fn main() {
     let handle_resolver = HandleResolver::new(5000);
 
     let handle = "bsky.app";
-    println!("  Resolving handle: {}", handle);
+    println!("  Resolving handle: {handle}");
     match handle_resolver.resolve(handle).await {
-        Ok(Some(resolved_did)) => println!("  Resolved to: {}", resolved_did),
+        Ok(Some(resolved_did)) => println!("  Resolved to: {resolved_did}"),
         Ok(None) => println!("  Handle not found"),
-        Err(e) => println!("  Error: {}", e),
+        Err(e) => println!("  Error: {e}"),
     }
 
     // --- Combined resolver ---
@@ -59,22 +59,22 @@ async fn main() {
 
     let handles_to_resolve = ["bsky.app", "atproto.com"];
     for h in &handles_to_resolve {
-        print!("  {} -> ", h);
+        print!("  {h} -> ");
         match resolver.handle.resolve(h).await {
             Ok(Some(did)) => {
-                println!("{}", did);
+                println!("{did}");
                 // Now resolve the DID document
                 match resolver.did.resolve(&did, false).await {
                     Ok(Some(doc)) => {
                         let pds = proto_blue_common::did_doc::get_pds_endpoint(&doc);
-                        println!("    PDS: {:?}", pds);
+                        println!("    PDS: {pds:?}");
                     }
                     Ok(None) => println!("    (DID document not found)"),
-                    Err(e) => println!("    (DID resolution error: {})", e),
+                    Err(e) => println!("    (DID resolution error: {e})"),
                 }
             }
             Ok(None) => println!("(not found)"),
-            Err(e) => println!("(error: {})", e),
+            Err(e) => println!("(error: {e})"),
         }
     }
 

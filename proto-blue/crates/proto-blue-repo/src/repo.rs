@@ -155,11 +155,11 @@ impl Repo {
 
         let rev = next_tid(None).to_string();
         let unsigned = UnsignedCommit::new(did.clone(), mst_root, rev, None);
-        let signed = sign_commit(&unsigned, signer)?;
-        let commit_cid = signed.cid()?;
+        let signed_commit = sign_commit(&unsigned, signer)?;
+        let commit_cid = signed_commit.cid()?;
 
         let mut blocks = mst_blocks;
-        let commit_bytes = proto_blue_lex_cbor::encode(&signed.to_lex_value())?;
+        let commit_bytes = proto_blue_lex_cbor::encode(&signed_commit.to_lex_value())?;
         blocks.set(commit_cid.clone(), commit_bytes);
 
         storage.apply_commit(commit_cid.clone(), &blocks)?;
@@ -168,7 +168,7 @@ impl Repo {
             storage,
             did,
             commit_cid: Some(commit_cid),
-            commit: Some(signed),
+            commit: Some(signed_commit),
             mst: empty_mst,
         })
     }
@@ -189,7 +189,6 @@ impl Repo {
     ) -> Result<CommitData, RepoError> {
         // Apply each write to a fresh MST, tracking removed CIDs.
         let mut new_mst = self.mst.clone();
-        let mut new_leaf_cids: Vec<Cid> = Vec::new();
         let mut touched_record_blocks = BlockMap::new();
 
         for write in writes {
@@ -206,8 +205,7 @@ impl Repo {
                     let cid = cid_for_lex(value)?;
                     let bytes = proto_blue_lex_cbor::encode(value)?;
                     touched_record_blocks.set(cid.clone(), bytes);
-                    new_mst = new_mst.add(&key, cid.clone())?;
-                    new_leaf_cids.push(cid);
+                    new_mst = new_mst.add(&key, cid)?;
                 }
                 RepoWrite::Update { value, .. } => {
                     let key = write.key();
@@ -217,8 +215,7 @@ impl Repo {
                     let cid = cid_for_lex(value)?;
                     let bytes = proto_blue_lex_cbor::encode(value)?;
                     touched_record_blocks.set(cid.clone(), bytes);
-                    new_mst = new_mst.update(&key, cid.clone())?;
-                    new_leaf_cids.push(cid);
+                    new_mst = new_mst.update(&key, cid)?;
                 }
                 RepoWrite::Delete { .. } => {
                     let key = write.key();
@@ -245,20 +242,20 @@ impl Repo {
         let rev = next_tid(None).to_string();
         let unsigned =
             UnsignedCommit::new(self.did.clone(), mst_root, rev, self.commit_cid.clone());
-        let signed = sign_commit(&unsigned, signer)?;
-        let commit_cid = signed.cid()?;
+        let signed_commit = sign_commit(&unsigned, signer)?;
+        let commit_cid = signed_commit.cid()?;
 
         // Merge: new MST blocks + record blocks + the commit itself.
         let mut blocks = mst_blocks;
         for (cid, bytes) in touched_record_blocks.iter() {
             blocks.set(cid.clone(), bytes.to_vec());
         }
-        let commit_bytes = proto_blue_lex_cbor::encode(&signed.to_lex_value())?;
+        let commit_bytes = proto_blue_lex_cbor::encode(&signed_commit.to_lex_value())?;
         blocks.set(commit_cid.clone(), commit_bytes);
 
         Ok(CommitData {
             commit_cid,
-            commit: signed,
+            commit: signed_commit,
             blocks,
             removed_cids,
         })
@@ -316,18 +313,18 @@ impl Repo {
         let rev = next_tid(None).to_string();
         let unsigned =
             UnsignedCommit::new(self.did.clone(), data_cid, rev, self.commit_cid.clone());
-        let signed = sign_commit(&unsigned, signer)?;
-        let commit_cid = signed.cid()?;
+        let signed_commit = sign_commit(&unsigned, signer)?;
+        let commit_cid = signed_commit.cid()?;
 
         // The MST blocks are already in storage; only the new commit
         // block needs to be written.
         let mut blocks = BlockMap::new();
-        let bytes = proto_blue_lex_cbor::encode(&signed.to_lex_value())?;
+        let bytes = proto_blue_lex_cbor::encode(&signed_commit.to_lex_value())?;
         blocks.set(commit_cid.clone(), bytes);
 
         Ok(CommitData {
             commit_cid,
-            commit: signed,
+            commit: signed_commit,
             blocks,
             removed_cids: Vec::new(),
         })

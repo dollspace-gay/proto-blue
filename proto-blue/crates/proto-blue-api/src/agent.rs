@@ -201,13 +201,15 @@ impl Agent {
     /// authenticated (the proxy + labelers are still folded into the
     /// call options of non-auth helpers via [`Self::anon_call_options`]).
     async fn auth_call_options(&self) -> Option<CallOptions> {
-        let guard = self.session.read().await;
-        let session = guard.as_ref()?;
+        // Narrow the read-lock guard: extract only the bearer string and
+        // drop the guard before we await `inject_proxy_and_labelers`,
+        // which separately re-locks state we don't want to deadlock on.
+        let access_jwt = {
+            let guard = self.session.read().await;
+            guard.as_ref()?.access_jwt.clone()
+        };
         let mut headers = HeadersMap::new();
-        headers.insert(
-            "Authorization".into(),
-            format!("Bearer {}", session.access_jwt),
-        );
+        headers.insert("Authorization".into(), format!("Bearer {access_jwt}"));
         self.inject_proxy_and_labelers(&mut headers).await;
         Some(CallOptions {
             encoding: None,
@@ -246,6 +248,7 @@ impl Agent {
                 .map(LabelerOpts::header_value)
                 .collect::<Vec<_>>()
                 .join(", ");
+            drop(labelers);
             headers.insert("atproto-accept-labelers".into(), v);
         }
     }
@@ -374,6 +377,13 @@ impl Agent {
     /// rejected. Uses a per-request header for the refresh call so the
     /// refresh JWT is never exposed as the global auth state. The new
     /// session is committed atomically in a single write lock.
+    // The read guard's scope is bounded by an inner block (sess is dropped
+    // before the first .await downstream). Clippy flags the `?` early-return
+    // as "drop could be tighter" but reshaping the flow with explicit
+    // drop(sess) would add LoC without changing observable behavior. The
+    // attribute is fn-level because the inner-expression lint isn't silenced
+    // when the attribute is placed on the `let` binding.
+    #[allow(clippy::significant_drop_tightening)]
     pub async fn refresh_session(&self) -> Result<Session, AgentError> {
         let refresh_jwt = {
             let sess = self.session.read().await;
@@ -514,7 +524,7 @@ impl Agent {
             .await
             .as_ref()
             .map(|s| s.access_jwt.clone());
-        let _guard = self.refresh_lock.lock().await;
+        let guard = self.refresh_lock.lock().await;
         let current_jwt = self
             .session
             .read()
@@ -525,7 +535,7 @@ impl Agent {
             // No peer did the refresh — we must.
             self.refresh_session().await?;
         }
-        drop(_guard);
+        drop(guard);
 
         let opts = self.auth_call_options().await;
         let response = replay(opts).await?;
@@ -925,8 +935,9 @@ impl Agent {
     where
         F: Fn(serde_json::Value) -> serde_json::Value,
     {
-        let did = self.assert_did().await?;
         const MAX_RETRIES: u32 = 5;
+
+        let did = self.assert_did().await?;
 
         for _ in 0..MAX_RETRIES {
             // Read the existing profile (may 404 — that's fine).
@@ -974,8 +985,8 @@ impl Agent {
                 Ok(r) => return Ok(r),
                 Err(AgentError::Xrpc(ref e)) if is_invalid_swap(e) => {
                     // Race lost — someone else updated between our read
-                    // and write. Loop and try again with a fresh read.
-                    continue;
+                    // and write. Fall through to the next loop iteration
+                    // with a fresh read.
                 }
                 Err(e) => return Err(e),
             }

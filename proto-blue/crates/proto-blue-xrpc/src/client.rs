@@ -193,7 +193,7 @@ impl XrpcClient {
         let mut req = HttpRequest {
             method,
             url: url.into(),
-            headers: Default::default(),
+            headers: std::collections::BTreeMap::new(),
             body: None,
         };
 
@@ -360,6 +360,8 @@ pub enum HttpMethod {
 }
 
 /// Parse an error response body to extract error/message fields.
+// Multi-line Some block; `map_or` would obscure the field extraction.
+#[allow(clippy::option_if_let_else)]
 fn parse_error_body(bytes: &[u8]) -> (Option<String>, Option<String>) {
     if let Ok(value) = serde_json::from_slice::<serde_json::Value>(bytes) {
         let error = value

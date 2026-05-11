@@ -47,3 +47,6 @@ fetch-reqwest = ["proto-blue-common/fetch-reqwest"]
 # Browser HTTP transport (`fetch()` via gloo-net) for wasm32. Also
 # enables background cache-refresh via wasm-bindgen-futures.
 fetch-web = ["proto-blue-common/fetch-web", "dep:wasm-bindgen-futures"]
+
+[lints]
+workspace = true

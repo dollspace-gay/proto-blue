@@ -65,3 +65,6 @@ identity-resolver = ["dep:proto-blue-identity"]
 [dev-dependencies]
 proptest = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util", "sync", "time"] }
+
+[lints]
+workspace = true

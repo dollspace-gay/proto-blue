@@ -1,0 +1,45 @@
+# Workspace clippy config.
+#
+# `doc-valid-idents` extends clippy's default whitelist for the
+# `clippy::doc_markdown` pedantic lint. AT Protocol terminology is
+# full of identifiers that look like prose (hyphenated, mixed-case,
+# colon-separated) but should not be backtick-wrapped every time.
+#
+# Add new terms here when `clippy::doc_markdown` flags a real
+# protocol term as a false positive.
+doc-valid-idents = [
+    # Clippy defaults that we want to preserve when overriding
+    # (clippy replaces, not extends, when this key is set without `..`).
+    "KiB", "MiB", "GiB", "TiB", "PiB", "EiB",
+    "DirectX",
+    "ECMAScript",
+    "GPL",
+    "GitHub", "GitLab",
+    "IPv4", "IPv6",
+    "ClojureScript", "CoffeeScript", "JavaScript", "PostScript", "PureScript", "TypeScript",
+    "NaN", "NaNs",
+    "OAuth", "GraphQL",
+    "OCaml",
+    "OpenAL", "OpenDNS", "OpenGL", "OpenMP", "OpenSSH", "OpenSSL", "OpenStreetMap", "OpenTelemetry",
+    "WebGL", "WebGL2", "WebGPU", "WebRTC", "WebSocket", "WebTransport",
+    "TensorFlow",
+    "TrueType",
+    "iOS", "macOS", "FreeBSD",
+    "TeX", "LaTeX", "BibTeX", "BibLaTeX",
+    "MinGW",
+    "CamelCase",
+
+    # AT Protocol terminology.
+    "AT-URI", "AT-CBOR", "DAG-CBOR", "DAG-JSON", "JSON-LD",
+    "P-256", "K-256", "Ed25519", "ES256", "ES256K",
+    "did:plc", "did:web", "did:key",
+    "NSID", "NSIDs",
+    "TID", "TIDs",
+    "DPoP", "PKCE", "PAR",
+    "XRPC",
+    "BlueSky", "AppView", "PDS", "PLC",
+    "MST",
+    "CID", "CIDs",
+    "DNS-01",
+    "WebSocket",
+]

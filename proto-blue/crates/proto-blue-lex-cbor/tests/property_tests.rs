@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Property-based tests for DAG-CBOR encoding/decoding.
 
 use proptest::prelude::*;

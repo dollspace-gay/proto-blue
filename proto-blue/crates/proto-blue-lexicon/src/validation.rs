@@ -90,7 +90,13 @@ pub fn validate_value(
             }
             Ok(())
         }
-        _ => Ok(()), // Primary types are validated at a higher level
+        // Unknown is a permissive type by definition; primary types
+        // (record/query/procedure/subscription) are validated at a
+        // higher level and reach this fall-through arm only when used
+        // as a nested type. Both return Ok(()) for distinct reasons;
+        // keep arms separate so future evolution can specialise either.
+        #[allow(clippy::match_same_arms)]
+        _ => Ok(()),
     }
 }
 
@@ -356,6 +362,8 @@ fn extract_blob_shape<'a>(
         if size < 0 {
             return Err(ValidationError::new(path, "blob size cannot be negative"));
         }
+        // bounded by `size >= 0` check on the line above; sign-loss cast is safe.
+        #[allow(clippy::cast_sign_loss)]
         return Ok((mime_type, Some(size as u64)));
     }
 
@@ -374,6 +382,9 @@ fn extract_blob_shape<'a>(
 ///
 /// Supports exact match (`image/png`) and wildcard (`image/*`). No
 /// other glob syntax is part of the atproto blob spec.
+// `if let/else` with a multi-line Some branch is clearer than `map_or_else`
+// with an inline closure; `map_or_else` would obscure the prefix logic.
+#[allow(clippy::option_if_let_else)]
 fn matches_mime_pattern(pattern: &str, mime: &str) -> bool {
     if let Some(prefix) = pattern.strip_suffix("/*") {
         // "image/*" matches any "image/<anything>".

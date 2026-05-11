@@ -72,6 +72,13 @@ where
 /// Produces delays: ~100ms, ~200ms, ~400ms, ~800ms, ~1000ms, ~1000ms, ...
 #[must_use]
 pub fn backoff_ms(n: usize, multiplier: u64, max: u64) -> u64 {
+    // `n` is the retry attempt index, bounded in practice by
+    // `RetryOptions::max_retries` (default 3) at every call site —
+    // `retry()` increments it from 0 up to that cap. Even at
+    // pathological values the surrounding `saturating_mul` and
+    // `.min(max)` clamp the result, so truncation when casting to
+    // u32 cannot affect the final delay value.
+    #[allow(clippy::cast_possible_truncation)]
     let exponential = (2u64.pow(n as u32)).saturating_mul(multiplier);
     let ms = exponential.min(max);
     jitter(ms)
@@ -79,10 +86,24 @@ pub fn backoff_ms(n: usize, multiplier: u64, max: u64) -> u64 {
 
 /// Add +/-15% random jitter to a value.
 fn jitter(value: u64) -> u64 {
-    let delta = (value as f64) * 0.15;
     use rand::Rng;
+    // Scheduling jitter, precision loss bounded by ±15% by construction
+    // (`delta = value * 0.15`); the multiplied f64 is then quantised
+    // back to a u64 millisecond count below.
+    #[allow(clippy::cast_precision_loss)]
+    let delta = (value as f64) * 0.15;
     let offset = rand::thread_rng().gen_range(-delta..delta);
-    (value as f64 + offset).round().max(0.0) as u64
+    // The final cast is bounded by `.max(0.0)` (so no sign loss) and
+    // by the `value + ±15% * value` range (so no truncation in the
+    // sub-u64 range of any meaningful backoff).
+    #[allow(
+        clippy::cast_precision_loss,
+        clippy::cast_sign_loss,
+        clippy::cast_possible_truncation
+    )]
+    {
+        (value as f64 + offset).round().max(0.0) as u64
+    }
 }
 
 #[cfg(test)]

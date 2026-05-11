@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 use proptest::prelude::*;
 
 use proto_blue_oauth::{DpopKey, Scope, ScopeSet, generate_pkce, verify_pkce};

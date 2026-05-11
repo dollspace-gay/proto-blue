@@ -211,7 +211,7 @@ impl OAuthSession {
         let mut req = HttpRequest {
             method: http_method,
             url: url.to_string(),
-            headers: Default::default(),
+            headers: std::collections::BTreeMap::new(),
             body: body.clone(),
         };
         req = req

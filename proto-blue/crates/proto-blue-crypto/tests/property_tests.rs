@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Property-based tests for cryptographic operations.
 
 use proptest::prelude::*;

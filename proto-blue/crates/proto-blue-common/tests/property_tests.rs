@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 use proptest::prelude::*;
 
 use proto_blue_common::{
@@ -107,7 +109,7 @@ proptest! {
                 service_endpoint: serde_json::Value::String(endpoint.clone()),
             }],
         };
-        prop_assert_eq!(get_pds_endpoint(&doc), Some(endpoint.clone()));
+        prop_assert_eq!(get_pds_endpoint(&doc), Some(endpoint));
     }
 
     /// A DID document with no services returns `None`, no matter what

@@ -228,9 +228,8 @@ fn cbor_to_lex(value: ciborium::Value) -> Result<LexValue, CborError> {
         ciborium::Value::Map(entries) => {
             let mut map = BTreeMap::new();
             for (k, v) in entries {
-                let key = match k {
-                    ciborium::Value::Text(s) => s,
-                    _ => return Err(CborError::NonStringKey),
+                let ciborium::Value::Text(key) = k else {
+                    return Err(CborError::NonStringKey);
                 };
                 if map.contains_key(&key) {
                     return Err(CborError::DuplicateKey(key));

@@ -155,11 +155,13 @@ impl XrpcServerError {
         }
     }
 
+    #[must_use]
     pub fn with_error_name(mut self, error: impl Into<String>) -> Self {
         self.error = Some(error.into());
         self
     }
 
+    #[must_use]
     pub fn with_cause(mut self, cause: impl Into<String>) -> Self {
         self.cause = Some(cause.into());
         self
@@ -270,6 +272,7 @@ impl XrpcServer {
     }
 
     /// Register a GET handler at `/xrpc/<nsid>`.
+    #[must_use]
     pub fn query<F, Fut, E>(mut self, nsid: impl Into<String>, handler: F) -> Self
     where
         F: Fn(HandlerContext) -> Fut + Send + Sync + 'static,
@@ -294,6 +297,7 @@ impl XrpcServer {
     }
 
     /// Register a POST handler at `/xrpc/<nsid>`.
+    #[must_use]
     pub fn procedure<F, Fut, E>(mut self, nsid: impl Into<String>, handler: F) -> Self
     where
         F: Fn(HandlerContext) -> Fut + Send + Sync + 'static,
@@ -325,6 +329,7 @@ impl XrpcServer {
     ///
     /// The handler itself is `Fn` (callable repeatedly) — one call
     /// per upgraded connection.
+    #[must_use]
     pub fn stream_method<F, S>(mut self, nsid: impl Into<String>, handler: F) -> Self
     where
         F: Fn(HandlerContext) -> S + Send + Sync + 'static,
@@ -362,6 +367,7 @@ impl XrpcServer {
     /// Attach a rate-limit key to a previously-registered method. The
     /// server passes this key to [`RateLimiter::check`] before invoking
     /// the handler.
+    #[must_use]
     pub fn rate_limit(mut self, nsid: &str, key: impl Into<String>) -> Self {
         if let Some(m) = self.methods.get_mut(nsid) {
             m.rate_limit_key = Some(key.into());
@@ -370,6 +376,7 @@ impl XrpcServer {
     }
 
     /// Install an auth verifier used by methods with `require_auth`.
+    #[must_use]
     pub fn with_auth(mut self, verifier: Arc<dyn AuthVerifier>) -> Self {
         self.auth = Some(verifier);
         self
@@ -379,6 +386,7 @@ impl XrpcServer {
     /// method-specific key (set via [`rate_limit`](Self::rate_limit))
     /// or with the global key (set via
     /// [`global_rate_limit_key`](Self::global_rate_limit_key)).
+    #[must_use]
     pub fn with_rate_limiter(mut self, limiter: Arc<dyn RateLimiter>) -> Self {
         self.rate_limiter = Some(limiter);
         self
@@ -386,6 +394,7 @@ impl XrpcServer {
 
     /// Set a rate-limit key applied to every request (in addition to
     /// any method-specific key).
+    #[must_use]
     pub fn global_rate_limit_key(mut self, key: impl Into<String>) -> Self {
         self.global_rate_limit_key = Some(key.into());
         self
@@ -458,20 +467,16 @@ async fn handle_get(
         // manually so we can produce a clear "subscription requires
         // WebSocket upgrade" error rather than axum's default 400.
         let (mut parts, _body) = req.into_parts();
-        let upgrade =
-            match <WebSocketUpgrade as FromRequestParts<()>>::from_request_parts(&mut parts, &())
-                .await
-            {
-                Ok(u) => u,
-                Err(_) => {
-                    return XrpcServerError::new(
-                        ResponseType::InvalidRequest,
-                        "subscription requires WebSocket upgrade",
-                    )
-                    .with_error_name("InvalidRequest")
-                    .into_response();
-                }
-            };
+        let Ok(upgrade) =
+            <WebSocketUpgrade as FromRequestParts<()>>::from_request_parts(&mut parts, &()).await
+        else {
+            return XrpcServerError::new(
+                ResponseType::InvalidRequest,
+                "subscription requires WebSocket upgrade",
+            )
+            .with_error_name("InvalidRequest")
+            .into_response();
+        };
         return subscription_upgrade(state, nsid, params, headers, upgrade);
     }
     dispatch(
@@ -503,16 +508,13 @@ async fn dispatch(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let method = match state.methods.get(&nsid) {
-        Some(m) => m,
-        None => {
-            return XrpcServerError::new(
-                ResponseType::XRPCNotSupported,
-                format!("method {nsid} not found"),
-            )
-            .with_error_name("XRPCNotSupported")
-            .into_response();
-        }
+    let Some(method) = state.methods.get(&nsid) else {
+        return XrpcServerError::new(
+            ResponseType::XRPCNotSupported,
+            format!("method {nsid} not found"),
+        )
+        .with_error_name("XRPCNotSupported")
+        .into_response();
     };
     if method.kind != kind {
         let expected = match method.kind {
@@ -547,15 +549,12 @@ async fn dispatch(
 
     // Auth check.
     let auth = if method.require_auth {
-        let verifier = match &state.auth {
-            Some(v) => v,
-            None => {
-                return XrpcServerError::new(
-                    ResponseType::InternalServerError,
-                    "auth required but no verifier installed",
-                )
-                .into_response();
-            }
+        let Some(verifier) = &state.auth else {
+            return XrpcServerError::new(
+                ResponseType::InternalServerError,
+                "auth required but no verifier installed",
+            )
+            .into_response();
         };
         match verifier.verify(&headers, &nsid) {
             Ok(ctx) => Some(ctx),
@@ -581,15 +580,12 @@ async fn dispatch(
     // Unary kinds (Query / Procedure) always have `handler`;
     // Subscription never reaches this path (its dispatch lives in
     // `subscription_upgrade`). Unwrap is unreachable in practice.
-    let handler = match &method.handler {
-        Some(h) => h,
-        None => {
-            return XrpcServerError::new(
-                ResponseType::InternalServerError,
-                "internal: unary handler missing for non-subscription method",
-            )
-            .into_response();
-        }
+    let Some(handler) = &method.handler else {
+        return XrpcServerError::new(
+            ResponseType::InternalServerError,
+            "internal: unary handler missing for non-subscription method",
+        )
+        .into_response();
     };
 
     match handler(ctx).await {
@@ -609,6 +605,9 @@ const OP_ERROR: i64 = -1;
 /// Perform the WebSocket upgrade for a subscription method and spawn
 /// the pump that drives the handler's stream into frame-encoded
 /// messages.
+// All parameters are moved into a `'static` spawn closure inside the upgrade
+// path; ownership is required for the spawned task.
+#[allow(clippy::needless_pass_by_value)]
 fn subscription_upgrade(
     state: Arc<ServerState>,
     nsid: String,
@@ -668,15 +667,12 @@ async fn run_subscription_pump(socket: WebSocket, handler: StreamHandlerFn, ctx:
             // Peer disconnect / close frame: stop pumping immediately.
             incoming = client_read.next() => {
                 match incoming {
-                    None => break,
-                    Some(Err(_)) => break,
-                    Some(Ok(Message::Close(_))) => break,
+                    None | Some(Err(_) | Ok(Message::Close(_))) => break,
                     Some(Ok(_)) => {
                         // Peers may send pings / pongs / text; axum
                         // handles pings automatically. We ignore other
                         // inbound messages — subscription streams are
                         // one-way at this layer.
-                        continue;
                     }
                 }
             }

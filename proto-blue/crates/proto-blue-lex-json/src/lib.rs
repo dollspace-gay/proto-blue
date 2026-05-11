@@ -1,3 +1,5 @@
+#![cfg_attr(test, allow(clippy::pedantic, clippy::nursery))]
+
 //! AT Protocol JSON <-> `LexValue` conversion with $link and $bytes encoding.
 //!
 //! In JSON representation:

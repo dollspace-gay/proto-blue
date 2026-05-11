@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! End-to-end proof that `proto_blue_common::cancellable` aborts an
 //! in-flight `XrpcClient::query` call.
 //!

@@ -125,6 +125,7 @@ impl HttpRequest {
     }
 
     /// Set a header (lowercasing the key to match `HttpHeaders` convention).
+    #[must_use]
     pub fn with_header(mut self, key: impl AsRef<str>, value: impl Into<String>) -> Self {
         self.headers
             .insert(key.as_ref().to_lowercase(), value.into());
@@ -184,6 +185,8 @@ impl HttpResponse {
     /// # Errors
     ///
     /// Returns [`FetchError::Body`] when the body is not valid UTF-8.
+    // API signature stability: mirrors reqwest::Response::text which is async.
+    #[allow(clippy::unused_async)]
     pub async fn text(self) -> Result<String, FetchError> {
         String::from_utf8(self.body)
             .map_err(|e| FetchError::Body(format!("response body is not utf-8: {e}")))
@@ -197,6 +200,8 @@ impl HttpResponse {
     ///
     /// Returns [`FetchError::Body`] when the body isn't valid JSON
     /// for the requested type `T`.
+    // API signature stability: mirrors reqwest::Response::json which is async.
+    #[allow(clippy::unused_async)]
     pub async fn json<T: serde::de::DeserializeOwned>(self) -> Result<T, FetchError> {
         serde_json::from_slice(&self.body)
             .map_err(|e| FetchError::Body(format!("response body is not json: {e}")))

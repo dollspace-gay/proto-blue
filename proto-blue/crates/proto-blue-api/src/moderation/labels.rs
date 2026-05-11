@@ -1,5 +1,8 @@
 //! Known label definitions and behavior mappings.
 
+// moderation submodule prelude; types are tightly coupled to siblings
+// and enumerating them has historically broken the build (Phase 1).
+#[allow(clippy::wildcard_imports)]
 use super::types::*;
 
 /// Predefined behavior for block causes.
@@ -49,7 +52,14 @@ pub fn hide_behavior() -> ModerationBehavior {
 }
 
 /// Build the list of known (system) label definitions.
+///
+/// Naturally long procedural mapping: each AT Protocol system label needs
+/// its full behavior table (account/profile/content × contexts) spelled
+/// out so cross-impl parity with the TS `@atproto/api` reference is
+/// reviewable in one place. Splitting into per-label helpers would obscure
+/// the side-by-side comparison without reducing complexity.
 #[must_use]
+#[allow(clippy::too_many_lines)]
 pub fn known_labels() -> Vec<LabelValueDefinition> {
     vec![
         // Imperative labels (non-configurable)
@@ -217,7 +227,14 @@ fn media_label_behaviors() -> LabelBehaviors {
 }
 
 /// Look up a label definition by identifier from known labels + custom defs.
+///
+/// Accepts the concrete `HashMap<K, V>` with the default `RandomState`
+/// hasher rather than a generic `S: BuildHasher`: every caller in the
+/// workspace (`decision::add_label`, `ModerationOpts::label_defs`) passes
+/// a default-hashed `HashMap`, and generalising would be a SemVer-breaking
+/// signature change to a `pub` re-export (`moderation::find_label_def`).
 #[must_use]
+#[allow(clippy::implicit_hasher)]
 pub fn find_label_def(
     identifier: &str,
     custom_defs: &std::collections::HashMap<String, Vec<LabelValueDefinition>>,

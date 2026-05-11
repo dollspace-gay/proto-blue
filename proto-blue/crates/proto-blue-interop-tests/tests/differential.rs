@@ -1,3 +1,5 @@
+#![allow(clippy::pedantic, clippy::nursery)]
+
 //! Differential tests against the `@atproto/syntax` TypeScript SDK.
 //!
 //! Each `#[test]` drives our Rust parser and the TS reference
@@ -1214,8 +1216,8 @@ fn differential_car_layout_byte_equivalence() {
         let mst = build_rust_mst(&entries);
         let (root, blocks) = mst.get_all_blocks().expect("Rust get_all_blocks");
 
-        let rust_car = proto_blue_repo::blocks_to_car(Some(&root), &blocks)
-            .expect("Rust blocks_to_car");
+        let rust_car =
+            proto_blue_repo::blocks_to_car(Some(&root), &blocks).expect("Rust blocks_to_car");
 
         let ts_response: TsResult<serde_json::Value> =
             ts.call("car_write_blocks", car_blocks_wire(&root, &blocks));
@@ -1338,7 +1340,8 @@ fn differential_unsigned_commit_signing_bytes() {
             .to_signing_bytes()
             .expect("Rust to_signing_bytes");
 
-        let ts_response: TsResult<serde_json::Value> = ts.call("commit_signing_bytes", fixture.to_wire());
+        let ts_response: TsResult<serde_json::Value> =
+            ts.call("commit_signing_bytes", fixture.to_wire());
         let ts_hex = ts_response
             .into_ok()
             .get("hex")
@@ -1422,7 +1425,8 @@ fn differential_signed_commit_cross_impl_verification() {
             let mut wire = fixture.to_wire();
             wire["sig_hex"] = serde_json::Value::String(hex::encode(&signed.sig));
             wire["did_key"] = serde_json::Value::String(did_key.clone());
-            let ts_response: TsResult<serde_json::Value> = ts.call("commit_verify_sig", wire.clone());
+            let ts_response: TsResult<serde_json::Value> =
+                ts.call("commit_verify_sig", wire.clone());
             let valid = ts_response
                 .into_ok()
                 .get("valid")
@@ -1441,7 +1445,9 @@ fn differential_signed_commit_cross_impl_verification() {
                 .into_ok()
                 .get("valid")
                 .and_then(|v| v.as_bool())
-                .unwrap_or_else(|| panic!("TS commit_verify_sig (tampered) returned no valid field"));
+                .unwrap_or_else(|| {
+                    panic!("TS commit_verify_sig (tampered) returned no valid field")
+                });
             assert!(
                 !valid_tampered,
                 "{curve} {name:?}: TS accepted a tampered commit — signature scope is broken"
@@ -1488,4 +1494,3 @@ fn differential_car_layout_byte_equivalence_no_root() {
         ts_car.len(),
     );
 }
-

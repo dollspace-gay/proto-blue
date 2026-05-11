@@ -377,11 +377,10 @@ fn nullable_string_field(
 ) -> Result<Option<String>, RepoError> {
     match map.get(key) {
         Some(LexValue::String(s)) => Ok(Some(s.clone())),
-        Some(LexValue::Null) => Ok(None),
         // The commit schema marks `since` as nullable but REQUIRED —
         // i.e. the key must be present. We accept absence too, for
         // robustness against non-spec-conformant upstreams.
-        None => Ok(None),
+        Some(LexValue::Null) | None => Ok(None),
         _ => Err(RepoError::InvalidCommit(format!(
             "field `{key}` must be string or null"
         ))),
