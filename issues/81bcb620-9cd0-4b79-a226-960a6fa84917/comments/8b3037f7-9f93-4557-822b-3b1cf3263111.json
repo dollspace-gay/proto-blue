@@ -1,0 +1,10 @@
+{
+  "uuid": "8b3037f7-9f93-4557-822b-3b1cf3263111",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Phase 3c starting: pedantic-lint sweep per architect's per-lint approach table. 24 lint types, ~102 sites in scope. Will produce evidence floor on completion.",
+  "created_at": "2026-05-11T16:38:16.248143331Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA3GStMDdPJB/uz3jMHN499ajxXwfH4RrRmhc40Nm8BkCmjLnH2i815osPku9vu3iD2GI7Bh/Pc8a7nB7lPtKWAg=="
+}
