@@ -1,0 +1,10 @@
+{
+  "uuid": "c66a2104-ea15-4881-82c5-0b8df023b9d3",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Plan (Phase 3a — codegen pedantic sweep): 83 warnings across 12 unique lints in proto-blue-codegen/src/{generator.rs,main.rs}. Actual distribution differs from dispatch prediction — dominant lint is format_push_string (55, not uninlined_format_args). Lint counts: format_push_string=55, doc_markdown=6, unused_self=6, redundant_closure_for_method_calls=5, option_if_let_else=3, match_same_arms=2, self_only_used_in_recursion=2, wildcard_imports=1, unnecessary_trailing_comma=1, missing_const_for_fn=1, map_unwrap_or=1, uninlined_format_args=1 (main.rs:88). Will: (1) read full generator.rs to understand context, (2) bundle uniform-fix lints first (format_push_string, doc_markdown, redundant_closure_for_method_calls, map_unwrap_or, uninlined_format_args), (3) per-site decisions for judgment lints (unused_self/self_only_used_in_recursion/option_if_let_else/match_same_arms/wildcard_imports), (4) regen-drift check after format_push_string (CRITICAL — emit bytes must not change), (5) full verification floor. Strict scope: only generator.rs + main.rs.",
+  "created_at": "2026-05-11T15:10:10.226539923Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAbzi6a7lOxbcIafeS/Qim+ByDC1VJYYR1ZX9NXPfCgU5nic8uEWcycAbhph+rbXog5h7SwX/h0IPsXFcPZERVAA=="
+}
