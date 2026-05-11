@@ -1,0 +1,10 @@
+{
+  "uuid": "6597f2db-6bbf-4aa2-b9d8-234fa4cd45d5",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Phase 3c-finish dispatch: addressing fmt drift (3 files) + 12 residual pedantic sites. Order: (1) cargo fmt --all to clear drift; (2) per-site fixes per the dispatch's site table with per-site category choice; (3) cargo fmt --all again; (4) full evidence-floor verification. Hard scope: no public-API breaks, no Cargo.toml/generated/codegen edits, no cid.rs touch (3d's target), no new error variants, no clippy --fix. Default to allow+comment on wildcard_imports/too_many_lines/implicit_hasher (Phase 1 break landmines + SemVer).",
+  "created_at": "2026-05-11T16:59:09.966636437Z",
+  "kind": "plan",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABA3xDYzqMj+Lj2aEcdyeXgBZZWW3PVrMNkopVAHPwBx0oXvpL0CXQbujXbwlG/8XbFN32poTZ9+hF69jmFtBMeCw=="
+}
