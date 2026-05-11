@@ -1,0 +1,10 @@
+{
+  "uuid": "7e85758d-b237-45c7-b94e-7b0a184540dd",
+  "issue_uuid": "81bcb620-9cd0-4b79-a226-960a6fa84917",
+  "author": "5kO0",
+  "content": "Committed as e36a5fa: 'release: v0.3.1 — workspace lint sweep (1313 → 0 pedantic) [#31]'. 477 files changed (+1385/-495). Includes the codegen regen, workspace [lints] policy, clippy.toml, scripts/clippy-pedantic.sh helper, all per-site allow attrs with rationale comments, the Cid::version u8 → u64 widening, and the 0.3.1 CHANGELOG entry. Build state at commit: clippy -D warnings clean, fmt clean, 1111/0/11 tests, 25/0 differential, 0 pedantic warnings. Issue stays OPEN — closing it is at human discretion; pass --no-changelog when closing since the CHANGELOG entry is already in place.",
+  "created_at": "2026-05-11T18:29:25.125453104Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAdDxCSeszETyBVrxJ3n57vn4Id2J7xr2UhYyygSWWp7Sk/ijSKgsZC7KZsnM4Fp1HBV3trbLALN4oGJK4H2guDQ=="
+}
