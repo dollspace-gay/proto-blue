@@ -1,0 +1,10 @@
+{
+  "uuid": "80a2ff02-aa6c-4575-92e1-81452d15da9a",
+  "display_id": 34,
+  "title": "msrv: bump rust-version 1.85 -> 1.88 (let-chains shipped in v0.3.1) + add MSRV CI guard",
+  "status": "open",
+  "priority": "high",
+  "created_by": "5kO0",
+  "created_at": "2026-05-14T07:18:29.859536960Z",
+  "updated_at": "2026-05-14T07:18:29.859536960Z"
+}
