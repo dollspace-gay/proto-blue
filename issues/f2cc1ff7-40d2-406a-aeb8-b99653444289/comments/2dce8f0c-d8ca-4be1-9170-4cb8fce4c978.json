@@ -1,0 +1,10 @@
+{
+  "uuid": "2dce8f0c-d8ca-4be1-9170-4cb8fce4c978",
+  "issue_uuid": "f2cc1ff7-40d2-406a-aeb8-b99653444289",
+  "author": "5kO0",
+  "content": "Reproduced from a downstream consumer.\n\nproto-blue 0.3.1's Cargo.toml declares:\n\n```\nedition = \"2024\"\nrust-version = \"1.85\"\n```\n\nBut three sub-crates use let-chain syntax (`if cond && let Some(x) = ...`) which was stabilized in Rust **1.88** (RFC 2497, feature `let_chains`). Affected lines, reproduced under rustc 1.85.0:\n\n- `crates/proto-blue-identity/src/did.rs:108:16` and `:109:16`\n- `crates/proto-blue-ws/src/keepalive.rs:242:20`\n- `crates/proto-blue-lexicon/src/lexicons.rs:360, 361, 371, 372, 376, 377`\n\nError from rustc 1.85:\n\n```\nerror[E0658]: `let` expressions in this position are unstable\n   --> proto-blue-identity-0.3.1/src/did.rs:108:16\n```\n\nTwo valid fixes upstream:\n1. Rewrite the let-chains as nested if-let patterns (preserves declared MSRV \"1.85\").\n2. Bump declared rust-version to \"1.88\" and publish a 0.3.2 patch.\n\nOption 1 keeps Polaris's downstream MSRV stable; option 2 forces every consumer to also bump.\n\nDownstream context: this surfaced while scaffolding a workspace (Polaris) that pinned proto-blue = \"0.3\" with rust-version = \"1.85\" matching the declared MSRV. Found via `cargo build --workspace` on rustc 1.85.0.",
+  "created_at": "2026-05-14T07:13:42.394963301Z",
+  "kind": "observation",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAVQmNaS9jWcodlSmkQoK8Hu+Bcijy88XHzuhhvi1x3l79xmMqcx+XHFuqpKnPkomvWlGuY/gcLk4LLLkfmn/QCA=="
+}
