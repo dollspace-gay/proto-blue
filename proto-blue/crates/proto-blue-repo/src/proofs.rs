@@ -238,10 +238,10 @@ fn serialize_node_block(node: &MstNode) -> Result<(Cid, Vec<u8>), RepoError> {
 fn find_gt_or_eq_leaf_index(node: &MstNode, target: &str) -> usize {
     let entries = node.entries();
     for (i, entry) in entries.iter().enumerate() {
-        if let NodeEntry::Leaf(leaf) = entry {
-            if leaf.key.as_str() >= target {
-                return i;
-            }
+        if let NodeEntry::Leaf(leaf) = entry
+            && leaf.key.as_str() >= target
+        {
+            return i;
         }
     }
     entries.len()

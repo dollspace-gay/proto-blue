@@ -381,15 +381,15 @@ fn parse_error_body(bytes: &[u8]) -> (Option<String>, Option<String>) {
 /// Parse a response body based on content type.
 fn parse_response_body(content_type: Option<&str>, bytes: &[u8]) -> serde_json::Value {
     if let Some(ct) = content_type {
-        if ct.contains("application/json") {
-            if let Ok(value) = serde_json::from_slice(bytes) {
-                return value;
-            }
+        if ct.contains("application/json")
+            && let Ok(value) = serde_json::from_slice(bytes)
+        {
+            return value;
         }
-        if ct.starts_with("text/") {
-            if let Ok(text) = std::str::from_utf8(bytes) {
-                return serde_json::Value::String(text.to_string());
-            }
+        if ct.starts_with("text/")
+            && let Ok(text) = std::str::from_utf8(bytes)
+        {
+            return serde_json::Value::String(text.to_string());
         }
     }
 

@@ -38,7 +38,7 @@ fn read_json(name: &str) -> serde_json::Value {
 
 fn decode_hex(s: &str) -> Vec<u8> {
     assert!(
-        s.len() % 2 == 0,
+        s.len().is_multiple_of(2),
         "odd-length hex string cannot be decoded: {s:?}"
     );
     let mut out = Vec::with_capacity(s.len() / 2);

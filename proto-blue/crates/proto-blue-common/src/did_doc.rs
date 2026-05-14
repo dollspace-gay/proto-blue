@@ -120,10 +120,10 @@ pub fn get_service_endpoint(
 ) -> Option<String> {
     let service = find_item_by_id_svc(doc, id)?;
 
-    if let Some(t) = expected_type {
-        if service.service_type != t {
-            return None;
-        }
+    if let Some(t) = expected_type
+        && service.service_type != t
+    {
+        return None;
     }
 
     let endpoint = service.service_endpoint.as_str()?;

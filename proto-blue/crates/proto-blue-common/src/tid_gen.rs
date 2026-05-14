@@ -63,12 +63,12 @@ pub fn next_tid(prev: Option<&Tid>) -> Tid {
     let timestamp = time * 1000 + state.timestamp_count;
     let tid = tid_from_time(timestamp, state.clock_id);
 
-    if let Some(prev) = prev {
-        if tid.as_str() <= prev.as_str() {
-            // Ensure monotonically increasing by bumping past prev
-            let prev_ts = s32_decode(&prev.as_str()[..11]);
-            return tid_from_time(prev_ts + 1, state.clock_id);
-        }
+    if let Some(prev) = prev
+        && tid.as_str() <= prev.as_str()
+    {
+        // Ensure monotonically increasing by bumping past prev
+        let prev_ts = s32_decode(&prev.as_str()[..11]);
+        return tid_from_time(prev_ts + 1, state.clock_id);
     }
 
     tid

@@ -47,3 +47,11 @@
 #   .claude/settings.json         — Claude Code project settings
 #   .claude/settings.local.json is per-developer, ignore separately if needed
 # === End crosslink managed ===
+
+# Per-crate .crosslink/ dirs are 100% machine-local cache. Only the
+# repo-root .crosslink/ is partially tracked (rules/, hook-config.json);
+# the crosslink-managed block above only ignores the root copy because
+# its `.crosslink/.cache/` rule is anchored to the .gitignore directory.
+# This rule keeps `git status` clean as crosslink hydrates per-subcrate
+# state anywhere under proto-blue/ (crates/, examples/, fuzz/, scripts/…).
+proto-blue/**/.crosslink/

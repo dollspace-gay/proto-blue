@@ -123,13 +123,13 @@ pub fn verify_repo(
     let commit = SignedCommit::from_lex_value(&commit_value)?;
 
     // Check expected DID.
-    if let Some(expected) = expected_did {
-        if commit.did != expected {
-            return Err(RepoError::InvalidCommit(format!(
-                "repo DID mismatch: expected {expected}, got {}",
-                commit.did
-            )));
-        }
+    if let Some(expected) = expected_did
+        && commit.did != expected
+    {
+        return Err(RepoError::InvalidCommit(format!(
+            "repo DID mismatch: expected {expected}, got {}",
+            commit.did
+        )));
     }
 
     // Verify signature.

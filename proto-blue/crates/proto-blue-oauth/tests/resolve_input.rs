@@ -202,10 +202,9 @@ fn spawn_sequence_on_listener_capturing(
             if let Some(req_line) = std::str::from_utf8(&buf)
                 .ok()
                 .and_then(|s| s.lines().next())
+                && let Some(path) = req_line.split_whitespace().nth(1)
             {
-                if let Some(path) = req_line.split_whitespace().nth(1) {
-                    captured.lock().await.push(path.to_string());
-                }
+                captured.lock().await.push(path.to_string());
             }
 
             let head = format!(

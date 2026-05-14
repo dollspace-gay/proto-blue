@@ -224,18 +224,16 @@ impl ModerationDecision {
                         LabelTarget::Content => &label_def.behaviors.content,
                     };
 
-                    if !downgraded {
-                        if let Some(action) = behavior.get(context) {
-                            match action {
-                                BehaviorValue::Blur => {
-                                    ui.blurs.push(cause.clone());
-                                    if *no_override {
-                                        ui.no_override = true;
-                                    }
+                    if !downgraded && let Some(action) = behavior.get(context) {
+                        match action {
+                            BehaviorValue::Blur => {
+                                ui.blurs.push(cause.clone());
+                                if *no_override {
+                                    ui.no_override = true;
                                 }
-                                BehaviorValue::Alert => ui.alerts.push(cause.clone()),
-                                BehaviorValue::Inform => ui.informs.push(cause.clone()),
                             }
+                            BehaviorValue::Alert => ui.alerts.push(cause.clone()),
+                            BehaviorValue::Inform => ui.informs.push(cause.clone()),
                         }
                     }
                 }
@@ -284,10 +282,10 @@ fn resolve_label_preference(
 
     // Check per-labeler preferences
     for labeler in &opts.prefs.labelers {
-        if labeler.did == label.src {
-            if let Some(pref) = labeler.labels.get(&label_def.identifier) {
-                return *pref;
-            }
+        if labeler.did == label.src
+            && let Some(pref) = labeler.labels.get(&label_def.identifier)
+        {
+            return *pref;
         }
     }
 

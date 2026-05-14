@@ -108,62 +108,62 @@ fn validate_string(path: &str, def: &LexString, value: &LexValue) -> ValidationR
         .ok_or_else(|| ValidationError::new(path, "Expected a string"))?;
 
     // Length checks (UTF-8 bytes)
-    if let Some(min) = def.min_length {
-        if s.len() < min {
-            return Err(ValidationError::new(
-                path,
-                format!("String too short: {} < {min} bytes", s.len()),
-            ));
-        }
+    if let Some(min) = def.min_length
+        && s.len() < min
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("String too short: {} < {min} bytes", s.len()),
+        ));
     }
-    if let Some(max) = def.max_length {
-        if s.len() > max {
-            return Err(ValidationError::new(
-                path,
-                format!("String too long: {} > {max} bytes", s.len()),
-            ));
-        }
+    if let Some(max) = def.max_length
+        && s.len() > max
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("String too long: {} > {max} bytes", s.len()),
+        ));
     }
 
     // Grapheme length checks
     if def.min_graphemes.is_some() || def.max_graphemes.is_some() {
         let grapheme_count = proto_blue_common::grapheme_len(s);
-        if let Some(min) = def.min_graphemes {
-            if grapheme_count < min {
-                return Err(ValidationError::new(
-                    path,
-                    format!("String too short: {grapheme_count} < {min} graphemes"),
-                ));
-            }
+        if let Some(min) = def.min_graphemes
+            && grapheme_count < min
+        {
+            return Err(ValidationError::new(
+                path,
+                format!("String too short: {grapheme_count} < {min} graphemes"),
+            ));
         }
-        if let Some(max) = def.max_graphemes {
-            if grapheme_count > max {
-                return Err(ValidationError::new(
-                    path,
-                    format!("String too long: {grapheme_count} > {max} graphemes"),
-                ));
-            }
+        if let Some(max) = def.max_graphemes
+            && grapheme_count > max
+        {
+            return Err(ValidationError::new(
+                path,
+                format!("String too long: {grapheme_count} > {max} graphemes"),
+            ));
         }
     }
 
     // Enum check
-    if let Some(enum_values) = &def.enum_values {
-        if !enum_values.iter().any(|v| v == s) {
-            return Err(ValidationError::new(
-                path,
-                format!("String not in enum: {s}"),
-            ));
-        }
+    if let Some(enum_values) = &def.enum_values
+        && !enum_values.iter().any(|v| v == s)
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("String not in enum: {s}"),
+        ));
     }
 
     // Const check
-    if let Some(const_val) = &def.const_value {
-        if s != const_val {
-            return Err(ValidationError::new(
-                path,
-                format!("String must be \"{const_val}\", got \"{s}\""),
-            ));
-        }
+    if let Some(const_val) = &def.const_value
+        && s != const_val
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("String must be \"{const_val}\", got \"{s}\""),
+        ));
     }
 
     // Format validation
@@ -207,37 +207,37 @@ fn validate_integer(path: &str, def: &LexInteger, value: &LexValue) -> Validatio
         .as_integer()
         .ok_or_else(|| ValidationError::new(path, "Expected an integer"))?;
 
-    if let Some(min) = def.minimum {
-        if n < min {
-            return Err(ValidationError::new(
-                path,
-                format!("Integer too small: {n} < {min}"),
-            ));
-        }
+    if let Some(min) = def.minimum
+        && n < min
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Integer too small: {n} < {min}"),
+        ));
     }
-    if let Some(max) = def.maximum {
-        if n > max {
-            return Err(ValidationError::new(
-                path,
-                format!("Integer too large: {n} > {max}"),
-            ));
-        }
+    if let Some(max) = def.maximum
+        && n > max
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Integer too large: {n} > {max}"),
+        ));
     }
-    if let Some(enum_values) = &def.enum_values {
-        if !enum_values.contains(&n) {
-            return Err(ValidationError::new(
-                path,
-                format!("Integer not in enum: {n}"),
-            ));
-        }
+    if let Some(enum_values) = &def.enum_values
+        && !enum_values.contains(&n)
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Integer not in enum: {n}"),
+        ));
     }
-    if let Some(const_val) = def.const_value {
-        if n != const_val {
-            return Err(ValidationError::new(
-                path,
-                format!("Integer must be {const_val}, got {n}"),
-            ));
-        }
+    if let Some(const_val) = def.const_value
+        && n != const_val
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Integer must be {const_val}, got {n}"),
+        ));
     }
 
     Ok(())
@@ -248,13 +248,13 @@ fn validate_boolean(path: &str, def: &LexBoolean, value: &LexValue) -> Validatio
         .as_bool()
         .ok_or_else(|| ValidationError::new(path, "Expected a boolean"))?;
 
-    if let Some(const_val) = def.const_value {
-        if b != const_val {
-            return Err(ValidationError::new(
-                path,
-                format!("Boolean must be {const_val}, got {b}"),
-            ));
-        }
+    if let Some(const_val) = def.const_value
+        && b != const_val
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Boolean must be {const_val}, got {b}"),
+        ));
     }
 
     Ok(())
@@ -265,21 +265,21 @@ fn validate_bytes(path: &str, def: &LexBytes, value: &LexValue) -> ValidationRes
         .as_bytes()
         .ok_or_else(|| ValidationError::new(path, "Expected bytes"))?;
 
-    if let Some(min) = def.min_length {
-        if b.len() < min {
-            return Err(ValidationError::new(
-                path,
-                format!("Bytes too short: {} < {min}", b.len()),
-            ));
-        }
+    if let Some(min) = def.min_length
+        && b.len() < min
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Bytes too short: {} < {min}", b.len()),
+        ));
     }
-    if let Some(max) = def.max_length {
-        if b.len() > max {
-            return Err(ValidationError::new(
-                path,
-                format!("Bytes too long: {} > {max}", b.len()),
-            ));
-        }
+    if let Some(max) = def.max_length
+        && b.len() > max
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Bytes too long: {} > {max}", b.len()),
+        ));
     }
 
     Ok(())
@@ -408,21 +408,21 @@ fn validate_array(
         .as_array()
         .ok_or_else(|| ValidationError::new(path, "Expected an array"))?;
 
-    if let Some(min) = def.min_length {
-        if arr.len() < min {
-            return Err(ValidationError::new(
-                path,
-                format!("Array too short: {} < {min}", arr.len()),
-            ));
-        }
+    if let Some(min) = def.min_length
+        && arr.len() < min
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Array too short: {} < {min}", arr.len()),
+        ));
     }
-    if let Some(max) = def.max_length {
-        if arr.len() > max {
-            return Err(ValidationError::new(
-                path,
-                format!("Array too long: {} > {max}", arr.len()),
-            ));
-        }
+    if let Some(max) = def.max_length
+        && arr.len() > max
+    {
+        return Err(ValidationError::new(
+            path,
+            format!("Array too long: {} > {max}", arr.len()),
+        ));
     }
 
     for (i, item) in arr.iter().enumerate() {

@@ -144,10 +144,10 @@ fn ensure_valid_handle(s: &str) -> Result<(), InvalidHandleError> {
     }
 
     // TLD must start with a letter
-    if let Some(tld) = labels.last() {
-        if !tld.starts_with(|c: char| c.is_ascii_alphabetic()) {
-            return Err(err("Handle TLD must start with an ASCII letter"));
-        }
+    if let Some(tld) = labels.last()
+        && !tld.starts_with(|c: char| c.is_ascii_alphabetic())
+    {
+        return Err(err("Handle TLD must start with an ASCII letter"));
     }
 
     if !HANDLE_REGEX.is_match(s) {

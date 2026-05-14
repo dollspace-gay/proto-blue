@@ -146,10 +146,10 @@ fn ensure_valid_nsid(s: &str) -> Result<(), InvalidNsidError> {
     }
 
     // First segment must not start with a digit
-    if let Some(first) = segments.first() {
-        if first.starts_with(|c: char| c.is_ascii_digit()) {
-            return Err(err("NSID first segment must not start with a digit"));
-        }
+    if let Some(first) = segments.first()
+        && first.starts_with(|c: char| c.is_ascii_digit())
+    {
+        return Err(err("NSID first segment must not start with a digit"));
     }
 
     if !NSID_REGEX.is_match(s) {

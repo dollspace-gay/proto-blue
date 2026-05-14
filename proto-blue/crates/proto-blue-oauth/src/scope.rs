@@ -152,18 +152,18 @@ impl Scope {
         }
 
         // Parameterized permission scope.
-        if let Some((head, tail)) = s.split_once(':') {
-            if let Some(ns) = PermissionNamespace::from_str_exact(head) {
-                if tail.is_empty() {
-                    return Err(ScopeError::MissingParameters {
-                        namespace: ns.as_str(),
-                    });
-                }
-                return Ok(Self::Permission {
-                    namespace: ns,
-                    parameters: tail.to_string(),
+        if let Some((head, tail)) = s.split_once(':')
+            && let Some(ns) = PermissionNamespace::from_str_exact(head)
+        {
+            if tail.is_empty() {
+                return Err(ScopeError::MissingParameters {
+                    namespace: ns.as_str(),
                 });
             }
+            return Ok(Self::Permission {
+                namespace: ns,
+                parameters: tail.to_string(),
+            });
         }
 
         Err(ScopeError::Unknown(s.to_string()))

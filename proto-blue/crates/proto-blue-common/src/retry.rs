@@ -45,10 +45,10 @@ where
                 let will_retry = retries < max_retries && wait_ms.is_some() && retryable(&err);
                 if will_retry {
                     retries += 1;
-                    if let Some(ms) = wait_ms {
-                        if ms > 0 {
-                            tokio::time::sleep(Duration::from_millis(ms)).await;
-                        }
+                    if let Some(ms) = wait_ms
+                        && ms > 0
+                    {
+                        tokio::time::sleep(Duration::from_millis(ms)).await;
                     }
                 } else {
                     return Err(err);

@@ -487,10 +487,10 @@ fn resolve_refs(def: &mut LexUserType, base_nsid: &str) {
                     resolve_refs(prop, base_nsid);
                 }
             }
-            if let Some(body) = &mut q.output {
-                if let Some(schema) = &mut body.schema {
-                    resolve_refs(schema, base_nsid);
-                }
+            if let Some(body) = &mut q.output
+                && let Some(schema) = &mut body.schema
+            {
+                resolve_refs(schema, base_nsid);
             }
         }
         LexUserType::Procedure(p) => {
@@ -499,15 +499,15 @@ fn resolve_refs(def: &mut LexUserType, base_nsid: &str) {
                     resolve_refs(prop, base_nsid);
                 }
             }
-            if let Some(body) = &mut p.input {
-                if let Some(schema) = &mut body.schema {
-                    resolve_refs(schema, base_nsid);
-                }
+            if let Some(body) = &mut p.input
+                && let Some(schema) = &mut body.schema
+            {
+                resolve_refs(schema, base_nsid);
             }
-            if let Some(body) = &mut p.output {
-                if let Some(schema) = &mut body.schema {
-                    resolve_refs(schema, base_nsid);
-                }
+            if let Some(body) = &mut p.output
+                && let Some(schema) = &mut body.schema
+            {
+                resolve_refs(schema, base_nsid);
             }
         }
         LexUserType::Subscription(s) => {

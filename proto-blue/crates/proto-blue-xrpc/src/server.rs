@@ -535,15 +535,15 @@ async fn dispatch(
 
     // Rate-limit check. Global first, then method-specific.
     if let Some(limiter) = &state.rate_limiter {
-        if let Some(global_key) = &state.global_rate_limit_key {
-            if let Err(e) = limiter.check(global_key, &headers) {
-                return e.into_response();
-            }
+        if let Some(global_key) = &state.global_rate_limit_key
+            && let Err(e) = limiter.check(global_key, &headers)
+        {
+            return e.into_response();
         }
-        if let Some(method_key) = &method.rate_limit_key {
-            if let Err(e) = limiter.check(method_key, &headers) {
-                return e.into_response();
-            }
+        if let Some(method_key) = &method.rate_limit_key
+            && let Err(e) = limiter.check(method_key, &headers)
+        {
+            return e.into_response();
         }
     }
 

@@ -30,10 +30,10 @@ pub fn check_muted_words(
 
     for word in muted_words {
         // Check expiration
-        if let Some(ref expires) = word.expires_at {
-            if expires.as_str() < now.as_str() {
-                continue;
-            }
+        if let Some(ref expires) = word.expires_at
+            && expires.as_str() < now.as_str()
+        {
+            continue;
         }
 
         // Check actor target exclusion

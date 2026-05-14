@@ -1473,10 +1473,10 @@ fn to_pascal_case(s: &str) -> String {
     }
 
     // Ensure it starts with uppercase
-    if let Some(first) = result.chars().next() {
-        if first.is_ascii_digit() {
-            result = format!("V{result}");
-        }
+    if let Some(first) = result.chars().next()
+        && first.is_ascii_digit()
+    {
+        result = format!("V{result}");
     }
 
     result

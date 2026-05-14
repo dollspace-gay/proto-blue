@@ -245,16 +245,16 @@ impl MstNode {
                             let prev_tree = prev_tree.clone();
                             new_entries.pop();
                             let (left, right) = prev_tree.split_around(key);
-                            if let Some(l) = left {
-                                if !l.entries.is_empty() {
-                                    new_entries.push(NodeEntry::Tree(l));
-                                }
+                            if let Some(l) = left
+                                && !l.entries.is_empty()
+                            {
+                                new_entries.push(NodeEntry::Tree(l));
                             }
                             new_entries.push(new_leaf.clone());
-                            if let Some(r) = right {
-                                if !r.entries.is_empty() {
-                                    new_entries.push(NodeEntry::Tree(r));
-                                }
+                            if let Some(r) = right
+                                && !r.entries.is_empty()
+                            {
+                                new_entries.push(NodeEntry::Tree(r));
                             }
                         } else {
                             new_entries.push(new_leaf.clone());
@@ -279,16 +279,16 @@ impl MstNode {
                 let last_tree = last_tree.clone();
                 new_entries.pop();
                 let (left, right) = last_tree.split_around(key);
-                if let Some(l) = left {
-                    if !l.entries.is_empty() {
-                        new_entries.push(NodeEntry::Tree(l));
-                    }
+                if let Some(l) = left
+                    && !l.entries.is_empty()
+                {
+                    new_entries.push(NodeEntry::Tree(l));
                 }
                 new_entries.push(new_leaf);
-                if let Some(r) = right {
-                    if !r.entries.is_empty() {
-                        new_entries.push(NodeEntry::Tree(r));
-                    }
+                if let Some(r) = right
+                    && !r.entries.is_empty()
+                {
+                    new_entries.push(NodeEntry::Tree(r));
                 }
             } else {
                 new_entries.push(new_leaf);
@@ -407,19 +407,19 @@ impl MstNode {
         }
 
         let mut new_entries = Vec::new();
-        if let Some(l) = left {
-            if !l.entries.is_empty() {
-                new_entries.push(NodeEntry::Tree(l));
-            }
+        if let Some(l) = left
+            && !l.entries.is_empty()
+        {
+            new_entries.push(NodeEntry::Tree(l));
         }
         new_entries.push(NodeEntry::Leaf(Leaf {
             key: key.to_string(),
             value,
         }));
-        if let Some(r) = right {
-            if !r.entries.is_empty() {
-                new_entries.push(NodeEntry::Tree(r));
-            }
+        if let Some(r) = right
+            && !r.entries.is_empty()
+        {
+            new_entries.push(NodeEntry::Tree(r));
         }
 
         let mut node = Self::from_entries(new_entries);
@@ -618,15 +618,15 @@ impl MstNode {
                     } else {
                         // This tree straddles the split point — recurse
                         let (sub_left, sub_right) = subtree.split_around(key);
-                        if let Some(sl) = sub_left {
-                            if !sl.entries.is_empty() {
-                                left_entries.push(NodeEntry::Tree(sl));
-                            }
+                        if let Some(sl) = sub_left
+                            && !sl.entries.is_empty()
+                        {
+                            left_entries.push(NodeEntry::Tree(sl));
                         }
-                        if let Some(sr) = sub_right {
-                            if !sr.entries.is_empty() {
-                                right_entries.push(NodeEntry::Tree(sr));
-                            }
+                        if let Some(sr) = sub_right
+                            && !sr.entries.is_empty()
+                        {
+                            right_entries.push(NodeEntry::Tree(sr));
                         }
                         past_key = true;
                     }
@@ -656,10 +656,10 @@ impl MstNode {
 
     /// If root only has a single tree child, trim to that child.
     fn trim_top(self) -> Self {
-        if self.entries.len() == 1 {
-            if let NodeEntry::Tree(subtree) = &self.entries[0] {
-                return subtree.clone().trim_top();
-            }
+        if self.entries.len() == 1
+            && let NodeEntry::Tree(subtree) = &self.entries[0]
+        {
+            return subtree.clone().trim_top();
         }
         self
     }
