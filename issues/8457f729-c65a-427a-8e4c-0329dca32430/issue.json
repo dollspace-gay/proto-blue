@@ -1,0 +1,10 @@
+{
+  "uuid": "8457f729-c65a-427a-8e4c-0329dca32430",
+  "display_id": 35,
+  "title": "ci: fix clippy regressions on rustc 1.95 + ignore per-crate .crosslink/ dirs",
+  "status": "open",
+  "priority": "high",
+  "created_by": "5kO0",
+  "created_at": "2026-05-14T11:33:30.342831728Z",
+  "updated_at": "2026-05-14T11:33:30.342831728Z"
+}
