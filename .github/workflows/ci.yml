@@ -91,6 +91,23 @@ jobs:
       - name: Check proto-blue-oauth (fetch-web)
         run: cargo check --target wasm32-unknown-unknown -p proto-blue-oauth --no-default-features --features fetch-web
 
+  msrv:
+    name: MSRV check (rust-version in Cargo.toml)
+    runs-on: ubuntu-latest
+    # Verifies the workspace's declared `rust-version` is honest: the code
+    # must actually compile on that toolchain, not just "the current stable."
+    # Bumping the MSRV requires editing both proto-blue/Cargo.toml AND the
+    # toolchain version below.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.88
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: proto-blue
+          key: msrv-1.88
+      - name: cargo check (workspace, all targets, locked)
+        run: cargo check --workspace --all-targets --locked
+
   docs:
     name: Build docs (all-features)
     runs-on: ubuntu-latest

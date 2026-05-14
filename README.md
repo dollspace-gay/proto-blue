@@ -14,7 +14,7 @@ This is a faithful 1:1 translation of the official [TypeScript SDK](https://gith
   live-PDS integration tests gated on env vars
 - 368 generated type modules from 322 Lexicon schemas
 - Zero `clippy` warnings, zero `unsafe` blocks
-- Requires **Rust 1.85+** (edition 2024)
+- Requires **Rust 1.88+** (edition 2024)
 
 v0.3.0 lands the full external-audit response (11 closed sub-issues):
 type-safe Agent surface using `proto-blue-syntax` newtypes,
@@ -326,7 +326,11 @@ cargo build --workspace
 cargo build --workspace --release
 ```
 
-**Minimum Supported Rust Version:** 1.85 (edition 2024)
+**Minimum Supported Rust Version:** 1.88 (edition 2024)
+
+The workspace uses let-chains (stabilized in Rust 1.88). CI verifies this
+toolchain in the `msrv` job — bumping the MSRV requires editing
+`proto-blue/Cargo.toml`, the README, and `.github/workflows/ci.yml` together.
 
 ## WASM support
 

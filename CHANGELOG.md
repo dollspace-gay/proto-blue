@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-05-14
+
+Packaging fix: the v0.3.1 workspace manifest declared `rust-version = "1.85"`
+but the code actually requires Rust 1.88 — `proto-blue-identity`,
+`proto-blue-ws`, and `proto-blue-lexicon` use let-chain syntax (`if let
+Some(x) = … && cond`) which was stabilized in Rust 1.88 (2025-06-26). On a
+1.85 toolchain `cargo build` would fail. No source behavior changes; this
+release corrects the manifest and the documentation, and adds a CI guard so
+the declared MSRV stays honest going forward.
+
+### Changed
+- `proto-blue` workspace: `rust-version = "1.85"` → `"1.88"` to match the
+  code actually shipped. (Independently, the `icu_*` dependency tree
+  required 1.86 anyway — the 1.85 number was doubly wrong.)
+- `README.md`: MSRV mentions updated to 1.88 with a note that let-chains
+  are the binding constraint.
+
+### Added
+- `.github/workflows/ci.yml`: new `msrv` job pinned to
+  `dtolnay/rust-toolchain@1.88` running `cargo check --workspace
+  --all-targets --locked`. Previously every CI job used `@stable`, so the
+  declared MSRV was unverified and could drift undetected. (#34)
+
 ## [0.3.1] - 2026-05-11
 
 Single breaking change to the `proto-blue-lex-data` public API: `Cid::version`
