@@ -1,0 +1,10 @@
+{
+  "uuid": "af518711-a5e5-4484-8be7-427c6a31a083",
+  "issue_uuid": "8457f729-c65a-427a-8e4c-0329dca32430",
+  "author": "5kO0",
+  "content": "Committed 14f8245: lint: clippy --fix sweep on rustc 1.95 + ignore per-subcrate .crosslink/ [#35]. Files: 28 files changed, 243 insertions(+), 247 deletions(-) — 19 .rs files (40 lint fixes via cargo clippy --fix, distribution: lexicon 18 / repo 11 / xrpc 4 / api 3 / common 3 / oauth 2 / syntax 2 / codegen 1 / crypto 1), .gitignore (broader rule for per-subcrate .crosslink/), 9 git-rm-cached deletions of last-edit-time files. Verification: cargo clippy --workspace --all-targets --locked -- -D warnings PASS; cargo test --workspace --locked PASS (67 suites); cargo +1.88.0 check PASS; cargo fmt --check PASS. Note: .crosslink/.last-hydrated-ref still shows as modified — this is repo-root hub-state that crosslink updates on every sync; not in scope for this commit.",
+  "created_at": "2026-05-14T11:40:19.834918919Z",
+  "kind": "result",
+  "signed_by": "SHA256:ctxpG7W1T587Q30Fxic8olghZFIwOtwOtUC9YIdBfeA",
+  "signature": "U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgecCSFoKcQJYlX/Amh2UH4WwGwaHmxmhYT3d0OPHdBgwAAAARY3Jvc3NsaW5rLWNvbW1lbnQAAAAAAAAABnNoYTUxMgAAAFMAAAALc3NoLWVkMjU1MTkAAABAY/0hU73WmGH2fwr1RWe7sK6/VTL3WYVuWcmEkiIwZotbzX8yXtzjyt3ppfLZCr5LyIbyUyfUylQrrsKYrQXDBA=="
+}
