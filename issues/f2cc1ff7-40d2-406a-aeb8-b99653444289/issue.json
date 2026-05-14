@@ -1,0 +1,10 @@
+{
+  "uuid": "f2cc1ff7-40d2-406a-aeb8-b99653444289",
+  "display_id": 33,
+  "title": "bug: proto-blue 0.3.1 declares rust-version 1.85 but uses 1.88 let-chain syntax",
+  "status": "open",
+  "priority": "high",
+  "created_by": "5kO0",
+  "created_at": "2026-05-14T07:13:39.800513252Z",
+  "updated_at": "2026-05-14T07:13:39.800513252Z"
+}
