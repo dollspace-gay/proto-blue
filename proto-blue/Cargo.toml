@@ -24,7 +24,7 @@ exclude = ["fuzz"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.2"
+version = "0.3.3"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/dollspace-gay/proto-blue"
@@ -32,23 +32,23 @@ rust-version = "1.88"
 
 [workspace.dependencies]
 # Internal crates
-proto-blue-syntax = { version = "0.3.2", path = "crates/proto-blue-syntax" }
-proto-blue-crypto = { version = "0.3.2", path = "crates/proto-blue-crypto" }
-proto-blue-lex-data = { version = "0.3.2", path = "crates/proto-blue-lex-data" }
-proto-blue-lex-cbor = { version = "0.3.2", path = "crates/proto-blue-lex-cbor" }
-proto-blue-lex-json = { version = "0.3.2", path = "crates/proto-blue-lex-json" }
-proto-blue-common = { version = "0.3.2", path = "crates/proto-blue-common" }
-proto-blue-lexicon = { version = "0.3.2", path = "crates/proto-blue-lexicon" }
-proto-blue-repo = { version = "0.3.2", path = "crates/proto-blue-repo", default-features = false }
-proto-blue-xrpc = { version = "0.3.2", path = "crates/proto-blue-xrpc", default-features = false }
+proto-blue-syntax = { version = "0.3.3", path = "crates/proto-blue-syntax" }
+proto-blue-crypto = { version = "0.3.3", path = "crates/proto-blue-crypto" }
+proto-blue-lex-data = { version = "0.3.3", path = "crates/proto-blue-lex-data" }
+proto-blue-lex-cbor = { version = "0.3.3", path = "crates/proto-blue-lex-cbor" }
+proto-blue-lex-json = { version = "0.3.3", path = "crates/proto-blue-lex-json" }
+proto-blue-common = { version = "0.3.3", path = "crates/proto-blue-common" }
+proto-blue-lexicon = { version = "0.3.3", path = "crates/proto-blue-lexicon" }
+proto-blue-repo = { version = "0.3.3", path = "crates/proto-blue-repo", default-features = false }
+proto-blue-xrpc = { version = "0.3.3", path = "crates/proto-blue-xrpc", default-features = false }
 # Network-layer subcrates: workspace deps default to features-off so the
 # target-conditional tables in `crates/proto-blue/Cargo.toml` can pick the
 # right backend per target. Standalone users of each subcrate still get
 # sensible defaults via `cargo add` (each crate's own `default` feature).
-proto-blue-ws = { version = "0.3.2", path = "crates/proto-blue-ws", default-features = false }
-proto-blue-identity = { version = "0.3.2", path = "crates/proto-blue-identity", default-features = false }
-proto-blue-api = { version = "0.3.2", path = "crates/proto-blue-api", default-features = false }
-proto-blue-oauth = { version = "0.3.2", path = "crates/proto-blue-oauth", default-features = false }
+proto-blue-ws = { version = "0.3.3", path = "crates/proto-blue-ws", default-features = false }
+proto-blue-identity = { version = "0.3.3", path = "crates/proto-blue-identity", default-features = false }
+proto-blue-api = { version = "0.3.3", path = "crates/proto-blue-api", default-features = false }
+proto-blue-oauth = { version = "0.3.3", path = "crates/proto-blue-oauth", default-features = false }
 
 # External dependencies
 serde = { version = "1", features = ["derive"] }
@@ -72,7 +72,7 @@ tokio-util = "0.7"
 axum = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 reqwest = { version = "0.12", features = ["json"] }
-hickory-resolver = "0.25"
+hickory-resolver = "0.26"
 tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 futures = "0.3"
 async-trait = "0.1"

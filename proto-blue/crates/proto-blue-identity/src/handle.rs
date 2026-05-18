@@ -19,7 +19,11 @@ use futures::future::{self, Either};
 #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use hickory_resolver::TokioResolver;
 #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
-use hickory_resolver::config::{NameServerConfigGroup, ResolverConfig};
+use hickory_resolver::config::{NameServerConfig, ResolverConfig};
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
+use hickory_resolver::net::runtime::TokioRuntimeProvider;
+#[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
+use hickory_resolver::proto::rr::RData;
 #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
 use std::future::Future;
 #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
@@ -156,24 +160,29 @@ impl HandleResolver {
     /// Unix, registry on Windows).
     #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn dns_lookup_system(&self, name: &str) -> Option<String> {
-        let resolver = TokioResolver::builder_tokio().ok()?.build();
+        // hickory-resolver 0.26 made `ResolverBuilder::build` fallible
+        // (returns `Result<Resolver<_>, NetError>`); 0.25 was infallible.
+        let resolver = TokioResolver::builder_tokio().ok()?.build().ok()?;
         self.run_txt_lookup(&resolver, name).await
     }
 
     /// DNS TXT lookup via a specific nameserver IP.
     #[cfg(all(feature = "dns", not(target_arch = "wasm32")))]
     async fn dns_lookup_via(&self, name: &str, ns: IpAddr) -> Option<String> {
-        let group = NameServerConfigGroup::from_ips_clear(
-            &[ns],
-            DNS_PORT,
-            /*trust_negative_responses=*/ true,
-        );
-        let config = ResolverConfig::from_parts(None, vec![], group);
-        let resolver = TokioResolver::builder_with_config(
-            config,
-            hickory_resolver::name_server::TokioConnectionProvider::default(),
-        )
-        .build();
+        // hickory-resolver 0.26 removed `NameServerConfigGroup`; the
+        // canonical way to build a single-server config is
+        // `NameServerConfig::udp_and_tcp(ip)` then `ResolverConfig::from_parts`.
+        // `DNS_PORT` is implied (53/UDP+TCP); a non-standard port would
+        // need a custom `ConnectionConfig`, not exercised here.
+        let _ = DNS_PORT; // kept so a future custom-port path stays linked
+        let mut ns_config = NameServerConfig::udp_and_tcp(ns);
+        ns_config.trust_negative_responses = true;
+        let config = ResolverConfig::from_parts(None, vec![], vec![ns_config]);
+        // 0.26 made `build()` fallible; we degrade to "no DID found here"
+        // on a build error, same as the system-resolver path.
+        let resolver = TokioResolver::builder_with_config(config, TokioRuntimeProvider::default())
+            .build()
+            .ok()?;
         self.run_txt_lookup(&resolver, name).await
     }
 
@@ -187,10 +196,24 @@ impl HandleResolver {
             .ok()?;
 
         let mut results = Vec::new();
-        for record in lookup.iter() {
-            let txt = record.to_string();
-            if let Some(did) = txt.strip_prefix(PREFIX) {
-                results.push(did.to_string());
+        // hickory-resolver 0.26 dropped the typed `TxtLookup` wrapper —
+        // `txt_lookup` now returns plain `Lookup`. Iterate its answers,
+        // pattern-match `RData::TXT`, and use the TXT-specific `Display`
+        // which renders the chunked txt_data into the on-the-wire string
+        // (i.e. just the bytes, no DNS metadata). 0.25 used
+        // `record.to_string()` directly on a `RData::TXT` item; the new
+        // `Record` Display includes the full RR header which would
+        // never match our `did=` prefix.
+        for record in lookup.answers() {
+            // 0.26's `Record::data` is a `pub` field of generic type `R`;
+            // direct field access avoids the `pub fn data(&self) -> &R`
+            // trait-bound ambiguity that the method-syntax resolution
+            // can't infer through `RData` in this context.
+            if let RData::TXT(txt) = &record.data {
+                let rendered = txt.to_string();
+                if let Some(did) = rendered.strip_prefix(PREFIX) {
+                    results.push(did.to_string());
+                }
             }
         }
         // The spec requires exactly one matching TXT record. Fewer or
