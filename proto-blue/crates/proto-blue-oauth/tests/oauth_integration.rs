@@ -1096,8 +1096,7 @@ async fn authorize_par_omits_client_assertion_when_as_does_not_advertise_alg() {
 
     let par_reply = Reply::json(
         201,
-        br#"{"request_uri":"urn:ietf:params:oauth:request_uri:par-pub","expires_in":90}"#
-            .to_vec(),
+        br#"{"request_uri":"urn:ietf:params:oauth:request_uri:par-pub","expires_in":90}"#.to_vec(),
     );
     let (par_base, cap) = spawn_oneshot(par_reply).await;
     let par_endpoint = format!("{par_base}/par");

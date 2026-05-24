@@ -399,12 +399,7 @@ impl OAuthClient {
         let authorization_url =
             if let Some(ref par_endpoint) = server_metadata.pushed_authorization_request_endpoint {
                 let par_response = self
-                    .pushed_authorization_request(
-                        par_endpoint,
-                        &params,
-                        &dpop_key,
-                        server_metadata,
-                    )
+                    .pushed_authorization_request(par_endpoint, &params, &dpop_key, server_metadata)
                     .await?;
 
                 let mut url = Url::parse(&server_metadata.authorization_endpoint)?;
