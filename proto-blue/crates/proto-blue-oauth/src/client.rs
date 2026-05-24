@@ -167,10 +167,17 @@ impl OAuthClient {
         let Some(key) = keyset.select_for(algs) else {
             return Ok(Vec::new());
         };
+        // `aud` is the AS issuer URL, not the token endpoint. atproto's
+        // reference AS (and the OAuth 2.1 / `oauth-provider` convention)
+        // validates the assertion against `issuer`; using the token
+        // endpoint URL causes the AS to reject with
+        // `unexpected "aud" claim value`. Using the issuer also lets the
+        // same assertion be reused at the PAR endpoint, where the audience
+        // is otherwise ambiguous.
         let assertion = crate::jwt_assertion::build_client_assertion(
             key,
             &self.client_metadata.client_id,
-            &server_metadata.token_endpoint,
+            &server_metadata.issuer,
         )?;
         Ok(vec![
             (
@@ -392,12 +399,7 @@ impl OAuthClient {
         let authorization_url =
             if let Some(ref par_endpoint) = server_metadata.pushed_authorization_request_endpoint {
                 let par_response = self
-                    .pushed_authorization_request(
-                        par_endpoint,
-                        &params,
-                        &dpop_key,
-                        &server_metadata.token_endpoint,
-                    )
+                    .pushed_authorization_request(par_endpoint, &params, &dpop_key, server_metadata)
                     .await?;
 
                 let mut url = Url::parse(&server_metadata.authorization_endpoint)?;
@@ -425,14 +427,27 @@ impl OAuthClient {
     }
 
     /// Send a Pushed Authorization Request (PAR).
+    ///
+    /// PAR endpoints require the same client authentication as the token
+    /// endpoint (RFC 9126 §2). For `private_key_jwt` clients that means
+    /// the `client_assertion` / `client_assertion_type` form fields must
+    /// be included alongside the authorization params — otherwise the AS
+    /// rejects with `invalid_request: client authentication method
+    /// "private_key_jwt" required a "client_assertion"`.
     async fn pushed_authorization_request(
         &self,
         par_endpoint: &str,
         params: &HashMap<&str, String>,
         dpop_key: &DpopKey,
-        _token_endpoint: &str,
+        server_metadata: &OAuthServerMetadata,
     ) -> Result<ParResponse, OAuthError> {
-        let body = encode_form(params.iter().map(|(k, v)| (*k, v.as_str())));
+        let auth_fields = self.client_auth_fields(server_metadata)?;
+        let mut all_fields: Vec<(String, String)> = params
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect();
+        all_fields.extend(auth_fields);
+        let body = encode_form(all_fields.iter().map(|(k, v)| (k.as_str(), v.as_str())));
         let dpop_proof = build_dpop_proof(dpop_key, "POST", par_endpoint, None, None)?;
 
         let resp = self

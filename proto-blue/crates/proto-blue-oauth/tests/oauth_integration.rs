@@ -1014,3 +1014,183 @@ async fn callback_verified_accepts_sub_match_and_records_aud() {
     assert_eq!(ts.sub, "did:plc:good");
     assert_eq!(ts.aud.as_deref(), Some("https://pds.example.com"));
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// PAR + `private_key_jwt` regression coverage
+// ─────────────────────────────────────────────────────────────────────
+
+/// Helper: decode the JWS payload of a compact-JWS `client_assertion`
+/// into a JSON value so tests can assert on its claims.
+fn decode_jws_payload(jws: &str) -> serde_json::Value {
+    use base64::Engine;
+    let mid = jws
+        .split('.')
+        .nth(1)
+        .expect("client_assertion must be a 3-part compact JWS");
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(mid)
+        .expect("payload base64url-decodes");
+    serde_json::from_slice(&bytes).expect("payload is JSON")
+}
+
+/// PAR endpoints require the same client authentication as the token
+/// endpoint (RFC 9126 §2). For `private_key_jwt` clients, the form body
+/// of the PAR request MUST carry `client_assertion_type` and a non-empty
+/// compact-JWS `client_assertion` — otherwise the AS rejects with
+/// `invalid_request` before any user interaction.
+#[tokio::test]
+async fn authorize_par_sends_client_assertion_for_private_key_jwt() {
+    use proto_blue_oauth::{ClientKey, ClientKeyset, DpopAlg};
+
+    let par_reply = Reply::json(
+        201,
+        br#"{"request_uri":"urn:ietf:params:oauth:request_uri:par-pk","expires_in":90}"#.to_vec(),
+    );
+    let (par_base, cap) = spawn_oneshot(par_reply).await;
+    let par_endpoint = format!("{par_base}/par");
+
+    use p256::ecdsa::SigningKey as P256SigningKey;
+    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let key = ClientKey {
+        alg: DpopAlg::Es256,
+        kid: "test-key".into(),
+        d: sk.to_bytes().to_vec(),
+    };
+
+    let client = OAuthClient::new(client_metadata_with_id(
+        "https://app.example.com/metadata.json",
+    ))
+    .with_keyset(ClientKeyset::new().with_key(key));
+
+    let mut meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        "https://as.example.com/token",
+        Some(&par_endpoint),
+        None,
+    );
+    meta.token_endpoint_auth_signing_alg_values_supported = Some(vec!["ES256".into()]);
+
+    let (_url, _state) = client.authorize(&meta).await.unwrap();
+
+    let req = cap.lock().await.clone().expect("PAR request captured");
+    let form = parse_form(&req.body);
+    assert_eq!(
+        form.get("client_assertion_type").map(String::as_str),
+        Some("urn:ietf:params:oauth:client-assertion-type:jwt-bearer"),
+        "PAR body must carry client_assertion_type for private_key_jwt"
+    );
+    let assertion = form
+        .get("client_assertion")
+        .expect("PAR body must carry a non-empty client_assertion");
+    assert_eq!(assertion.matches('.').count(), 2, "compact JWS has 3 parts");
+}
+
+/// When the AS doesn't advertise any `token_endpoint_auth_signing_alg`
+/// the client falls back to public-client mode — the PAR body must not
+/// contain `client_assertion` even though a keyset is configured.
+/// Counterpart to the equivalent assertion for `refresh_token`.
+#[tokio::test]
+async fn authorize_par_omits_client_assertion_when_as_does_not_advertise_alg() {
+    use proto_blue_oauth::{ClientKey, ClientKeyset, DpopAlg};
+
+    let par_reply = Reply::json(
+        201,
+        br#"{"request_uri":"urn:ietf:params:oauth:request_uri:par-pub","expires_in":90}"#.to_vec(),
+    );
+    let (par_base, cap) = spawn_oneshot(par_reply).await;
+    let par_endpoint = format!("{par_base}/par");
+
+    use p256::ecdsa::SigningKey as P256SigningKey;
+    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let key = ClientKey {
+        alg: DpopAlg::Es256,
+        kid: "test-key".into(),
+        d: sk.to_bytes().to_vec(),
+    };
+
+    let client = OAuthClient::new(client_metadata_with_id(
+        "https://app.example.com/metadata.json",
+    ))
+    .with_keyset(ClientKeyset::new().with_key(key));
+
+    // No `token_endpoint_auth_signing_alg_values_supported`.
+    let meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        "https://as.example.com/token",
+        Some(&par_endpoint),
+        None,
+    );
+
+    let (_url, _state) = client.authorize(&meta).await.unwrap();
+
+    let req = cap.lock().await.clone().expect("PAR request captured");
+    let form = parse_form(&req.body);
+    assert!(!form.contains_key("client_assertion"));
+    assert!(!form.contains_key("client_assertion_type"));
+}
+
+/// The `aud` claim on a `private_key_jwt` `client_assertion` must equal
+/// the AS issuer URL, not the token endpoint URL. atproto's reference AS
+/// validates against `issuer` and rejects assertions whose `aud` points
+/// at the token endpoint (`unexpected "aud" claim value`).
+#[tokio::test]
+async fn client_assertion_aud_is_issuer_not_token_endpoint() {
+    use proto_blue_oauth::{ClientKey, ClientKeyset, DpopAlg};
+
+    let par_reply = Reply::json(
+        201,
+        br#"{"request_uri":"urn:ietf:params:oauth:request_uri:aud-check","expires_in":90}"#
+            .to_vec(),
+    );
+    let (par_base, cap) = spawn_oneshot(par_reply).await;
+    let par_endpoint = format!("{par_base}/par");
+
+    use p256::ecdsa::SigningKey as P256SigningKey;
+    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let key = ClientKey {
+        alg: DpopAlg::Es256,
+        kid: "test-key".into(),
+        d: sk.to_bytes().to_vec(),
+    };
+
+    let client = OAuthClient::new(client_metadata_with_id(
+        "https://app.example.com/metadata.json",
+    ))
+    .with_keyset(ClientKeyset::new().with_key(key));
+
+    let mut meta = server_metadata(
+        "https://as.example.com",
+        "https://as.example.com/authorize",
+        "https://as.example.com/token",
+        Some(&par_endpoint),
+        None,
+    );
+    meta.token_endpoint_auth_signing_alg_values_supported = Some(vec!["ES256".into()]);
+
+    let (_url, _state) = client.authorize(&meta).await.unwrap();
+
+    let req = cap.lock().await.clone().expect("PAR request captured");
+    let form = parse_form(&req.body);
+    let assertion = form
+        .get("client_assertion")
+        .expect("client_assertion must be present");
+    let payload = decode_jws_payload(assertion);
+
+    assert_eq!(
+        payload.get("aud").and_then(|v| v.as_str()),
+        Some("https://as.example.com"),
+        "aud must be the AS issuer URL, not the token endpoint URL"
+    );
+    assert_eq!(
+        payload.get("iss").and_then(|v| v.as_str()),
+        Some("https://app.example.com/metadata.json"),
+        "iss must be the client_id"
+    );
+    assert_eq!(
+        payload.get("sub").and_then(|v| v.as_str()),
+        Some("https://app.example.com/metadata.json"),
+        "sub must be the client_id"
+    );
+}
