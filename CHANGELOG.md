@@ -19,6 +19,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   lockfile now also holds `syn` 3.0.9 next to `syn` 2.
 
 ### Fixed
+- `proto-blue-repo`: deleting a record from an MST could drop other
+  records. When the deleted leaf sat between two subtrees,
+  `MstNode::append_merge` concatenated the subtrees' entry lists, leaving two
+  subtrees side by side. A node cannot encode that (each subtree hangs off
+  the leaf before it, or `l`), so one subtree was lost when the node was
+  serialised, and the commit stored a tree missing those records.
+  `append_merge` now merges the two edge subtrees recursively, as the atproto
+  reference `appendMerge` does. Seen in production: one delete removed six
+  other records from a repository. Regression tests cover that repository's
+  exact keys, and a 300-key scrambled delete sequence checks that the tree
+  stays exact and canonical (identical to a fresh build of the remaining
+  keys) after every delete.
 - `.github/workflows/fuzz.yml`: the step name `Fuzz (PR: 60s, scheduled:
   180s)` was unquoted, and its `: ` made the file invalid YAML, so GitHub
   rejected the workflow and reported a failed run with no jobs on every

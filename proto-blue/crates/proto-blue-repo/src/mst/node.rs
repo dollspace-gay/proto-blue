@@ -647,10 +647,28 @@ impl MstNode {
         (left, right)
     }
 
-    /// Merge two trees (all keys in `other` must be > all keys in `self`).
+    /// Merge two trees of the same layer (all keys in `other` must be > all
+    /// keys in `self`).
+    ///
+    /// When `self` ends with a subtree and `other` begins with one, those two
+    /// subtrees cover adjacent key ranges with no leaf between them, so they
+    /// are merged into one, recursively, as the atproto reference
+    /// `appendMerge` does. Concatenating the entry lists instead left two
+    /// subtrees side by side, which a node cannot encode (each subtree hangs
+    /// off the leaf before it, or `l`), so one of them was lost when the node
+    /// was serialised: a delete could drop neighbouring records.
     fn append_merge(&self, other: &Self) -> Self {
         let mut entries = self.entries.clone();
-        entries.extend(other.entries.iter().cloned());
+        let mut right = other.entries.iter().cloned().peekable();
+        if let (Some(NodeEntry::Tree(left_edge)), Some(NodeEntry::Tree(right_edge))) =
+            (entries.last(), right.peek())
+        {
+            let merged = left_edge.append_merge(right_edge);
+            entries.pop();
+            right.next();
+            entries.push(NodeEntry::Tree(merged));
+        }
+        entries.extend(right);
         Self::from_entries(entries)
     }
 
@@ -854,6 +872,89 @@ mod tests {
 
     fn make_cid(data: &str) -> Cid {
         proto_blue_lex_cbor::cid_for_lex(&LexValue::String(data.into())).unwrap()
+    }
+
+    /// Serialise a tree and load it back, as a stored repository would.
+    fn round_trip(tree: &MstNode) -> MstNode {
+        let (root, blocks) = tree.get_all_blocks().unwrap();
+        MstNode::load(&root, &blocks).unwrap()
+    }
+
+    /// A delete between two subtrees must merge them, not lose one. These
+    /// keys are a live repository's (tree shape depends only on the keys):
+    /// deleting the feed generator dropped the other five non-profile records
+    /// when the subtrees on either side were concatenated.
+    #[test]
+    fn delete_between_subtrees_keeps_every_other_record() {
+        let keys = [
+            "app.bsky.actor.profile/self",
+            "app.bsky.feed.generator/3mxukp2fzvk2u",
+            "app.bsky.graph.follow/3mxukoz5puc2u",
+            "app.bsky.graph.list/3mxukozoc522u",
+            "app.bsky.graph.list/3mxukozsso22u",
+            "app.bsky.graph.starterpack/3mxukp22ax22u",
+            "app.bsky.labeler.service/self",
+        ];
+        let mut tree = MstNode::empty();
+        for key in keys {
+            tree = tree.add(key, make_cid(key)).unwrap();
+        }
+        let tree = round_trip(&tree)
+            .delete("app.bsky.feed.generator/3mxukp2fzvk2u")
+            .unwrap();
+        let kept: Vec<String> = round_trip(&tree)
+            .leaves()
+            .into_iter()
+            .map(|l| l.key)
+            .collect();
+        let expected: Vec<&str> = keys
+            .iter()
+            .copied()
+            .filter(|k| *k != "app.bsky.feed.generator/3mxukp2fzvk2u")
+            .collect();
+        assert_eq!(kept, expected);
+    }
+
+    /// Every key of a larger tree deleted in a scrambled order: after each
+    /// delete, the serialised tree holds exactly the remaining keys, and is
+    /// the same tree a fresh build of those keys gives (the MST is canonical).
+    #[test]
+    fn scrambled_deletes_keep_the_tree_exact_and_canonical() {
+        let keys: Vec<String> = (0..300)
+            .map(|i| format!("app.bsky.feed.post/3m{:011}", (i * 7_919) % 1_000_003))
+            .collect();
+        let mut tree = MstNode::empty();
+        for key in &keys {
+            tree = tree.add(key, make_cid(key)).unwrap();
+        }
+        let mut remaining: std::collections::BTreeSet<String> = keys.iter().cloned().collect();
+        let mut order: Vec<usize> = (0..keys.len()).collect();
+        order.sort_by_key(|i| (i * 131) % keys.len());
+        for i in order {
+            tree = round_trip(&tree).delete(&keys[i]).unwrap();
+            remaining.remove(&keys[i]);
+            let held: Vec<String> = round_trip(&tree)
+                .leaves()
+                .into_iter()
+                .map(|l| l.key)
+                .collect();
+            assert_eq!(
+                held,
+                remaining.iter().cloned().collect::<Vec<_>>(),
+                "after deleting {}",
+                keys[i]
+            );
+            let mut fresh = MstNode::empty();
+            for key in &remaining {
+                fresh = fresh.add(key, make_cid(key)).unwrap();
+            }
+            assert_eq!(
+                tree.get_all_blocks().unwrap().0,
+                fresh.get_all_blocks().unwrap().0,
+                "the tree after deleting {} is not the canonical tree of the rest",
+                keys[i]
+            );
+        }
     }
 
     #[test]
