@@ -54,7 +54,7 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked
       # Short on PRs, longer on scheduled runs.
-      - name: Fuzz (PR: 60s, scheduled: 180s)
+      - name: "Fuzz (PR: 60s, scheduled: 180s)"
         run: |
           if [ "${{ github.event_name }}" = "schedule" ]; then
             BUDGET=180
