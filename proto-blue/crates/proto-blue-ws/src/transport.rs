@@ -196,7 +196,7 @@ mod tungstenite_impl {
                 use tokio_tungstenite::Connector;
                 use tokio_tungstenite::connect_async_tls_with_config;
 
-                let request = url.into_client_request().map_err(WsError::WebSocket)?;
+                let request = url.into_client_request().map_err(WsError::from)?;
                 let connector = Connector::Rustls(config.clone());
                 let (stream, _) = connect_async_tls_with_config(
                     request,
@@ -229,7 +229,7 @@ mod tungstenite_impl {
                         }
                         // Skipped frame (raw `Message::Frame`) — keep reading.
                     }
-                    Some(Err(e)) => return Err(WsError::WebSocket(e)),
+                    Some(Err(e)) => return Err(WsError::from(e)),
                     None => return Ok(None),
                 }
             }
@@ -239,11 +239,11 @@ mod tungstenite_impl {
             self.stream
                 .send(frame_to_message(frame))
                 .await
-                .map_err(WsError::WebSocket)
+                .map_err(WsError::from)
         }
 
         async fn close(&mut self) -> Result<(), WsError> {
-            self.stream.close(None).await.map_err(WsError::WebSocket)
+            self.stream.close(None).await.map_err(WsError::from)
         }
     }
 }

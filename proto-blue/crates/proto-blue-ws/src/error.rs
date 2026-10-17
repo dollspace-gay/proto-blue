@@ -49,10 +49,12 @@ impl DisconnectError {
 /// Errors that can occur during WebSocket operations.
 #[derive(Debug, thiserror::Error)]
 pub enum WsError {
-    /// Tungstenite (native) transport error.
+    /// Tungstenite (native) transport error. Boxed: tungstenite's error is
+    /// large (136+ bytes), and carrying it inline made every
+    /// `Result<_, WsError>` that size (`clippy::result_large_err`).
     #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
     #[error("WebSocket error: {0}")]
-    WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
+    WebSocket(Box<tokio_tungstenite::tungstenite::Error>),
 
     /// Transport-level error from a non-tungstenite backend (e.g. the
     /// browser `WebSocket` on wasm). Carries a backend-provided message;
@@ -80,13 +82,20 @@ pub enum WsError {
     Other(String),
 }
 
+#[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
+impl From<tokio_tungstenite::tungstenite::Error> for WsError {
+    fn from(err: tokio_tungstenite::tungstenite::Error) -> Self {
+        Self::WebSocket(Box::new(err))
+    }
+}
+
 /// Check if an error is likely a network error that we should reconnect for.
-pub const fn is_reconnectable(err: &WsError) -> bool {
+pub fn is_reconnectable(err: &WsError) -> bool {
     match err {
         #[cfg(all(feature = "tungstenite", not(target_arch = "wasm32")))]
         WsError::WebSocket(e) => {
             matches!(
-                e,
+                **e,
                 tokio_tungstenite::tungstenite::Error::ConnectionClosed
                     | tokio_tungstenite::tungstenite::Error::AlreadyClosed
                     | tokio_tungstenite::tungstenite::Error::Io(_)
