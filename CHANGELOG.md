@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- `proto-blue-ws`: `WsError::WebSocket` now carries
+  `Box<tokio_tungstenite::tungstenite::Error>`. Tungstenite's error is large
+  (136+ bytes), and carrying it inline made every `Result<_, WsError>` that
+  size, which Rust 1.99's clippy rejects (`result_large_err`). `From` still
+  converts a tungstenite error with `?`. `is_reconnectable` is no longer
+  `const fn`, since it now looks inside the box.
+- `async-trait` 0.1.89 → 0.1.92 in the lockfile: earlier releases emit a
+  `#[must_use]` that Rust 1.99's clippy rejects (`double_must_use`) on
+  `proto-blue-common`'s `FetchHandler`. 0.1.92 builds with `syn` 3, so the
+  lockfile now also holds `syn` 3.0.9 next to `syn` 2.
+
 ### Fixed
 - `proto-blue-repo`: deleting a record from an MST could drop other
   records. When the deleted leaf sat between two subtrees,
@@ -19,6 +31,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   exact keys, and a 300-key scrambled delete sequence checks that the tree
   stays exact and canonical (identical to a fresh build of the remaining
   keys) after every delete.
+- `.github/workflows/fuzz.yml`: the step name `Fuzz (PR: 60s, scheduled:
+  180s)` was unquoted, and its `: ` made the file invalid YAML, so GitHub
+  rejected the workflow and reported a failed run with no jobs on every
+  push. The name is now quoted.
 
 ## [0.3.2] - 2026-05-14
 
