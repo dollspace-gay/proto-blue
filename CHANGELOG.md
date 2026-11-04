@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `proto-blue-repo`: `mst::Mst`, a lazily loaded MST. Nodes load on demand
+  from a `BlockSource`, so a write touches only the paths it changes
+  (O(depth), not O(repo size)), and unchanged subtrees are shared between
+  versions. A source is synchronous; a block it lacks surfaces as
+  `RepoError::MissingBlock(cid)`, and since operations are pure the caller
+  can fetch the block (for example from an async database) and retry. The
+  algorithms follow the atproto reference MST, so trees match `MstNode` byte
+  for byte. `Mst::diff` gives the MST nodes a change added (with their
+  blocks) and the nodes it left unreferenced, net across a batch, walking only
+  changed paths. `Mst::covering_proof` gives the blocks that prove a key's
+  presence or absence and let a consumer invert an operation on it, as
+  firehose `#commit` events need. Decoding is strict: keys must be valid,
+  ordered and on their node's layer. Randomized tests check root CIDs and
+  exact diffs against `MstNode` over 60 batches, that a lookup reads only one
+  path, and that covering proofs alone suffice to invert every batch back to
+  the previous root.
+
 ### Changed
 - `proto-blue-ws`: `WsError::WebSocket` now carries
   `Box<tokio_tungstenite::tungstenite::Error>`. Tungstenite's error is large
