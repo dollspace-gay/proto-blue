@@ -702,6 +702,12 @@ fn split_around(
 
 fn trim_top(nref: NodeRef, src: &dyn BlockSource) -> Result<NodeRef, RepoError> {
     let node = load(&nref, src)?;
+    // An empty tree is layer 0, as the reference has it: keeping the
+    // deleted key's layer would put later, lower keys under a phantom
+    // level (the bytes are the same; the next adds aren't).
+    if node.entries.is_empty() {
+        return Ok(new_node(0, Vec::new()));
+    }
     if node.entries.len() == 1
         && let Entry::Tree(only) = &node.entries[0]
     {
@@ -836,6 +842,42 @@ mod tests {
     fn empty_tree_matches_eager() {
         let (cid, _) = MstNode::empty().get_all_blocks().unwrap();
         assert_eq!(Mst::empty().root_cid().unwrap(), cid);
+    }
+
+    /// Emptying a tree whose keys sit above layer 0, then adding lower
+    /// keys, gives the canonical tree (the empty tree is layer 0).
+    #[test]
+    fn a_tree_emptied_from_a_high_layer_grows_back_canonically() {
+        let high: Vec<String> = (0..4000)
+            .map(key)
+            .filter(|k| leading_zeros_on_hash(k) >= 1)
+            .take(3)
+            .collect();
+        let low: Vec<String> = (0..4000)
+            .map(key)
+            .filter(|k| leading_zeros_on_hash(k) == 0)
+            .take(5)
+            .collect();
+        for n in 1..=high.len() {
+            let mut t = Mst::empty();
+            for k in &high[..n] {
+                t = t.add(k, cid_of(k), &NoBlocks).unwrap();
+            }
+            for k in &high[..n] {
+                t = t.delete(k, &NoBlocks).unwrap();
+            }
+            assert_eq!(t.root_cid().unwrap(), Mst::empty().root_cid().unwrap());
+            let mut records = BTreeMap::new();
+            for k in &low {
+                t = t.add(k, cid_of(k), &NoBlocks).unwrap();
+                records.insert(k.clone(), cid_of(k));
+                assert_eq!(
+                    t.root_cid().unwrap(),
+                    eager(&records).0,
+                    "{n} high keys, then {k}"
+                );
+            }
+        }
     }
 
     #[test]
