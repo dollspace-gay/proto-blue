@@ -120,14 +120,14 @@ pub fn build_client_assertion(
     let sig_bytes: Vec<u8> = match key.alg {
         DpopAlg::Es256 => {
             use p256::ecdsa::{Signature, SigningKey, signature::Signer};
-            let sk = SigningKey::from_bytes(key.d.as_slice().into())
+            let sk = SigningKey::from_slice(&key.d)
                 .map_err(|e| OAuthError::Other(format!("invalid P-256 key: {e}")))?;
             let sig: Signature = sk.sign(signing_input.as_bytes());
             sig.to_bytes().to_vec()
         }
         DpopAlg::Es256k => {
             use k256::ecdsa::{Signature, SigningKey, signature::Signer};
-            let sk = SigningKey::from_bytes(key.d.as_slice().into())
+            let sk = SigningKey::from_slice(&key.d)
                 .map_err(|e| OAuthError::Other(format!("invalid secp256k1 key: {e}")))?;
             let sig: Signature = sk.sign(signing_input.as_bytes());
             sig.to_bytes().to_vec()
@@ -144,8 +144,8 @@ mod tests {
     /// Generate an ES256 test key. Returns `(ClientKey, verifying_jwk)`.
     fn gen_es256_key(kid: &str) -> ClientKey {
         use p256::ecdsa::SigningKey;
-        use p256::elliptic_curve::rand_core::OsRng;
-        let sk = SigningKey::random(&mut OsRng);
+        use p256::elliptic_curve::Generate as _;
+        let sk = SigningKey::generate();
         ClientKey {
             alg: DpopAlg::Es256,
             kid: kid.to_string(),
@@ -185,7 +185,7 @@ mod tests {
     fn client_assertion_signature_verifies_against_corresponding_public_key() {
         use p256::ecdsa::{Signature, SigningKey, VerifyingKey, signature::Verifier};
 
-        let sk = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let sk = <SigningKey as p256::elliptic_curve::Generate>::generate();
         let vk: VerifyingKey = *sk.verifying_key();
         let key = ClientKey {
             alg: DpopAlg::Es256,

@@ -157,8 +157,7 @@ fn common_tid_generation() {
     for ch in tid1.as_str().chars() {
         assert!(
             ('2'..='7').contains(&ch) || ch.is_ascii_lowercase(),
-            "TID character '{}' not in [2-7a-z]",
-            ch
+            "TID character '{ch}' not in [2-7a-z]"
         );
     }
 }

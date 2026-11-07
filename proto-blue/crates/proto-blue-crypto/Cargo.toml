@@ -27,9 +27,11 @@ proptest = { workspace = true }
 
 # Browser entropy — k256/p256/rand transitively depend on getrandom, which
 # refuses to compile for wasm32-unknown-unknown without an explicit backend.
-# The `js` feature routes it through `crypto.getRandomValues()`.
+# rand 0.8 uses getrandom 0.2 (the `js` feature) and the 0.14 curve crates
+# getrandom 0.4 (`wasm_js`); both route through `crypto.getRandomValues()`.
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
 
 [lints]
 workspace = true

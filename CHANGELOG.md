@@ -25,6 +25,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the previous root.
 
 ### Changed
+- `proto-blue-crypto`, `proto-blue-oauth`: k256 and p256 0.14 (ecdsa 0.17,
+  elliptic-curve 0.14), off the 0.13 line whose crypto-bigint 0.5 has
+  RUSTSEC-2026-0387 (operations meant to be constant-time could branch on
+  secret values, which matters when signing with secret keys). Signatures and
+  key encodings are unchanged; the crypto interop vectors still pass. Keys are
+  generated from the OS RNG through `elliptic_curve::Generate`. On wasm32 the
+  curve crates use getrandom 0.4, enabled with its `wasm_js` feature.
 - `proto-blue-ws`: `WsError::WebSocket` now carries
   `Box<tokio_tungstenite::tungstenite::Error>`. Tungstenite's error is large
   (136+ bytes), and carrying it inline made every `Result<_, WsError>` that
