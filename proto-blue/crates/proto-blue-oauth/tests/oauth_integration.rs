@@ -814,7 +814,7 @@ async fn refresh_sends_private_key_jwt_client_assertion() {
     // Fresh ES256 key for the test — signing correctness is already
     // covered by unit tests; here we assert wire-level presence.
     use p256::ecdsa::SigningKey as P256SigningKey;
-    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let sk = <P256SigningKey as p256::elliptic_curve::Generate>::generate();
     let key = ClientKey {
         alg: DpopAlg::Es256,
         kid: "test-key".into(),
@@ -884,7 +884,7 @@ async fn refresh_omits_client_assertion_when_as_does_not_advertise_alg() {
     let token_endpoint = format!("{token_base}/token");
 
     use p256::ecdsa::SigningKey as P256SigningKey;
-    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let sk = <P256SigningKey as p256::elliptic_curve::Generate>::generate();
     let key = ClientKey {
         alg: DpopAlg::Es256,
         kid: "test-key".into(),
@@ -1050,7 +1050,7 @@ async fn authorize_par_sends_client_assertion_for_private_key_jwt() {
     let par_endpoint = format!("{par_base}/par");
 
     use p256::ecdsa::SigningKey as P256SigningKey;
-    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let sk = <P256SigningKey as p256::elliptic_curve::Generate>::generate();
     let key = ClientKey {
         alg: DpopAlg::Es256,
         kid: "test-key".into(),
@@ -1102,7 +1102,7 @@ async fn authorize_par_omits_client_assertion_when_as_does_not_advertise_alg() {
     let par_endpoint = format!("{par_base}/par");
 
     use p256::ecdsa::SigningKey as P256SigningKey;
-    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let sk = <P256SigningKey as p256::elliptic_curve::Generate>::generate();
     let key = ClientKey {
         alg: DpopAlg::Es256,
         kid: "test-key".into(),
@@ -1148,7 +1148,7 @@ async fn client_assertion_aud_is_issuer_not_token_endpoint() {
     let par_endpoint = format!("{par_base}/par");
 
     use p256::ecdsa::SigningKey as P256SigningKey;
-    let sk = P256SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+    let sk = <P256SigningKey as p256::elliptic_curve::Generate>::generate();
     let key = ClientKey {
         alg: DpopAlg::Es256,
         kid: "test-key".into(),

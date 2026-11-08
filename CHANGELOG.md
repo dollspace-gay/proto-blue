@@ -6,7 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- `proto-blue-repo`: `mst::Mst`, a lazily loaded MST. Nodes load on demand
+  from a `BlockSource`, so a write touches only the paths it changes
+  (O(depth), not O(repo size)), and unchanged subtrees are shared between
+  versions. A source is synchronous; a block it lacks surfaces as
+  `RepoError::MissingBlock(cid)`, and since operations are pure the caller
+  can fetch the block (for example from an async database) and retry. The
+  algorithms follow the atproto reference MST, so trees match `MstNode` byte
+  for byte. `Mst::diff` gives the MST nodes a change added (with their
+  blocks) and the nodes it left unreferenced, net across a batch, walking only
+  changed paths. `Mst::covering_proof` gives the blocks that prove a key's
+  presence or absence and let a consumer invert an operation on it, as
+  firehose `#commit` events need. Decoding is strict: keys must be valid,
+  ordered and on their node's layer. Randomized tests check root CIDs and
+  exact diffs against `MstNode` over 60 batches, that a lookup reads only one
+  path, and that covering proofs alone suffice to invert every batch back to
+  the previous root.
+
 ### Changed
+- `proto-blue-crypto`, `proto-blue-oauth`: k256 and p256 0.14 (ecdsa 0.17,
+  elliptic-curve 0.14), off the 0.13 line whose crypto-bigint 0.5 has
+  RUSTSEC-2026-0387 (operations meant to be constant-time could branch on
+  secret values, which matters when signing with secret keys). Signatures and
+  key encodings are unchanged; the crypto interop vectors still pass. Keys are
+  generated from the OS RNG through `elliptic_curve::Generate`. On wasm32 the
+  curve crates use getrandom 0.4, enabled with its `wasm_js` feature.
 - `proto-blue-ws`: `WsError::WebSocket` now carries
   `Box<tokio_tungstenite::tungstenite::Error>`. Tungstenite's error is large
   (136+ bytes), and carrying it inline made every `Result<_, WsError>` that

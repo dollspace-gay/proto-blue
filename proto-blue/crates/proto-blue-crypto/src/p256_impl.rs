@@ -4,9 +4,9 @@ use p256::ecdsa::{
     Signature, SigningKey, VerifyingKey,
     signature::hazmat::{PrehashSigner as _, PrehashVerifier as _},
 };
-use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
-use p256::{EncodedPoint, PublicKey, SecretKey};
-use rand::rngs::OsRng;
+use p256::elliptic_curve::Generate as _;
+use p256::elliptic_curve::sec1::{FromSec1Point, ToSec1Point};
+use p256::{PublicKey, Sec1Point, SecretKey};
 
 use crate::did_key::format_did_key;
 use crate::error::CryptoError;
@@ -23,7 +23,7 @@ pub struct P256Keypair {
 impl P256Keypair {
     /// Generate a new random P-256 keypair.
     pub fn generate() -> Self {
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         Self { signing_key }
     }
 
@@ -44,9 +44,9 @@ impl P256Keypair {
 
     /// Return a verifier for a compressed public key (33 bytes).
     pub fn verifier_from_compressed(compressed: &[u8]) -> Result<P256Verifier, CryptoError> {
-        let point = EncodedPoint::from_bytes(compressed)
+        let point = Sec1Point::from_bytes(compressed)
             .map_err(|e| CryptoError::InvalidKey(e.to_string()))?;
-        let public_key = PublicKey::from_encoded_point(&point);
+        let public_key = PublicKey::from_sec1_point(&point);
         if public_key.is_none().into() {
             return Err(CryptoError::InvalidKey(
                 "Invalid P-256 compressed public key".to_string(),
@@ -72,7 +72,7 @@ impl keypair::Signer for P256Keypair {
             .signing_key
             .sign_prehash(&msg_hash)
             .map_err(|e| CryptoError::VerificationFailed(e.to_string()))?;
-        let normalized = sig.normalize_s().unwrap_or(sig);
+        let normalized = sig.normalize_s();
         Ok(normalized.to_bytes().to_vec())
     }
 }
@@ -85,7 +85,7 @@ impl keypair::Keypair for P256Keypair {
 
     fn public_key_compressed(&self) -> Vec<u8> {
         let vk = self.verifying_key();
-        let point = vk.to_encoded_point(true); // true = compressed
+        let point = vk.to_sec1_point(true); // true = compressed
         point.as_bytes().to_vec()
     }
 }
@@ -108,7 +108,7 @@ impl keypair::Verifier for P256Verifier {
             .map_err(|e| CryptoError::VerificationFailed(e.to_string()))?;
 
         // Reject high-S signatures
-        if signature.normalize_s().is_some() {
+        if signature.normalize_s() != signature {
             return Ok(false);
         }
 
@@ -123,7 +123,7 @@ impl keypair::Verifier for P256Verifier {
 
         // Try compact format first
         if let Ok(signature) = Signature::from_slice(sig) {
-            let normalized = signature.normalize_s().unwrap_or(signature);
+            let normalized = signature.normalize_s();
             if self
                 .verifying_key
                 .verify_prehash(&msg_hash, &normalized)
@@ -135,7 +135,7 @@ impl keypair::Verifier for P256Verifier {
 
         // Try DER format
         if let Ok(signature) = Signature::from_der(sig) {
-            let normalized = signature.normalize_s().unwrap_or(signature);
+            let normalized = signature.normalize_s();
             if self
                 .verifying_key
                 .verify_prehash(&msg_hash, &normalized)
@@ -151,13 +151,13 @@ impl keypair::Verifier for P256Verifier {
 
 /// Compress a P-256 public key.
 pub fn compress_pubkey(uncompressed: &[u8]) -> Result<Vec<u8>, CryptoError> {
-    let point = EncodedPoint::from_bytes(uncompressed)
-        .map_err(|e| CryptoError::InvalidKey(e.to_string()))?;
-    let pk = PublicKey::from_encoded_point(&point);
+    let point =
+        Sec1Point::from_bytes(uncompressed).map_err(|e| CryptoError::InvalidKey(e.to_string()))?;
+    let pk = PublicKey::from_sec1_point(&point);
     if pk.is_none().into() {
         return Err(CryptoError::InvalidKey("Invalid P-256 point".to_string()));
     }
-    Ok(pk.unwrap().to_encoded_point(true).as_bytes().to_vec())
+    Ok(pk.unwrap().to_sec1_point(true).as_bytes().to_vec())
 }
 
 /// Decompress a P-256 public key.
@@ -169,12 +169,12 @@ pub fn decompress_pubkey(compressed: &[u8]) -> Result<Vec<u8>, CryptoError> {
         )));
     }
     let point =
-        EncodedPoint::from_bytes(compressed).map_err(|e| CryptoError::InvalidKey(e.to_string()))?;
-    let pk = PublicKey::from_encoded_point(&point);
+        Sec1Point::from_bytes(compressed).map_err(|e| CryptoError::InvalidKey(e.to_string()))?;
+    let pk = PublicKey::from_sec1_point(&point);
     if pk.is_none().into() {
         return Err(CryptoError::InvalidKey("Invalid P-256 point".to_string()));
     }
-    Ok(pk.unwrap().to_encoded_point(false).as_bytes().to_vec())
+    Ok(pk.unwrap().to_sec1_point(false).as_bytes().to_vec())
 }
 
 #[cfg(test)]
@@ -210,6 +210,24 @@ mod tests {
         let private_bytes = kp.export_private_key();
         let kp2 = P256Keypair::from_private_key(&private_bytes).unwrap();
         assert_eq!(kp.public_key_compressed(), kp2.public_key_compressed());
+    }
+
+    #[test]
+    fn verify_refuses_high_s_and_verify_malleable_accepts_it() {
+        let kp = P256Keypair::generate();
+        let msg = b"hello atproto";
+        let low = Signature::from_slice(&kp.sign(msg).unwrap()).unwrap();
+        let (r, s) = low.split_scalars();
+        let high = Signature::from_scalars(r, -*s).unwrap();
+        assert_ne!(high, low, "negating s gives the high-S twin");
+
+        let verifier = P256Keypair::verifier_from_compressed(&kp.public_key_compressed()).unwrap();
+        assert!(verifier.verify(msg, &low.to_bytes()).unwrap());
+        assert!(
+            !verifier.verify(msg, &high.to_bytes()).unwrap(),
+            "strict verification refuses a high-S signature"
+        );
+        assert!(verifier.verify_malleable(msg, &high.to_bytes()).unwrap());
     }
 
     #[test]

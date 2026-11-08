@@ -78,11 +78,11 @@ impl DpopKey {
     /// Generate a new ES256 (P-256) `DPoP` key pair.
     pub fn generate_es256() -> Result<Self, OAuthError> {
         use p256::ecdsa::SigningKey;
-        use p256::elliptic_curve::rand_core::OsRng;
+        use p256::elliptic_curve::Generate as _;
 
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
-        let point = verifying_key.to_encoded_point(false);
+        let point = verifying_key.to_sec1_point(false);
         let x_bytes = point
             .x()
             .ok_or_else(|| OAuthError::Other("missing x coordinate".into()))?;
@@ -106,11 +106,11 @@ impl DpopKey {
     /// `"secp256k1"` per RFC 8812.
     pub fn generate_es256k() -> Result<Self, OAuthError> {
         use k256::ecdsa::SigningKey;
-        use k256::elliptic_curve::rand_core::OsRng;
+        use k256::elliptic_curve::Generate as _;
 
-        let signing_key = SigningKey::random(&mut OsRng);
+        let signing_key = SigningKey::generate();
         let verifying_key = signing_key.verifying_key();
-        let point = verifying_key.to_encoded_point(false);
+        let point = verifying_key.to_sec1_point(false);
         let x_bytes = point
             .x()
             .ok_or_else(|| OAuthError::Other("missing x coordinate".into()))?;
@@ -225,14 +225,14 @@ pub fn build_dpop_proof(
     let sig_bytes: Vec<u8> = match key.alg {
         DpopAlg::Es256 => {
             use p256::ecdsa::{Signature, SigningKey, signature::Signer};
-            let signing_key = SigningKey::from_bytes(d_bytes.as_slice().into())
+            let signing_key = SigningKey::from_slice(&d_bytes)
                 .map_err(|e| OAuthError::Other(format!("Invalid P-256 key: {e}")))?;
             let signature: Signature = signing_key.sign(signing_input.as_bytes());
             signature.to_bytes().to_vec()
         }
         DpopAlg::Es256k => {
             use k256::ecdsa::{Signature, SigningKey, signature::Signer};
-            let signing_key = SigningKey::from_bytes(d_bytes.as_slice().into())
+            let signing_key = SigningKey::from_slice(&d_bytes)
                 .map_err(|e| OAuthError::Other(format!("Invalid secp256k1 key: {e}")))?;
             let signature: Signature = signing_key.sign(signing_input.as_bytes());
             signature.to_bytes().to_vec()
@@ -401,7 +401,7 @@ mod tests {
     #[test]
     fn es256k_proof_verifies_with_embedded_public_jwk() {
         use k256::ecdsa::{Signature, VerifyingKey, signature::Verifier};
-        use k256::elliptic_curve::sec1::EncodedPoint;
+        use k256::elliptic_curve::sec1::Sec1Point;
 
         let key = DpopKey::generate_es256k().unwrap();
         let proof = build_dpop_proof(&key, "POST", "https://example.com", None, None).unwrap();
@@ -417,12 +417,12 @@ mod tests {
         let y = URL_SAFE_NO_PAD
             .decode(header["jwk"]["y"].as_str().unwrap())
             .unwrap();
-        let point = EncodedPoint::<k256::Secp256k1>::from_affine_coordinates(
-            x.as_slice().into(),
-            y.as_slice().into(),
+        let point = Sec1Point::<k256::Secp256k1>::from_affine_coordinates(
+            x.as_slice().try_into().unwrap(),
+            y.as_slice().try_into().unwrap(),
             false,
         );
-        let verifying_key = VerifyingKey::from_encoded_point(&point).unwrap();
+        let verifying_key = VerifyingKey::from_sec1_point(&point).unwrap();
 
         let sig_bytes = URL_SAFE_NO_PAD.decode(parts[2]).unwrap();
         let sig = Signature::from_slice(&sig_bytes).unwrap();
@@ -438,7 +438,7 @@ mod tests {
     #[test]
     fn es256_proof_verifies_with_embedded_public_jwk() {
         use p256::ecdsa::{Signature, VerifyingKey, signature::Verifier};
-        use p256::elliptic_curve::sec1::EncodedPoint;
+        use p256::elliptic_curve::sec1::Sec1Point;
 
         let key = DpopKey::generate_es256().unwrap();
         let proof = build_dpop_proof(&key, "POST", "https://example.com", None, None).unwrap();
@@ -453,12 +453,12 @@ mod tests {
         let y = URL_SAFE_NO_PAD
             .decode(header["jwk"]["y"].as_str().unwrap())
             .unwrap();
-        let point = EncodedPoint::<p256::NistP256>::from_affine_coordinates(
-            x.as_slice().into(),
-            y.as_slice().into(),
+        let point = Sec1Point::<p256::NistP256>::from_affine_coordinates(
+            x.as_slice().try_into().unwrap(),
+            y.as_slice().try_into().unwrap(),
             false,
         );
-        let verifying_key = VerifyingKey::from_encoded_point(&point).unwrap();
+        let verifying_key = VerifyingKey::from_sec1_point(&point).unwrap();
 
         let sig_bytes = URL_SAFE_NO_PAD.decode(parts[2]).unwrap();
         let sig = Signature::from_slice(&sig_bytes).unwrap();

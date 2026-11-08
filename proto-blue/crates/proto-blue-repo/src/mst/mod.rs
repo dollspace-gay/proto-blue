@@ -1,8 +1,10 @@
 //! Merkle Search Tree implementation for AT Protocol repositories.
 
+pub mod lazy;
 pub mod node;
 pub mod util;
 
+pub use lazy::{BlockSource, Mst, MstDiff, MstOp, NoBlocks};
 pub use node::{Leaf, MstNode, NodeEntry};
 pub use util::{
     NodeData, TreeEntry, cid_for_entries, count_prefix_len, deserialize_node_data,
